@@ -135,8 +135,8 @@ input int    InpMaxTradesPerKZ      = 2;
 input double InpMaxDailyLossPercent = 3.0;
 input int    InpMaxConsecLosses     = 3;
 input int    InpPauseMinutes        = 60;
-input double InpSweepSLBufferATR    = 0.25;
-input double InpZoneSLBufferATR     = 0.2;
+input double InpSweepSLBufferATR    = 0.35;
+input double InpZoneSLBufferATR     = 0.3;
 
 input group "=== News filter ==="
 input double InpNewsHourNY            = 8.5; // 08:30 NY (CPI/NFP-style slot)
@@ -1012,11 +1012,18 @@ void ManageOpenPosition()
       }
    }
 
-   StructEvt st;
-   if(GetRecentStruct(1, true, !isBuy, st))
+   // Only force-exit on an opposing CHoCH before TP1 is banked. Once TP1 is
+   // taken and SL sits at breakeven, the resting SL/TP2 already protect the
+   // trade - closing here too was capping winners at ~breakeven instead of
+   // letting them run to TP2, which was dragging every setup's R:R down.
+   if(!g_tp1Taken)
    {
-      trade.PositionClose(ticket);
-      return;
+      StructEvt st;
+      if(GetRecentStruct(1, true, !isBuy, st))
+      {
+         trade.PositionClose(ticket);
+         return;
+      }
    }
 
    if(g_openSetup==SETUP_B && GetNYHourDecimal() >= InpSetupB_CutoffHour)
