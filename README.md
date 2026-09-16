@@ -100,3 +100,93 @@ EA tự vào lệnh sẵn). Để tự động hoá, mình đã lược bỏ/đ�
 indicator ICT Full Suite gốc — có nhiều điểm đã đơn giản hoá như liệt kê
 ở trên. EA không đảm bảo lợi nhuận; luôn kiểm thử kỹ trên demo và chỉ
 giao dịch với số vốn bạn chấp nhận rủi ro mất.
+
+---
+
+# XAUUSD Mean Reversion EA (MT5, khung M5)
+
+EA thứ hai trong repo, theo đúng SPEC "Mean Reversion (Stoch + MACD + ADX
++ ATR + EMA + M1 Confirm)": chiến lược **bắt đảo chiều** tại vùng cực trị
+Stochastic — khác hẳn logic thuận xu hướng của EA ICT ở trên. File EA:
+`MQL5/Experts/XAUUSD_MeanReversion_M5.mq5`.
+
+## Logic tóm tắt
+
+- **Trigger M5**: Stochastic(100,3,3, SMA, Low/High) chạm vùng cực trị
+  (≥85 Sell / ≤15 Buy) **và** MACD(12,26,9) cắt Signal cùng chiều, đánh
+  giá trên nến M5 vừa đóng cửa (không repaint).
+- **Gate điều kiện** (kiểm tra cả lúc arm tín hiệu lẫn lúc M1 xác nhận):
+  ADX(14) phải ≤ ngưỡng (ADX cao = chặn, vì đây là chiến lược đảo chiều),
+  ATR(14) phải nằm trong khoảng Min–Max (đơn vị giá), EMA filter M15/M30
+  (tuỳ chọn bật/tắt) không cho lệnh đi ngược hẳn trend lớn, ngoài khung
+  giờ chặn 00:00–02:00 giờ server, không có tin High impact (Economic
+  Calendar built-in, lọc theo currency USD), và chưa có lệnh nào đang mở.
+- **Xác nhận M1**: sau khi trigger M5 thoả, EA "arm" tín hiệu và chờ tối
+  đa `InpM1_ConfirmMaxMinutes` phút (mặc định 15) để xuất hiện Pin Bar
+  hoặc Engulfing đúng chiều trên M1; hết hạn thì huỷ tín hiệu. Khi mẫu
+  hình xuất hiện, gate điều kiện được kiểm tra lại lần nữa trước khi vào
+  lệnh thật (phòng trường hợp tin tức/giờ giao dịch thay đổi trong lúc
+  chờ).
+- **Quản lý lệnh**: SL/TP cố định theo đơn vị giá (`InpSL_Price`,
+  `InpTP_Price` — mặc định 5/10, tương ứng "50/100 pip" theo cách quy đổi
+  1 giá = 10 pip trong tài liệu gốc), dời SL về hoà vốn khi lời đạt
+  `InpSLBE_TriggerPrice`, và đóng sớm nếu MACD trên khung `InpEarlyClose_Timeframe`
+  (mặc định M15) cắt ngược hướng lệnh đang mở. Không nhồi lệnh — chỉ 1
+  lệnh/lúc theo magic number.
+- **Dashboard**: panel text trên chart (góc trên-trái) hiển thị từng điều
+  kiện + giá trị hiện tại + trạng thái, đổi màu xanh (đạt)/đỏ (chặn)/vàng
+  (đang chờ M1) theo đúng mẫu trong SPEC.
+
+## Diễn giải các điểm SPEC còn mơ hồ (đọc trước khi tin tưởng số liệu)
+
+1. **EMA filter "không chặn cứng 100%"**: SPEC mô tả bộ lọc EMA là "lọc
+   bớt" chứ không chặn tuyệt đối, nhưng chỉ cho 3 input
+   (`UseEMAFilter`, `EMA_Period`, `EMA_Timeframe`) mà không có ngưỡng dung
+   sai nào khác. Cách hiểu đã lập trình: khi bật, đây **là** một chặn có
+   điều kiện theo hướng (chặn BUY nếu giá M5 đang dưới EMA khung lớn =
+   ngược hẳn downtrend; chặn SELL nếu giá đang trên EMA = ngược hẳn
+   uptrend) — tính "không chặn cứng 100%" nằm ở chỗ toàn bộ bộ lọc có thể
+   tắt hẳn qua input để so sánh có/không dùng, đúng như SPEC yêu cầu "bật
+   tắt được qua input để tự test". Nếu bạn muốn một vùng đệm mềm hơn
+   (theo ATR chẳng hạn) thay vì so sánh giá đóng cửa trực tiếp với EMA,
+   cần bổ sung thêm input riêng.
+2. **Đơn vị "giá" trong SL/TP/SLBE/ATR**: SPEC ghi rõ ATR_MinPoints/
+   MaxPoints "theo đơn vị giá" (ví dụ 1.5–15.0), và SL "5 giá (50 pip)"
+   / TP "10 giá (100 pip)" ngụ ý 1 "giá" = 10 "pip" (tức 1 giá = $1 đối
+   với Gold nếu 1 pip công cộng đồng vàng = $0.10). Vì vậy toàn bộ các
+   input này (`InpSL_Price`, `InpTP_Price`, `InpSLBE_TriggerPrice`,
+   `InpATR_MinPoints`, `InpATR_MaxPoints`) được lập trình là **đơn vị giá
+   trực tiếp** (cộng/trừ thẳng vào price, không nhân với `_Point`) —
+   không phải "points" theo nghĩa kỹ thuật MQL5 (`_Point`). Kiểm tra lại
+   kỹ trên tài khoản/broker của bạn trước khi live vì số digit giá Gold
+   khác nhau giữa các sàn.
+3. **`Server_GMT_Offset`**: chỉ mang tính hiển thị/tham khảo — điều kiện
+   giờ chặn (`BlockStartHour`/`BlockEndHour`) so sánh trực tiếp với giờ
+   server hiện tại (`TimeCurrent()`), không cần quy đổi qua offset vì
+   SPEC đã cho khung giờ chặn ở dạng giờ server sẵn.
+4. **News filter**: dùng `CalendarValueHistory(..., NULL, "USD")` — lọc
+   theo currency USD (đồng tiền định giá của XAUUSD) thay vì theo country,
+   vì tin ảnh hưởng Gold chủ yếu là tin kinh tế Mỹ. Nếu `CalendarValueHistory`
+   trả về 0 hoặc lỗi (dữ liệu lịch kinh tế chưa đồng bộ trong terminal),
+   EA **fail-open** (không chặn) — cần đảm bảo lịch kinh tế đã được tải
+   (mở MT5, kết nối tài khoản có hỗ trợ Calendar) trước khi tin vào bộ
+   lọc này, đặc biệt khi backtest.
+5. **Pin Bar / Engulfing**: dùng ngưỡng tỷ lệ phổ biến (wick ≥ 2× body và
+   ≥ 60% range, wick đối diện ≤ 25% range cho Pin Bar; body nến sau bao
+   trọn body nến trước cho Engulfing) — đây là công thức heuristic tự
+   xây, SPEC không cho công thức chính xác.
+
+## Cài đặt & backtest
+
+1. Copy file vào `MQL5/Experts/`, mở MetaEditor, biên dịch (F7). Môi
+   trường này không có MetaTrader để compile/test — kiểm tra kỹ lỗi cú
+   pháp nếu có trước khi chạy thật.
+2. Gắn EA vào chart **XAUUSD, khung M5**.
+3. Backtest trong Strategy Tester với **Every tick based on real ticks**;
+   nếu bật `InpUseNewsFilter`, đảm bảo lịch kinh tế lịch sử đã có trong
+   Tester (MT5 hỗ trợ mô phỏng Calendar trong Tester từ các build gần
+   đây). EA cần dữ liệu M1 (cho xác nhận mẫu hình) và M15/M30 (cho EMA
+   filter/early close) — Tester sẽ tự tải khi cần.
+4. Backtest/demo nhiều tuần, nhiều điều kiện thị trường trước khi cân
+   nhắc live, và tinh chỉnh lại các ngưỡng (ADX threshold, ATR band, EMA
+   period, ngưỡng Pin Bar/Engulfing) theo dữ liệu thực tế.
