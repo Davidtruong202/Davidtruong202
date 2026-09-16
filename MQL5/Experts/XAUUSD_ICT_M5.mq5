@@ -147,6 +147,12 @@ input int InpMagicNumber = 20260912;
 input int InpSlippage    = 30;
 input int InpATRPeriod   = 14;
 
+input group "=== Telegram alert ==="
+input bool   InpEnableTelegram     = false; // requires api.telegram.org whitelisted (see README)
+input string InpTelegramToken      = "";    // BotFather bot token
+input string InpTelegramChatID     = "";    // numeric chat id (from getUpdates)
+input bool   InpTelegramTestOnInit = true;  // send one test message on load to confirm setup
+
 //====================================================================
 // Globals
 //====================================================================
@@ -187,6 +193,57 @@ bool       g_tp1Taken = false;
 
 long g_cntBarsEvaluated=0, g_cntSweeps=0, g_cntZones=0, g_cntBOS=0, g_cntCHoCH=0;
 long g_cntTradesA=0, g_cntTradesB=0, g_cntTradesC=0, g_cntTradesD=0;
+
+//====================================================================
+// Telegram
+//====================================================================
+string CharToStr(ushort code)
+{
+   uchar arr[1];
+   arr[0] = (uchar)code;
+   return CharArrayToString(arr, 0, 1);
+}
+
+// ASCII-safe URL encoder - keep alert text in plain ASCII (no dấu). MQL5
+// works with UTF-16 code units here, not UTF-8 bytes, so percent-encoding
+// accented Vietnamese correctly would need extra UTF-8 packing.
+string UrlEncode(string text)
+{
+   string result = "";
+   int len = StringLen(text);
+   for(int i=0; i<len; i++)
+   {
+      ushort ch = StringGetCharacter(text, i);
+      if((ch>='A'&&ch<='Z')||(ch>='a'&&ch<='z')||(ch>='0'&&ch<='9')||ch=='-'||ch=='_'||ch=='.'||ch=='~')
+         result += CharToStr(ch);
+      else if(ch==' ')
+         result += "+";
+      else
+         result += StringFormat("%%%02X", ch);
+   }
+   return result;
+}
+
+void SendTelegram(string text)
+{
+   if(!InpEnableTelegram) return;
+   if(InpTelegramToken=="" || InpTelegramChatID=="")
+   {
+      Print("[Telegram] Token or Chat ID missing, skipping alert.");
+      return;
+   }
+
+   string url = "https://api.telegram.org/bot"+InpTelegramToken+"/sendMessage?chat_id="+InpTelegramChatID+"&text="+UrlEncode(text);
+   char   data[];
+   char   result[];
+   string resultHeaders;
+   ResetLastError();
+   int res = WebRequest("GET", url, "", 5000, data, result, resultHeaders);
+   if(res==-1)
+      PrintFormat("[Telegram] WebRequest failed, err=%d. In MT5: Tools > Options > Expert Advisors > 'Allow WebRequest for listed URL' and add https://api.telegram.org", GetLastError());
+   else if(res!=200)
+      PrintFormat("[Telegram] HTTP %d: %s", res, CharArrayToString(result));
+}
 
 //====================================================================
 // Timezone helpers
@@ -819,6 +876,8 @@ bool ExecuteEntry(ENUM_SETUP setup, bool bullish, double entry, double sl, doubl
          default: break;
       }
       PrintFormat("[ENTRY] %s dir=%s entry=%.2f sl=%.2f tp1=%.2f tp2=%.2f", cmt, bullish?"BUY":"SELL", entry, sl, tp1, tp2);
+      SendTelegram(StringFormat("%s - %s\n%s\nEntry: %.2f  SL: %.2f\nTP1: %.2f  TP2: %.2f  Lots: %.2f",
+                   _Symbol, cmt, bullish?"BUY":"SELL", entry, sl, tp1, tp2, lots));
    }
    return ok;
 }
@@ -1091,6 +1150,9 @@ int OnInit()
    g_currentDay = TimeCurrent() - (TimeCurrent()%86400);
    g_curKZ = KZ_NONE;
 
+   if(InpEnableTelegram && InpTelegramTestOnInit)
+      SendTelegram(StringFormat("%s ICT EA attached. Telegram alerts are ON.", _Symbol));
+
    return(INIT_SUCCEEDED);
 }
 
@@ -1154,12 +1216,16 @@ void OnTradeTransaction(const MqlTradeTransaction &trans,
                  + HistoryDealGetDouble(trans.deal, DEAL_SWAP)
                  + HistoryDealGetDouble(trans.deal, DEAL_COMMISSION);
 
+   SendTelegram(StringFormat("%s - trade closed\nResult: %s%.2f", _Symbol, profit>=0?"+":"", profit));
+
    if(profit < 0) g_consecLosses++; else g_consecLosses=0;
    if(g_consecLosses >= InpMaxConsecLosses)
    {
       g_pausedUntil = TimeCurrent() + InpPauseMinutes*60;
       g_consecLosses = 0;
       Print("Max consecutive losses reached. Pausing until ", TimeToString(g_pausedUntil));
+      SendTelegram(StringFormat("%s - paused after %d consecutive losses until %s",
+                   _Symbol, InpMaxConsecLosses, TimeToString(g_pausedUntil, TIME_DATE|TIME_MINUTES)));
    }
 
    if(!HasOpenPosition())

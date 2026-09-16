@@ -45,6 +45,23 @@ bạn gặp với bản EA trước.
 - Lọc tin: không vào lệnh trong `InpNewsBlackoutMinBefore` phút trước
   `InpNewsHourNY` (mặc định 08:30 NY).
 
+## Thông báo Telegram (EA)
+
+EA giờ tự bắn Telegram ở các mốc quan trọng (không chỉ indicator vẽ vùng
+mới có, để "hoàn toàn" cả EA lẫn indicator đều báo được):
+
+- Vào lệnh: tên setup, hướng BUY/SELL, entry/SL/TP1/TP2, khối lượng.
+- Đóng lệnh: kết quả lãi/lỗ của deal vừa đóng.
+- Bị tạm khoá sau `InpMaxConsecLosses` lệnh thua liên tiếp: thời điểm mở
+  khoá lại.
+
+Bật bằng `InpEnableTelegram = true` + `InpTelegramToken` + `InpTelegramChatID`
+(cùng cách lấy token/chat id và whitelist `https://api.telegram.org` trong
+Tools → Options → Expert Advisors, xem chi tiết ở mục Telegram của
+indicator bên dưới — dùng chung 1 bot cho cả EA và indicator cũng được,
+chỉ cần dùng cùng token/chat id). `InpTelegramTestOnInit = true` sẽ gửi
+1 tin xác nhận ngay khi gắn EA vào chart.
+
 ## Những đơn giản hoá so với tài liệu gốc (đọc kỹ trước khi tin tưởng số liệu)
 
 Tài liệu bạn gửi mô tả một **indicator/dashboard** trực quan (không phải
