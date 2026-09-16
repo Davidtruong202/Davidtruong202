@@ -50,11 +50,12 @@ bạn gặp với bản EA trước.
 Tài liệu bạn gửi mô tả một **indicator/dashboard** trực quan (không phải
 EA tự vào lệnh sẵn). Để tự động hoá, mình đã lược bỏ/đơn giản hoá:
 
-1. **Không vẽ chart, không dashboard, không Telegram** — các tham số thuần
-   thị giác trong tài liệu (MaxSwingLiq, MaxOB/MaxFVG, HideFilled,
-   ExtendBars, Theme, vị trí dashboard, TgEnable...) không ảnh hưởng tới
-   quyết định giao dịch nên bị loại khỏi EA. Có thể bổ sung cảnh báo
-   Telegram sau nếu bạn cần.
+1. **Không vẽ chart, không dashboard** — các tham số thuần thị giác trong
+   tài liệu (MaxSwingLiq, MaxOB/MaxFVG, HideFilled, ExtendBars, Theme, vị
+   trí dashboard...) không ảnh hưởng tới quyết định giao dịch nên bị loại
+   khỏi EA. Phần vẽ vùng + báo Telegram nay có ở indicator riêng
+   `MQL5/Indicators/XAUUSD_Entry_Zones.mq5` (xem mục bên dưới) — EA vẫn
+   tự vào lệnh độc lập, không phụ thuộc indicator này.
 2. **H4 bias** chỉ tính cấu trúc (BOS/CHoCH) + Premium/Discount đơn giản,
    không dựng OB/FVG riêng trên H4 như bản gốc.
 3. **ICT Score** là công thức heuristic tự xây (cấu trúc + vị trí P/D +
@@ -93,6 +94,45 @@ EA tự vào lệnh sẵn). Để tự động hoá, mình đã lược bỏ/đ�
 4. Backtest/demo nhiều tuần trước khi cân nhắc live, và tinh chỉnh lại
    các ngưỡng (PivLen, DispATR, EqTolATR, ICT Score threshold...) theo dữ
    liệu thực tế của Gold M5 trên tài khoản của bạn.
+
+## Indicator khoanh vùng Buy/Sell + báo Telegram (MQL5/Indicators/XAUUSD_Entry_Zones.mq5)
+
+Đây là **indicator riêng, không tự vào lệnh** — chỉ vẽ vùng Order Block/FVG
+(dùng đúng logic displacement như EA ở trên) lên chart và bắn thông báo
+Telegram khi có vùng mới hoặc khi giá quay lại phản ứng trong vùng. Gắn
+được lên **bất kỳ symbol/khung thời gian nào** đang mở (ví dụ XAUUSD H1
+như ảnh bạn gửi), không giới hạn M5 như EA.
+
+- Vùng **xanh (Buy)**: Order Block/FVG tăng — khoanh vùng để tìm entry BUY.
+- Vùng **đỏ (Sell)**: Order Block/FVG giảm — khoanh vùng để tìm entry SELL.
+- Khi nến đóng cửa tạo vùng mới → bắn Telegram "New zone" (nếu bật).
+- Khi giá quay lại chạm vùng còn "fresh" lần đầu → bắn Telegram gợi ý
+  BUY/SELL kèm SL nên đặt ngoài mép vùng (nếu bật).
+- Load lại `InpHistoryBars` (mặc định 500) nến lịch sử ngay khi gắn vào
+  chart để thấy vùng cũ luôn, không phải đợi vùng mới hình thành.
+
+### Cài đặt Telegram
+
+1. Tạo bot: chat với `@BotFather` trên Telegram, gõ `/newbot`, lấy **token**
+   dạng `123456789:AAxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx`.
+2. Lấy **chat id**: nhắn thử một tin bất kỳ cho bot vừa tạo, sau đó mở
+   `https://api.telegram.org/bot<TOKEN>/getUpdates` trên trình duyệt, tìm
+   trường `"chat":{"id":...}` — đó là chat id (số, có thể âm nếu là group).
+3. Trong MT5: **Tools → Options → Expert Advisors** → tick "Allow WebRequest
+   for listed URL" → thêm `https://api.telegram.org`. Bắt buộc, nếu không
+   indicator sẽ log lỗi `WebRequest failed` và không gửi được gì.
+4. Gắn indicator vào chart, nhập `InpTelegramToken`, `InpTelegramChatID`,
+   bật `InpEnableTelegram = true`. Để `InpTelegramTestOnInit = true` để
+   nhận ngay 1 tin nhắn test xác nhận đã kết nối đúng.
+
+Lưu ý: nội dung tin nhắn chỉ dùng tiếng Anh/ASCII thuần (không dấu) vì
+việc mã hoá URL cho ký tự tiếng Việt có dấu trong MQL5 phức tạp hơn nhiều
+so với ASCII — mình đã cố tình bỏ qua để tránh gửi tin bị lỗi ký tự.
+
+Đây cũng chỉ là bản đơn giản hoá (cùng các giới hạn như EA ở mục "Những
+đơn giản hoá" phía trên): không có cấu trúc/BOS/CHoCH, không lọc killzone
+hay ICT Score — thuần vẽ vùng entry từ displacement + OB/FVG và báo động.
+Test kỹ trên demo trước khi dùng để ra quyết định giao dịch thật.
 
 ## Cảnh báo rủi ro
 
