@@ -427,11 +427,17 @@ void PollTelegram()
       long   chatId = ExtractLongAfter(json, idPos, "\"chat\":{\"id\":", blockEnd);
       string text   = ExtractStringAfter(json, idPos, "\"text\":\"", blockEnd);
 
+      // [MOI] Log chi tiet de bat loi "xu ly lap lai cung 1 tin" - in ra
+      // update_id nhan duoc va g_offset TRUOC/SAU khi cap nhat, de biet
+      // chinh xac vi sao offset khong tang len dung nhu ky vong.
+      long offsetBefore = g_offset;
       if (updateId >= g_offset)
       {
          g_offset = updateId + 1;
          if (StringLen(g_offsetGvName) > 0) GlobalVariableSet(g_offsetGvName, (double)g_offset);
       }
+      PrintFormat("[MarketReport][DEBUG] update_id=%I64d, offset truoc=%I64d, offset sau=%I64d, chatId=%I64d, text='%s'",
+                   updateId, offsetBefore, g_offset, chatId, text);
 
       if (StringLen(text) > 0 && (InpChatId == 0 || chatId == InpChatId))
       {
