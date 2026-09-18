@@ -51,11 +51,15 @@ input string InpSellKeyword  = "SELL";
 input string InpCloseKeyword = "CLOSE";
 
 input group "=== Quan ly lenh khi tin hieu thieu SL/TP/LOT (theo dung ATR cua MIK) ==="
-input double InpDefaultLot = 0.01;
+input double InpDefaultLot = 0.01;  // Lot co dinh, dung khi InpUseRiskPercent=false
 input int    InpAtrPeriod  = 14;
 input double InpSlAtrMik   = 1.5;   // SL = InpSlAtrMik x ATR (giong ENTRY/SL cua indicator MIK)
 input double InpTp1Atr     = 1.5;   // TP lenh 1 = InpTp1Atr x ATR
 input double InpTp2Atr     = 3.0;   // TP lenh 2 = InpTp2Atr x ATR
+
+input group "=== [MOI] Tinh lot theo % so du tai khoan (thay cho lot co dinh) ==="
+input bool   InpUseRiskPercent = false; // true: tu tinh lot theo % Balance thay vi dung InpDefaultLot - chi ap dung khi tin hieu KHONG tu ghi ro LOT
+input double InpRiskPercent    = 1.0;   // % Balance chap nhan mat neu dinh dung SL (vd 1.0 = mat 1% Balance neu SL bi cham)
 
 input group "=== [MOI] Vao 2 lenh TP1/TP2, doi SL lenh con lai ve Entry ==="
 input bool   InpUseDualTpMode = true;  // true: moi tin hieu chia lam 2 lenh (TP1 va TP2); false: 1 lenh duy nhat (dung InpTp2Atr lam TP)
@@ -180,6 +184,28 @@ double NormalizeLot(double lot)
    if (norm < minLot) norm = minLot;
    if (maxLot > 0 && norm > maxLot) norm = maxLot;
    return norm;
+}
+
+// [MOI] Tinh lot sao cho neu gia di dung "slDistancePrice" (don vi gia) thi
+// mat dung InpRiskPercent% so du tai khoan. Dung SYMBOL_TRADE_TICK_VALUE/
+// TICK_SIZE de quy doi khoang cach gia sang tien te tai khoan cho dung voi
+// moi loai symbol (vang, forex, chi so...).
+double CalcRiskLot(double slDistancePrice)
+{
+   if (slDistancePrice <= 0) return InpDefaultLot;
+
+   double balance = AccountInfoDouble(ACCOUNT_BALANCE);
+   double riskAmount = balance * (InpRiskPercent / 100.0);
+
+   double tickValue = SymbolInfoDouble(_Symbol, SYMBOL_TRADE_TICK_VALUE);
+   double tickSize   = SymbolInfoDouble(_Symbol, SYMBOL_TRADE_TICK_SIZE);
+   if (tickSize <= 0 || tickValue <= 0) return InpDefaultLot; // thieu du lieu symbol, an toan dung lot co dinh
+
+   double valuePerPriceUnit = tickValue / tickSize; // tien (theo tien te tai khoan) cho 1 lot khi gia doi 1 don vi
+   if (valuePerPriceUnit <= 0) return InpDefaultLot;
+
+   double lot = riskAmount / (slDistancePrice * valuePerPriceUnit);
+   return NormalizeLot(lot);
 }
 
 // [MOI] Tim ticket vi the (cua EA nay, symbol nay) co comment chua tag cho truoc
@@ -457,11 +483,30 @@ void ExecuteSignal(int direction, double sl, double tp, double lot, double score
       return;
    }
 
-   double totalLot = (lot > 0) ? MathMin(lot, InpMaxLotCap) : InpDefaultLot;
-
    double atr = 0;
    double atrVal[];
    if (GetBufferSeries(atrHandle, 0, 2, atrVal)) atr = atrVal[1];
+
+   // [MOI] Neu tin hieu tu ghi ro LOT thi luon uu tien dung dung so do (giu
+   // nguyen y dinh nguoi gui tin hieu). Chi khi KHONG co LOT rieng thi moi
+   // xet InpUseRiskPercent - tinh lot theo % Balance dua tren khoang cach SL
+   // thuc te (SL tin hieu neu co, khong thi theo ATR nhu binh thuong).
+   double totalLot;
+   if (lot > 0)
+   {
+      totalLot = MathMin(lot, InpMaxLotCap);
+   }
+   else if (InpUseRiskPercent)
+   {
+      double refForSizing = (direction == 1) ? SymbolInfoDouble(_Symbol, SYMBOL_ASK) : SymbolInfoDouble(_Symbol, SYMBOL_BID);
+      double slDistance = (sl > 0) ? MathAbs(refForSizing - sl) : (atr > 0 ? atr * InpSlAtrMik : 0);
+      totalLot = MathMin(CalcRiskLot(slDistance), InpMaxLotCap);
+      PrintFormat("[TelegramSignal] Lot theo risk %.2f%% cua Balance: %.2f", InpRiskPercent, totalLot);
+   }
+   else
+   {
+      totalLot = InpDefaultLot;
+   }
 
    if (!InpUseDualTpMode || atr <= 0)
    {
