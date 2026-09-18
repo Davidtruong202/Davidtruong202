@@ -80,6 +80,7 @@ input ulong  InpMagicNumber        = 20260919;
 input bool   InpOnePositionOnly    = true;   // Chan tin hieu moi neu da co lenh dang mo
 input bool   InpRequireSymbolMatch = true;   // Chi vao lenh neu tin hieu co nhac dung symbol dang gan EA
 input double InpMaxLotCap          = 1.0;    // Chan lot toi da du tin hieu ghi lot lon hon
+input int    InpDedupSeconds       = 90;     // [MOI] Bo qua neu tin hieu GIONG HET tin vua xu ly trong vong bao nhieu giay (0 = tat)
 
 input group "=== [MOI] Loc chat luong tin hieu (MIK Score / win rate / gia) ==="
 input double InpMinScore          = 70.0;  // Bo qua tin hieu neu "MIK Score" < muc nay (0 = tat loc)
@@ -857,6 +858,18 @@ void ProcessSignalText(const string text)
       StringToUpper(tagUpper);
       if (StringLen(tagUpper) > 0 && StringFind(upper, tagUpper) < 0)
          return; // khong phai nguon minh dang theo doi - im lang bo qua, khong log rac
+   }
+
+   // [MOI] Chan xu ly TRUNG LAP theo NOI DUNG tin nhan (khong chi dua vao
+   // update_id nua) - thuc te da gap truong hop cung 1 noi dung tin nhan bi
+   // xu ly nhieu lan (do gui lai tay luc test, hoac do offset getUpdates bi
+   // lech), khien EA mo nhieu lenh/gui nhieu thong bao trung nhau cho cung
+   // 1 tin hieu. Neu tin moi den GIONG HET tin vua xu ly gan day (trong
+   // vong InpDedupSeconds giay), bo qua luon, khong xu ly lai.
+   if (InpDedupSeconds > 0 && text == g_lastSignalText && (TimeCurrent() - g_lastSignalTime) < InpDedupSeconds)
+   {
+      Print("[TelegramSignal] Tin hieu TRUNG LAP voi tin vua xu ly gan day - bo qua, khong xu ly lai");
+      return;
    }
 
    g_lastSignalText = text;
