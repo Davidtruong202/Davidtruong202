@@ -43,6 +43,14 @@ input bool   InpUseTimeFilter = false;
 input int    InpStartHour     = 7;
 input int    InpEndHour       = 22;
 
+input group "=== [MOI] Loc xu huong ADX (chan whipsaw khi di ngang) ==="
+input bool   InpUseAdxFilter    = true;   // Chi vao lenh moi khi ADX >= nguong - day la EA thuan xu huong, can trend that
+input int    InpAdxPeriod       = 14;
+input double InpAdxMinThreshold = 20.0;   // ADX < nguong nay = thi truong di ngang -> khong vao lenh
+
+input group "=== [MOI] Chong whipsaw ==="
+input int    InpMinBarsBetween  = 5;      // So nen toi thieu phai cho sau lenh truoc (dong hoac dao chieu) truoc khi mo lenh moi
+
 //====================================================================
 // Globals
 //====================================================================
@@ -50,8 +58,10 @@ int emaFastHandle = INVALID_HANDLE;
 int emaSlowHandle = INVALID_HANDLE;
 int rsiHandle     = INVALID_HANDLE;
 int atrHandle     = INVALID_HANDLE;
+int adxHandle     = INVALID_HANDLE;
 
 datetime lastBarTime = 0;
+int      g_barsSinceLastTrade = 999999; // dem so nen da troi qua ke tu lan mo/dong lenh gan nhat
 
 #define DASH_PREFIX "MIK_Dash_"
 
@@ -116,6 +126,16 @@ void ClosePosition()
       if (PositionGetInteger(POSITION_MAGIC) != (long)InpMagicNumber) continue;
       trade.PositionClose(ticket);
    }
+   g_barsSinceLastTrade = 0;
+}
+
+// [MOI] ADX < nguong = thi truong dang di ngang, chan vao lenh de giam whipsaw
+bool IsAdxTooWeak()
+{
+   if (!InpUseAdxFilter) return false;
+   double adxVal[];
+   if (!GetBufferSeries(adxHandle, 0, 2, adxVal)) return true; // thieu du lieu -> an toan, coi nhu chan
+   return adxVal[1] < InpAdxMinThreshold;
 }
 
 bool IsTradingHourBlocked()
@@ -193,6 +213,8 @@ void OpenTrade(int direction)
 {
    if (PositionExists()) return;
    if (IsTradingHourBlocked()) return;
+   if (IsAdxTooWeak()) return;                              // [MOI] chan khi thi truong di ngang
+   if (g_barsSinceLastTrade < InpMinBarsBetween) return;     // [MOI] chan whipsaw ngay sau lenh truoc
 
    double atrVal[];
    if (!GetBufferSeries(atrHandle, 0, 2, atrVal)) return;
@@ -215,6 +237,7 @@ void OpenTrade(int direction)
       double tp = (InpTpAtr > 0) ? NormalizeDouble(price - atr * InpTpAtr, digits) : 0;
       trade.Sell(InpLotSize, _Symbol, price, sl, tp, "MIK EmaCross Sell");
    }
+   g_barsSinceLastTrade = 0;
 }
 
 //+------------------------------------------------------------------+
@@ -281,7 +304,7 @@ void SetLabel(string name, string text, color clr)
 
 void CreateDashboard()
 {
-   string keys[] = {"Title", "Ema", "Rsi", "Hour", "Position", "Status"};
+   string keys[] = {"Title", "Ema", "Rsi", "Adx", "Hour", "Position", "Status"};
    int x = 10, y = 18, dy = 16;
    for (int i = 0; i < ArraySize(keys); i++)
    {
@@ -327,6 +350,15 @@ void UpdateDashboard()
                 rsiBuy ? clrOk : clrBad);
    }
 
+   double adxVal[];
+   if (GetBufferSeries(adxHandle, 0, 2, adxVal))
+   {
+      bool weak = InpUseAdxFilter && adxVal[1] < InpAdxMinThreshold;
+      SetLabel(DASH_PREFIX + "Adx", StringFormat("ADX(%d): %.1f [%s]", InpAdxPeriod, adxVal[1],
+                !InpUseAdxFilter ? "TAT loc" : (weak ? "DI NGANG - chan" : "OK - co trend")),
+                !InpUseAdxFilter ? clrNeutral : (weak ? clrBad : clrOk));
+   }
+
    bool hourBlocked = IsTradingHourBlocked();
    SetLabel(DASH_PREFIX + "Hour", StringFormat("Gio giao dich: %s", hourBlocked ? "CHAN" : "OK"), hourBlocked ? clrBad : clrOk);
 
@@ -334,7 +366,9 @@ void UpdateDashboard()
    int  posDir = hasPos ? GetPositionDirection() : 0;
    SetLabel(DASH_PREFIX + "Position", StringFormat("Lenh dang mo: %s", hasPos ? DirStr(posDir) : "KHONG"), hasPos ? clrOk : clrNeutral);
 
-   SetLabel(DASH_PREFIX + "Status", StringFormat("TF: %s", EnumToString((ENUM_TIMEFRAMES)Period())), clrWhite);
+   int waitBars = InpMinBarsBetween - g_barsSinceLastTrade;
+   if (waitBars < 0) waitBars = 0;
+   SetLabel(DASH_PREFIX + "Status", StringFormat("TF: %s | Cho whipsaw: %d nen", EnumToString((ENUM_TIMEFRAMES)Period()), waitBars), clrWhite);
 }
 
 //====================================================================
@@ -348,9 +382,10 @@ int OnInit()
    emaSlowHandle = iMA(_Symbol, PERIOD_CURRENT, InpEma20Period, 0, MODE_EMA, PRICE_CLOSE);
    rsiHandle     = iRSI(_Symbol, PERIOD_CURRENT, InpRsiPeriod, PRICE_CLOSE);
    atrHandle     = iATR(_Symbol, PERIOD_CURRENT, InpAtrPeriod);
+   adxHandle     = iADX(_Symbol, PERIOD_CURRENT, InpAdxPeriod);
 
    if (emaFastHandle == INVALID_HANDLE || emaSlowHandle == INVALID_HANDLE ||
-       rsiHandle == INVALID_HANDLE || atrHandle == INVALID_HANDLE)
+       rsiHandle == INVALID_HANDLE || atrHandle == INVALID_HANDLE || adxHandle == INVALID_HANDLE)
    {
       Print("[MIK EmaCross EA] Khong tao duoc indicator handle");
       return INIT_FAILED;
@@ -366,13 +401,17 @@ void OnDeinit(const int reason)
    if (emaSlowHandle != INVALID_HANDLE) IndicatorRelease(emaSlowHandle);
    if (rsiHandle     != INVALID_HANDLE) IndicatorRelease(rsiHandle);
    if (atrHandle      != INVALID_HANDLE) IndicatorRelease(atrHandle);
+   if (adxHandle      != INVALID_HANDLE) IndicatorRelease(adxHandle);
    DeleteDashboard();
 }
 
 void OnTick()
 {
    if (IsNewBar())
+   {
+      if (g_barsSinceLastTrade < 999999) g_barsSinceLastTrade++;
       ProcessSignal();
+   }
 
    UpdateDashboard();
 }
