@@ -64,6 +64,11 @@ input group "=== [MOI] Chi nhan tin hieu tu dung nguon (channel co nhieu bot/ind
 input bool   InpRequireSourceTag = true;    // Chi xu ly tin nhan CO chua chuoi InpSourceTag - bo qua het tin cua bot/indicator khac trong cung channel
 input string InpSourceTag        = "MIK";   // Chuoi dac trung nhan dien dung nguon (vd "MIK", "MIK EMA CROSS"...)
 
+input group "=== [MOI] Bao ket qua nguoc lai Telegram ==="
+input bool InpNotifyOnOpen  = true;   // Gui tin nhan ve Telegram khi EA vao lenh moi
+input bool InpNotifyOnClose = true;   // Gui tin nhan ve Telegram khi EA dong lenh (TP/SL/breakeven/CLOSE)
+input long InpNotifyChatId  = 0;      // Chat ID nhan bao cao (0 = gui ve cung InpChatId cua kenh tin hieu)
+
 //====================================================================
 // Globals
 //====================================================================
@@ -143,6 +148,53 @@ ulong FindPositionByComment(string tag)
       if (StringFind(PositionGetString(POSITION_COMMENT), tag) >= 0) return ticket;
    }
    return 0;
+}
+
+// [MOI] URL-encode 1 chuoi UTF-8 (can cho ky tu co dau, khoang trang, xuong dong...
+// khi nhet vao query string cua sendMessage)
+string UrlEncode(const string text)
+{
+   uchar bytes[];
+   int n = StringToCharArray(text, bytes, 0, WHOLE_ARRAY, CP_UTF8);
+   string result = "";
+   for (int i = 0; i < n; i++)
+   {
+      uchar b = bytes[i];
+      if (b == 0) break; // StringToCharArray ket thuc bang byte NULL
+      if ((b >= 'A' && b <= 'Z') || (b >= 'a' && b <= 'z') || (b >= '0' && b <= '9') ||
+          b == '-' || b == '_' || b == '.' || b == '~')
+         result += CharToString(b);
+      else
+         result += StringFormat("%%%02X", b);
+   }
+   return result;
+}
+
+// [MOI] Gui tin nhan TU EA len Telegram (chieu nguoc lai voi getUpdates)
+bool TelegramSendMessage(const string text)
+{
+   if (StringLen(InpBotToken) == 0) return false;
+   long chatId = (InpNotifyChatId != 0) ? InpNotifyChatId : InpChatId;
+   if (chatId == 0)
+   {
+      Print("[TelegramSignal] Khong gui duoc bao cao - chua khai bao InpChatId hoac InpNotifyChatId");
+      return false;
+   }
+
+   string url = "https://api.telegram.org/bot" + InpBotToken + "/sendMessage?chat_id=" +
+                IntegerToString(chatId) + "&text=" + UrlEncode(text);
+   char   post[];
+   char   resultData[];
+   string resultHeaders;
+
+   ResetLastError();
+   int res = WebRequest("GET", url, "", 5000, post, resultData, resultHeaders);
+   if (res == -1)
+   {
+      Print("[TelegramSignal] Gui bao cao Telegram that bai, loi ", GetLastError());
+      return false;
+   }
+   return true;
 }
 
 //====================================================================
@@ -264,6 +316,8 @@ void ExecuteSignal(int direction, double sl, double tp, double lot)
    if (!InpUseDualTpMode || atr <= 0)
    {
       OpenSingleLeg(direction, totalLot, sl, tp, atr, "TG Signal");
+      if (InpNotifyOnOpen)
+         TelegramSendMessage(StringFormat("EA %s\nDa mo lenh %s\nLot: %.2f", _Symbol, (direction == 1 ? "BUY" : "SELL"), totalLot));
       return;
    }
 
@@ -291,6 +345,10 @@ void ExecuteSignal(int direction, double sl, double tp, double lot)
 
    g_tp1Ticket = FindPositionByComment("TP1");
    g_tp2Ticket = FindPositionByComment("TP2");
+
+   if (InpNotifyOnOpen)
+      TelegramSendMessage(StringFormat("EA %s\nDa mo 2 lenh %s (TP1 #%I64u, TP2 #%I64u)\nLot moi lenh: %.2f",
+                                         _Symbol, (direction == 1 ? "BUY" : "SELL"), g_tp1Ticket, g_tp2Ticket, legLot));
 }
 
 // [MOI] Khi lenh TP1 dong, doi SL lenh TP2 ve dung gia vao lenh (breakeven)
@@ -309,14 +367,13 @@ void MoveToBreakeven(ulong ticket)
       PrintFormat("[TelegramSignal] Loi doi SL ve breakeven cho lenh #%I64u: %d", ticket, trade.ResultRetcode());
 }
 
-// [MOI] Bat su kien dong lenh de phat hien luc TP1 dong -> kich hoat breakeven
+// [MOI] Bat MOI su kien dong lenh cua EA nay: (1) bao ket qua ve Telegram,
+// (2) neu la lenh TP1 trong cap TP1/TP2 thi kich hoat breakeven cho lenh con lai.
 void OnTradeTransaction(const MqlTradeTransaction &trans,
                           const MqlTradeRequest &request,
                           const MqlTradeResult &result)
 {
-   if (!InpUseDualTpMode || !InpMoveToBreakevenOnTp1) return;
    if (trans.type != TRADE_TRANSACTION_DEAL_ADD) return;
-   if (g_tp1Ticket == 0 && g_tp2Ticket == 0) return;
 
    ulong dealTicket = trans.deal;
    if (!HistoryDealSelect(dealTicket)) return;
@@ -324,21 +381,41 @@ void OnTradeTransaction(const MqlTradeTransaction &trans,
    if (HistoryDealGetString(dealTicket, DEAL_SYMBOL) != _Symbol) return;
 
    long entry = HistoryDealGetInteger(dealTicket, DEAL_ENTRY);
-   if (entry != DEAL_ENTRY_OUT && entry != DEAL_ENTRY_OUT_BY) return;
+   if (entry != DEAL_ENTRY_OUT && entry != DEAL_ENTRY_OUT_BY) return; // chi quan tam luc DONG lenh
 
-   ulong posId = (ulong)HistoryDealGetInteger(dealTicket, DEAL_POSITION_ID);
-
-   if (posId == g_tp1Ticket && g_tp2Ticket != 0)
+   // --- [MOI] Bao ket qua ve Telegram, ap dung cho MOI kieu dong lenh --
+   // (cham TP, cham SL, breakeven, hay CLOSE thu cong tu tin hieu deu duoc bao)
+   if (InpNotifyOnClose)
    {
-      MoveToBreakeven(g_tp2Ticket);
-      g_tp1Ticket = 0;
-      g_tp2Ticket = 0; // cap nay coi nhu da xu ly xong
+      double profit = HistoryDealGetDouble(dealTicket, DEAL_PROFIT) +
+                       HistoryDealGetDouble(dealTicket, DEAL_SWAP) +
+                       HistoryDealGetDouble(dealTicket, DEAL_COMMISSION);
+      double closePrice = HistoryDealGetDouble(dealTicket, DEAL_PRICE);
+      long   dealType   = HistoryDealGetInteger(dealTicket, DEAL_TYPE);
+      string origDir    = (dealType == DEAL_TYPE_SELL) ? "BUY" : "SELL"; // deal dong nguoc huong voi lenh goc
+      string resultTxt  = (profit >= 0) ? "LOI" : "LO";
+
+      TelegramSendMessage(StringFormat("EA %s\nDa dong lenh %s\nGia dong: %.2f\nKet qua: %s %.2f %s",
+                                         _Symbol, origDir, closePrice, resultTxt, profit, AccountInfoString(ACCOUNT_CURRENCY)));
    }
-   else if (posId == g_tp2Ticket)
+
+   // --- Breakeven cho cap TP1/TP2 (giu nguyen logic cu) ----------------
+   if (InpUseDualTpMode && InpMoveToBreakevenOnTp1 && (g_tp1Ticket != 0 || g_tp2Ticket != 0))
    {
-      // TP2 dong truoc khi TP1 dong (gia chay thang), khong can lam gi them
-      g_tp1Ticket = 0;
-      g_tp2Ticket = 0;
+      ulong posId = (ulong)HistoryDealGetInteger(dealTicket, DEAL_POSITION_ID);
+
+      if (posId == g_tp1Ticket && g_tp2Ticket != 0)
+      {
+         MoveToBreakeven(g_tp2Ticket);
+         g_tp1Ticket = 0;
+         g_tp2Ticket = 0; // cap nay coi nhu da xu ly xong
+      }
+      else if (posId == g_tp2Ticket)
+      {
+         // TP2 dong truoc khi TP1 dong (gia chay thang), khong can lam gi them
+         g_tp1Ticket = 0;
+         g_tp2Ticket = 0;
+      }
    }
 }
 
