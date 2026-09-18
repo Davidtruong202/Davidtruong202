@@ -524,11 +524,21 @@ int BarStateLocal(double e9, double e20, double re, double rw)
 void CheckLocalExit()
 {
    if (!InpUseLocalExit) return;
-   if (!PositionExists()) return;
 
+   // [SUA] Truoc day cap nhat g_lastBarTimeLocal SAU khi kiem tra PositionExists(),
+   // nen luc chua co lenh ham thoat som o dong tren, khong bao gio cap nhat moc
+   // nen. Hau qua: ngay tick dau tien sau khi VUA vao lenh moi, moc nen dang luu
+   // van la moc CU (tu truoc do rat lau) -> EA tuong day la "nen moi" -> chay
+   // kiem tra EXIT NGAY tren chinh cay nen vua phat tin hieu vao lenh -> dong
+   // lenh gan nhu tuc thi du chi vua vao vai giay. Sua: luon cap nhat moc nen
+   // MOI TICK bat ke co lenh hay khong, de nen vua vao lenh coi nhu "da xem",
+   // chi danh gia EXIT tu nen KE TIEP tro di.
    datetime t = iTime(_Symbol, PERIOD_CURRENT, 0);
-   if (t == 0 || t == g_lastBarTimeLocal) return;
-   g_lastBarTimeLocal = t;
+   bool isNewBar = (t != 0 && t != g_lastBarTimeLocal);
+   if (t != 0) g_lastBarTimeLocal = t;
+
+   if (!PositionExists()) return;
+   if (!isNewBar) return;
 
    double ema9[], ema20[];
    if (!GetBufferSeries(emaFastHandleLocal, 0, 2, ema9)) return;
