@@ -430,7 +430,14 @@ void ExecuteSignal(int direction, double sl, double tp, double lot)
       return;
    }
 
-   double legLot = NormalizeLot(totalLot / 2.0);
+   // [SUA] Truoc day lam tron NUA lot roi dung CHUNG cho ca 2 lenh, nen khi
+   // nua lot khong chia het theo buoc lot (vd 0.15/2=0.075 -> lam tron thanh
+   // 0.08), tong 2 lenh bi thoi phong thanh 0.16 thay vi dung 0.15 nhu ban
+   // dat. Sua lai: lenh 1 lam tron nua lot binh thuong, lenh 2 lay PHAN CON
+   // LAI cua tong lot (roi moi lam tron), de tong 2 lenh luon sat dung
+   // totalLot nhat co the theo buoc lot cua broker.
+   double legLot1 = NormalizeLot(totalLot / 2.0);
+   double legLot2 = NormalizeLot(totalLot - legLot1);
    int digits = (int)SymbolInfoInteger(_Symbol, SYMBOL_DIGITS);
 
    if (direction == 1)
@@ -439,8 +446,8 @@ void ExecuteSignal(int direction, double sl, double tp, double lot)
       double useSl  = (sl > 0) ? sl : NormalizeDouble(price - atr * InpSlAtrMik, digits);
       double useTp1 = NormalizeDouble(price + atr * InpTp1Atr, digits);
       double useTp2 = (tp > 0) ? tp : NormalizeDouble(price + atr * InpTp2Atr, digits);
-      trade.Buy(legLot, _Symbol, price, useSl, useTp1, "TG Signal TP1");
-      trade.Buy(legLot, _Symbol, price, useSl, useTp2, "TG Signal TP2");
+      trade.Buy(legLot1, _Symbol, price, useSl, useTp1, "TG Signal TP1");
+      trade.Buy(legLot2, _Symbol, price, useSl, useTp2, "TG Signal TP2");
    }
    else
    {
@@ -448,16 +455,16 @@ void ExecuteSignal(int direction, double sl, double tp, double lot)
       double useSl  = (sl > 0) ? sl : NormalizeDouble(price + atr * InpSlAtrMik, digits);
       double useTp1 = NormalizeDouble(price - atr * InpTp1Atr, digits);
       double useTp2 = (tp > 0) ? tp : NormalizeDouble(price - atr * InpTp2Atr, digits);
-      trade.Sell(legLot, _Symbol, price, useSl, useTp1, "TG Signal TP1");
-      trade.Sell(legLot, _Symbol, price, useSl, useTp2, "TG Signal TP2");
+      trade.Sell(legLot1, _Symbol, price, useSl, useTp1, "TG Signal TP1");
+      trade.Sell(legLot2, _Symbol, price, useSl, useTp2, "TG Signal TP2");
    }
 
    g_tp1Ticket = FindPositionByComment("TP1");
    g_tp2Ticket = FindPositionByComment("TP2");
 
    if (InpNotifyOnOpen)
-      TelegramSendMessage(StringFormat("EA %s\nDa mo 2 lenh %s (TP1 #%I64u, TP2 #%I64u)\nLot moi lenh: %.2f",
-                                         _Symbol, (direction == 1 ? "BUY" : "SELL"), g_tp1Ticket, g_tp2Ticket, legLot));
+      TelegramSendMessage(StringFormat("EA %s\nDa mo 2 lenh %s (TP1 #%I64u lot %.2f, TP2 #%I64u lot %.2f)\nTong lot: %.2f",
+                                         _Symbol, (direction == 1 ? "BUY" : "SELL"), g_tp1Ticket, legLot1, g_tp2Ticket, legLot2, legLot1 + legLot2));
 }
 
 // [MOI] Khi lenh TP1 dong, doi SL lenh TP2 ve dung gia vao lenh (breakeven)
