@@ -230,6 +230,33 @@ string HtmlEscape(const string s)
    return r;
 }
 
+// [MOI] Khang cu/Ho tro theo cong thuc Pivot Point kinh dien (tinh tu
+// High/Low/Close cua NGAY HOM TRUOC, PERIOD_D1 shift=1) - day la cong thuc
+// pho bien nhat, hau het cong cu phan tich/bot tin hieu deu dung kieu nay.
+string BuildPivotSection()
+{
+   double high1  = iHigh(g_symbol, PERIOD_D1, 1);
+   double low1   = iLow(g_symbol, PERIOD_D1, 1);
+   double close1 = iClose(g_symbol, PERIOD_D1, 1);
+   if (high1 <= 0 || low1 <= 0 || close1 <= 0)
+      return "📐 <b>Kháng cự / Hỗ trợ</b>\n⚠️ Không đủ dữ liệu nến ngày hôm trước.";
+
+   double pivot = (high1 + low1 + close1) / 3.0;
+   double r1 = 2.0 * pivot - low1;
+   double s1 = 2.0 * pivot - high1;
+   double r2 = pivot + (high1 - low1);
+   double s2 = pivot - (high1 - low1);
+
+   int digits = (int)SymbolInfoInteger(g_symbol, SYMBOL_DIGITS);
+   string sec = "📐 <b>Kháng cự / Hỗ trợ</b> (Pivot Point - D1 hôm qua)\n";
+   sec += StringFormat("🔴 R2: %.*f\n", digits, r2);
+   sec += StringFormat("🔴 R1: %.*f\n", digits, r1);
+   sec += StringFormat("⚪ Pivot: %.*f\n", digits, pivot);
+   sec += StringFormat("🟢 S1: %.*f\n", digits, s1);
+   sec += StringFormat("🟢 S2: %.*f", digits, s2);
+   return sec;
+}
+
 //====================================================================
 // [MOI] Dung ham nay de build toan bo noi dung bao cao da khung
 //====================================================================
@@ -271,8 +298,9 @@ string BuildReport()
    else mainTrend = "GIẰNG CO / CHƯA RÕ XU HƯỚNG";
 
    string symDisp = g_symbol;
-   string msg = StringFormat("%s <b>%s Da Khung</b>\n💰 Gia hien tai: <b>%.2f</b>\n📌 Mo cua hom nay: %.2f\n\n<pre>%s</pre>\n🎯 Xu huong chinh (H1-D1): <b>%s</b>",
+   string msg = StringFormat("%s <b>%s Đa Khung</b>\n💰 Giá hiện tại: <b>%.2f</b>\n📌 Mở cửa hôm nay: %.2f\n\n<pre>%s</pre>\n🎯 Xu hướng chính (H1-D1): <b>%s</b>",
                                dirIcon, symDisp, bid, openToday, HtmlEscape(table), mainTrend);
+   msg += "\n\n" + BuildPivotSection();
    return msg;
 }
 
