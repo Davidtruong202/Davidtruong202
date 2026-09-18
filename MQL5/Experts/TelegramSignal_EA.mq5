@@ -98,6 +98,10 @@ input long InpNotifyChatId  = 0;      // Chat ID nhan bao cao (0 = gui ve cung I
 input group "=== [MOI] Chuyen tiep tin hieu 'sach' sang channel rieng ==="
 input long InpMirrorChatId = 0;   // Chat ID channel MOI cua ban (0 = tat). Chi gom huong lenh/entry/SL/TP/Score/WinRate, khong con "eafree.net | t.me/botfather6868"
 
+input group "=== [MOI] Gui tin hieu vao dung Topic cua 1 Group dang Forum ==="
+input long InpGroupChatId  = 0;   // Chat ID cua Group (so am, vd -1004442929451). 0 = tat
+input int  InpGroupTopicId = 0;   // message_thread_id cua Topic muon gui vao (vd topic "Signal GOLD"). 0 = gui vao topic mac dinh cua group
+
 input group "=== [MOI] Tu tinh dieu kien EXIT tai cho (khong phu thuoc indicator gui Telegram) ==="
 input bool InpUseLocalExit   = true;  // Tu tinh dung cong thuc EMA9/EMA20 + RSI cua MIK, dong lenh ngay khi gay - khong can cho tin CLOSE qua Telegram
 input int  InpLocalEma9      = 9;
@@ -264,14 +268,17 @@ string UrlEncode(const string text)
 }
 
 // [MOI] Gui tin nhan TU EA len 1 chat_id cu the (dung chung cho ca bao cao
-// va mirror sang channel rieng).
-bool TelegramSendMessageTo(long chatId, const string text)
+// va mirror sang channel rieng). threadId > 0 -> gui dung vao 1 Topic cu the
+// cua Group dang bat Forum (tham so message_thread_id cua Bot API).
+bool TelegramSendMessageTo(long chatId, const string text, int threadId = 0)
 {
    if (StringLen(InpBotToken) == 0) return false;
    if (chatId == 0) return false;
 
    string url = "https://api.telegram.org/bot" + InpBotToken + "/sendMessage?chat_id=" +
                 IntegerToString(chatId) + "&text=" + UrlEncode(text);
+   if (threadId > 0)
+      url += "&message_thread_id=" + IntegerToString(threadId);
    char   post[];
    char   resultData[];
    string resultHeaders;
@@ -347,7 +354,7 @@ double CalcDayProfit()
 void SendMirrorSignal(int direction, double entryRef, double score, double winRate,
                         double sl, double tp1, double tp2)
 {
-   if (InpMirrorChatId == 0) return;
+   if (InpMirrorChatId == 0 && InpGroupChatId == 0) return;
 
    string dirTxt = (direction == 1) ? "BUY" : "SELL";
    string symDisp = CleanSymbolForDisplay();
@@ -360,7 +367,15 @@ void SendMirrorSignal(int direction, double entryRef, double score, double winRa
       msg = StringFormat("%s %s %s\n📍 Entry: %.2f\n🛑 SL: %.2f\n🎯 TP: %.2f\n⭐ Score: %.0f/100\n📆 Lãi/lỗ hôm nay: %.2f %s",
                            DirIcon(direction), dirTxt, symDisp, entryRef, sl, tp1, score, dayProfit, AccountInfoString(ACCOUNT_CURRENCY));
 
-   TelegramSendMessageTo(InpMirrorChatId, msg);
+   // [MOI] 2 dich rieng biet, doc lap nhau: channel mirror "sach" (InpMirrorChatId)
+   // va dung 1 Topic cu the trong Group Forum (InpGroupChatId + InpGroupTopicId).
+   // Day la NOI DUY NHAT gui vao InpGroupChatId - cac tin bao mo/dong lenh
+   // (TelegramSendMessage) hay xac nhan doi TF KHONG gui vao day, dung nhu yeu
+   // cau: Topic nay chi nhan dung tin hieu Entry/SL/TP.
+   if (InpMirrorChatId != 0)
+      TelegramSendMessageTo(InpMirrorChatId, msg);
+   if (InpGroupChatId != 0)
+      TelegramSendMessageTo(InpGroupChatId, msg, InpGroupTopicId);
 }
 
 //====================================================================
