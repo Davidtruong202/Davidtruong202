@@ -3,14 +3,17 @@
 //|  EA doc tin hieu tu 1 channel/group Telegram (qua Bot API,       |
 //|  polling getUpdates) roi tu dong vao lenh MT5.                   |
 //|                                                                    |
-//|  DINH DANG TIN HIEU MAC DINH (khong phan biet hoa/thuong,         |
-//|  cac tu khoa co the nam tren nhieu dong hoac cung 1 dong):        |
-//|      BUY XAUUSD                                                   |
-//|      SL 2350.00                                                   |
-//|      TP 2365.00                                                   |
-//|      LOT 0.02                                                     |
-//|  (SL/TP/LOT deu tuy chon - thieu thi EA tu tinh theo ATR/LotSize  |
-//|  mac dinh). Dung "CLOSE" de dong lenh dang mo.                    |
+//|  DINH DANG TIN HIEU (dung theo dung mau that tu kenh MIK EmaCross |
+//|  - t.me/botfather6868):                                           |
+//|      MIK EMA CROSS  XAUUSDc M1                                    |
+//|      SELL  @ 4382.85                                              |
+//|      MIK Score: 78/100                                            |
+//|      Ty le thang lich su: 34.7%  (144)                            |
+//|      Thoi gian: 2026.09.18 14:22                                  |
+//|      eafree.net | t.me/botfather6868                              |
+//|  Khong co SL/TP trong format nay -> EA tu tinh theo ATR. Neu kenh |
+//|  khac co ghi them "SL x" / "TP x" / "LOT x" thi EA van doc duoc.  |
+//|  Dung "CLOSE" de dong lenh dang mo.                                |
 //|                                                                    |
 //|  BAT BUOC: whitelist https://api.telegram.org trong Tools->       |
 //|  Options->Expert Advisors->Allow WebRequest for listed URL.        |
@@ -35,17 +38,27 @@ input string InpBuyKeyword   = "BUY";
 input string InpSellKeyword  = "SELL";
 input string InpCloseKeyword = "CLOSE";
 
-input group "=== Quan ly lenh khi tin hieu thieu SL/TP/LOT ==="
-input double InpDefaultLot   = 0.01;
-input int    InpAtrPeriod    = 14;
-input double InpDefaultSlAtr = 1.5;   // SL mac dinh = InpDefaultSlAtr x ATR neu tin hieu khong ghi SL
-input double InpDefaultTpAtr = 3.0;   // TP mac dinh = InpDefaultTpAtr x ATR neu tin hieu khong ghi TP
+input group "=== Quan ly lenh khi tin hieu thieu SL/TP/LOT (theo dung ATR cua MIK) ==="
+input double InpDefaultLot = 0.01;
+input int    InpAtrPeriod  = 14;
+input double InpSlAtrMik   = 1.5;   // SL = InpSlAtrMik x ATR (giong ENTRY/SL cua indicator MIK)
+input double InpTp1Atr     = 1.5;   // TP lenh 1 = InpTp1Atr x ATR
+input double InpTp2Atr     = 3.0;   // TP lenh 2 = InpTp2Atr x ATR
+
+input group "=== [MOI] Vao 2 lenh TP1/TP2, doi SL lenh con lai ve Entry ==="
+input bool   InpUseDualTpMode = true;  // true: moi tin hieu chia lam 2 lenh (TP1 va TP2); false: 1 lenh duy nhat (dung InpTp2Atr lam TP)
+input bool   InpMoveToBreakevenOnTp1 = true; // Khi lenh TP1 dong, doi SL lenh TP2 ve dung gia vao lenh
 
 input group "=== An toan ==="
 input ulong  InpMagicNumber        = 20260919;
 input bool   InpOnePositionOnly    = true;   // Chan tin hieu moi neu da co lenh dang mo
 input bool   InpRequireSymbolMatch = true;   // Chi vao lenh neu tin hieu co nhac dung symbol dang gan EA
 input double InpMaxLotCap          = 1.0;    // Chan lot toi da du tin hieu ghi lot lon hon
+
+input group "=== [MOI] Loc chat luong tin hieu (MIK Score / win rate / gia) ==="
+input double InpMinScore          = 70.0;  // Bo qua tin hieu neu "MIK Score" < muc nay (0 = tat loc)
+input double InpMinWinRate        = 0.0;   // Bo qua tin hieu neu "Ty le thang lich su" < muc nay % (0 = tat loc)
+input double InpMaxPriceDeviation = 5.0;   // Bo qua neu gia thi truong hien tai lech qua xa gia "@" trong tin hieu (don vi gia, 0 = tat kiem tra)
 
 //====================================================================
 // Globals
@@ -55,6 +68,11 @@ long   g_offset  = 0;      // update_id tiep theo can lay tu Telegram
 string g_lastSignalText = "";
 datetime g_lastSignalTime = 0;
 string g_lastStatus = "Chua ket noi";
+
+// [MOI] Theo doi cap lenh TP1/TP2 dang mo (chi 1 cap tai 1 thoi diem, khop voi
+// InpOnePositionOnly) de biet luc nao can doi SL lenh TP2 ve breakeven.
+ulong g_tp1Ticket = 0;
+ulong g_tp2Ticket = 0;
 
 #define DASH_PREFIX "TGSig_Dash_"
 
@@ -92,6 +110,35 @@ void ClosePosition()
       if (PositionGetInteger(POSITION_MAGIC) != (long)InpMagicNumber) continue;
       trade.PositionClose(ticket);
    }
+   g_tp1Ticket = 0;
+   g_tp2Ticket = 0;
+}
+
+// [MOI] Lam tron lot theo buoc/lot toi thieu-toi da cua symbol
+double NormalizeLot(double lot)
+{
+   double minLot = SymbolInfoDouble(_Symbol, SYMBOL_VOLUME_MIN);
+   double maxLot = SymbolInfoDouble(_Symbol, SYMBOL_VOLUME_MAX);
+   double step   = SymbolInfoDouble(_Symbol, SYMBOL_VOLUME_STEP);
+   if (step <= 0) step = 0.01;
+   double norm = MathRound(lot / step) * step;
+   if (norm < minLot) norm = minLot;
+   if (maxLot > 0 && norm > maxLot) norm = maxLot;
+   return norm;
+}
+
+// [MOI] Tim ticket vi the (cua EA nay, symbol nay) co comment chua tag cho truoc
+ulong FindPositionByComment(string tag)
+{
+   for (int i = PositionsTotal() - 1; i >= 0; i--)
+   {
+      ulong ticket = PositionGetTicket(i);
+      if (ticket == 0) continue;
+      if (PositionGetString(POSITION_SYMBOL) != _Symbol) continue;
+      if (PositionGetInteger(POSITION_MAGIC) != (long)InpMagicNumber) continue;
+      if (StringFind(PositionGetString(POSITION_COMMENT), tag) >= 0) return ticket;
+   }
+   return 0;
 }
 
 //====================================================================
@@ -171,6 +218,31 @@ string ExtractStringAfter(const string &json, int fromPos, string key, int limit
 //====================================================================
 // Xu ly noi dung 1 tin hieu (text da lay tu Telegram)
 //====================================================================
+// Mo 1 lenh don (dung khi InpUseDualTpMode=false hoac khong lay duoc ATR)
+void OpenSingleLeg(int direction, double lot, double sl, double tp, double atr, string tag)
+{
+   int digits = (int)SymbolInfoInteger(_Symbol, SYMBOL_DIGITS);
+   if (direction == 1)
+   {
+      double price = SymbolInfoDouble(_Symbol, SYMBOL_ASK);
+      double useSl = (sl > 0) ? sl : (atr > 0 ? price - atr * InpSlAtrMik : 0);
+      double useTp = (tp > 0) ? tp : (atr > 0 ? price + atr * InpTp2Atr  : 0);
+      trade.Buy(lot, _Symbol, price, NormalizeDouble(useSl, digits), NormalizeDouble(useTp, digits), tag);
+   }
+   else
+   {
+      double price = SymbolInfoDouble(_Symbol, SYMBOL_BID);
+      double useSl = (sl > 0) ? sl : (atr > 0 ? price + atr * InpSlAtrMik : 0);
+      double useTp = (tp > 0) ? tp : (atr > 0 ? price - atr * InpTp2Atr  : 0);
+      trade.Sell(lot, _Symbol, price, NormalizeDouble(useSl, digits), NormalizeDouble(useTp, digits), tag);
+   }
+}
+
+// [SUA] Theo yeu cau: EA tu tinh SL/TP1/TP2 dung boi so ATR cua ban goc MIK
+// (SL=1.5xATR, TP1=1.5xATR, TP2=3.0xATR). Khi bat InpUseDualTpMode, moi tin
+// hieu chia lam 2 lenh cung SL - 1 lenh nham TP1, 1 lenh nham TP2. Khi lenh
+// TP1 dong (chay ve dich), lenh TP2 tu doi SL ve gia vao lenh (breakeven) -
+// xu ly trong OnTradeTransaction ben duoi.
 void ExecuteSignal(int direction, double sl, double tp, double lot)
 {
    if (InpOnePositionOnly && PositionExists())
@@ -179,30 +251,129 @@ void ExecuteSignal(int direction, double sl, double tp, double lot)
       return;
    }
 
-   double useLot = (lot > 0) ? MathMin(lot, InpMaxLotCap) : InpDefaultLot;
-   int digits = (int)SymbolInfoInteger(_Symbol, SYMBOL_DIGITS);
+   double totalLot = (lot > 0) ? MathMin(lot, InpMaxLotCap) : InpDefaultLot;
 
    double atr = 0;
-   if (sl <= 0 || tp <= 0)
+   double atrVal[];
+   if (GetBufferSeries(atrHandle, 0, 2, atrVal)) atr = atrVal[1];
+
+   if (!InpUseDualTpMode || atr <= 0)
    {
-      double atrVal[];
-      if (GetBufferSeries(atrHandle, 0, 2, atrVal)) atr = atrVal[1];
+      OpenSingleLeg(direction, totalLot, sl, tp, atr, "TG Signal");
+      return;
    }
+
+   double legLot = NormalizeLot(totalLot / 2.0);
+   int digits = (int)SymbolInfoInteger(_Symbol, SYMBOL_DIGITS);
 
    if (direction == 1)
    {
-      double price = SymbolInfoDouble(_Symbol, SYMBOL_ASK);
-      double useSl = (sl > 0) ? sl : (atr > 0 ? price - atr * InpDefaultSlAtr : 0);
-      double useTp = (tp > 0) ? tp : (atr > 0 ? price + atr * InpDefaultTpAtr : 0);
-      trade.Buy(useLot, _Symbol, price, NormalizeDouble(useSl, digits), NormalizeDouble(useTp, digits), "TG Signal Buy");
+      double price  = SymbolInfoDouble(_Symbol, SYMBOL_ASK);
+      double useSl  = (sl > 0) ? sl : NormalizeDouble(price - atr * InpSlAtrMik, digits);
+      double useTp1 = NormalizeDouble(price + atr * InpTp1Atr, digits);
+      double useTp2 = (tp > 0) ? tp : NormalizeDouble(price + atr * InpTp2Atr, digits);
+      trade.Buy(legLot, _Symbol, price, useSl, useTp1, "TG Signal TP1");
+      trade.Buy(legLot, _Symbol, price, useSl, useTp2, "TG Signal TP2");
    }
    else
    {
-      double price = SymbolInfoDouble(_Symbol, SYMBOL_BID);
-      double useSl = (sl > 0) ? sl : (atr > 0 ? price + atr * InpDefaultSlAtr : 0);
-      double useTp = (tp > 0) ? tp : (atr > 0 ? price - atr * InpDefaultTpAtr : 0);
-      trade.Sell(useLot, _Symbol, price, NormalizeDouble(useSl, digits), NormalizeDouble(useTp, digits), "TG Signal Sell");
+      double price  = SymbolInfoDouble(_Symbol, SYMBOL_BID);
+      double useSl  = (sl > 0) ? sl : NormalizeDouble(price + atr * InpSlAtrMik, digits);
+      double useTp1 = NormalizeDouble(price - atr * InpTp1Atr, digits);
+      double useTp2 = (tp > 0) ? tp : NormalizeDouble(price - atr * InpTp2Atr, digits);
+      trade.Sell(legLot, _Symbol, price, useSl, useTp1, "TG Signal TP1");
+      trade.Sell(legLot, _Symbol, price, useSl, useTp2, "TG Signal TP2");
    }
+
+   g_tp1Ticket = FindPositionByComment("TP1");
+   g_tp2Ticket = FindPositionByComment("TP2");
+}
+
+// [MOI] Khi lenh TP1 dong, doi SL lenh TP2 ve dung gia vao lenh (breakeven)
+void MoveToBreakeven(ulong ticket)
+{
+   if (!PositionSelectByTicket(ticket)) return;
+   double openPrice = PositionGetDouble(POSITION_PRICE_OPEN);
+   double curSl      = PositionGetDouble(POSITION_SL);
+   double curTp      = PositionGetDouble(POSITION_TP);
+   int digits = (int)SymbolInfoInteger(_Symbol, SYMBOL_DIGITS);
+   double newSl = NormalizeDouble(openPrice, digits);
+   if (MathAbs(curSl - newSl) < _Point) return; // da o breakeven roi, khong sua lai
+   if (trade.PositionModify(ticket, newSl, curTp))
+      PrintFormat("[TelegramSignal] TP1 da dong - doi SL lenh TP2 (#%I64u) ve gia vao lenh (breakeven)", ticket);
+   else
+      PrintFormat("[TelegramSignal] Loi doi SL ve breakeven cho lenh #%I64u: %d", ticket, trade.ResultRetcode());
+}
+
+// [MOI] Bat su kien dong lenh de phat hien luc TP1 dong -> kich hoat breakeven
+void OnTradeTransaction(const MqlTradeTransaction &trans,
+                          const MqlTradeRequest &request,
+                          const MqlTradeResult &result)
+{
+   if (!InpUseDualTpMode || !InpMoveToBreakevenOnTp1) return;
+   if (trans.type != TRADE_TRANSACTION_DEAL_ADD) return;
+   if (g_tp1Ticket == 0 && g_tp2Ticket == 0) return;
+
+   ulong dealTicket = trans.deal;
+   if (!HistoryDealSelect(dealTicket)) return;
+   if (HistoryDealGetInteger(dealTicket, DEAL_MAGIC) != (long)InpMagicNumber) return;
+   if (HistoryDealGetString(dealTicket, DEAL_SYMBOL) != _Symbol) return;
+
+   long entry = HistoryDealGetInteger(dealTicket, DEAL_ENTRY);
+   if (entry != DEAL_ENTRY_OUT && entry != DEAL_ENTRY_OUT_BY) return;
+
+   ulong posId = (ulong)HistoryDealGetInteger(dealTicket, DEAL_POSITION_ID);
+
+   if (posId == g_tp1Ticket && g_tp2Ticket != 0)
+   {
+      MoveToBreakeven(g_tp2Ticket);
+      g_tp1Ticket = 0;
+      g_tp2Ticket = 0; // cap nay coi nhu da xu ly xong
+   }
+   else if (posId == g_tp2Ticket)
+   {
+      // TP2 dong truoc khi TP1 dong (gia chay thang), khong can lam gi them
+      g_tp1Ticket = 0;
+      g_tp2Ticket = 0;
+   }
+}
+
+// Tim gia tri so ngay sau 1 marker (vd "SCORE:" -> "78/100", "@" -> "4382.85")
+// trong nguyen ban khong phan biet hoa/thuong (truyen ca 2 chuoi upper+goc).
+double ExtractNumberAfterMarker(const string &haystackUpper, const string &raw, const string markerUpper)
+{
+   int p = StringFind(haystackUpper, markerUpper);
+   if (p < 0) return -1;
+   p += StringLen(markerUpper);
+   int len = StringLen(raw);
+   while (p < len && StringGetCharacter(raw, p) == ' ') p++;
+   int start = p;
+   bool seenDigit = false;
+   while (p < len)
+   {
+      ushort c = StringGetCharacter(raw, p);
+      if ((c >= '0' && c <= '9') || c == '.') { p++; seenDigit = true; continue; }
+      break;
+   }
+   if (!seenDigit) return -1;
+   return StringToDouble(StringSubstr(raw, start, p - start));
+}
+
+// Tim so ngay TRUOC ky tu '%' gan nhat (dung cho "34.7%")
+double ExtractNumberBeforePercent(const string &raw)
+{
+   int pctPos = StringFind(raw, "%");
+   if (pctPos <= 0) return -1;
+   int e = pctPos;
+   int s = e;
+   while (s > 0)
+   {
+      ushort c = StringGetCharacter(raw, s - 1);
+      if ((c >= '0' && c <= '9') || c == '.') s--;
+      else break;
+   }
+   if (s >= e) return -1;
+   return StringToDouble(StringSubstr(raw, s, e - s));
 }
 
 void ProcessSignalText(const string text)
@@ -210,47 +381,36 @@ void ProcessSignalText(const string text)
    g_lastSignalText = text;
    g_lastSignalTime = TimeCurrent();
 
-   string flat = text;
-   StringReplace(flat, "\r", " ");
-   StringReplace(flat, "\n", " ");
-   string flatUpper = flat;
-   StringToUpper(flatUpper);
+   string upper = text;
+   StringToUpper(upper);
 
    string buyKw = InpBuyKeyword,  sellKw = InpSellKeyword, closeKw = InpCloseKeyword;
    StringToUpper(buyKw); StringToUpper(sellKw); StringToUpper(closeKw);
 
-   string symUpper = _Symbol;
-   StringToUpper(symUpper);
-
-   string parts[];
-   int cnt = StringSplit(flatUpper, ' ', parts);
-
-   int    direction     = 0; // 0=khong nhan dien, 1=buy, -1=sell, 2=close
-   double sl = 0, tp = 0, lot = 0;
-   bool   symbolMatched = !InpRequireSymbolMatch;
-
-   for (int i = 0; i < cnt; i++)
-   {
-      string tk = parts[i];
-      if (tk == "") continue;
-
-      if (tk == buyKw)             direction = 1;
-      else if (tk == sellKw)       direction = -1;
-      else if (tk == closeKw)      direction = 2;
-      else if (tk == "SL" && i + 1 < cnt) sl  = StringToDouble(parts[i + 1]);
-      else if (tk == "TP" && i + 1 < cnt) tp  = StringToDouble(parts[i + 1]);
-      else if (tk == "LOT" && i + 1 < cnt) lot = StringToDouble(parts[i + 1]);
-      else if (StringLen(tk) >= 3 && StringFind(symUpper, tk) >= 0) symbolMatched = true;
-   }
+   // Huong lenh: lay tu khoa xuat hien SOM NHAT trong tin nhan (line 2 cua mau MIK)
+   int pBuy = StringFind(upper, buyKw);
+   int pSell = StringFind(upper, sellKw);
+   int pClose = StringFind(upper, closeKw);
+   int direction = 0, bestPos = -1;
+   if (pBuy >= 0)                              { direction = 1;  bestPos = pBuy; }
+   if (pSell  >= 0 && (bestPos < 0 || pSell  < bestPos)) { direction = -1; bestPos = pSell; }
+   if (pClose >= 0 && (bestPos < 0 || pClose < bestPos)) { direction = 2;  bestPos = pClose; }
 
    if (direction == 0)
    {
       Print("[TelegramSignal] Khong nhan dien duoc tu khoa BUY/SELL/CLOSE trong tin nhan, bo qua: ", text);
       return;
    }
+
+   // Symbol: so sanh 6 ky tu dau cua _Symbol (vd XAUUSD) voi noi dung tin nhan,
+   // de khong bi vuong hau to broker khac nhau (XAUUSDc, XAUUSDm, XAUUSD...)
+   string symUpper = _Symbol;
+   StringToUpper(symUpper);
+   string symCore = StringSubstr(symUpper, 0, MathMin(6, StringLen(symUpper)));
+   bool symbolMatched = !InpRequireSymbolMatch || StringFind(upper, symCore) >= 0;
    if (!symbolMatched)
    {
-      Print("[TelegramSignal] Tin hieu khong nhac ten symbol dang gan EA (", _Symbol, "), bo qua: ", text);
+      Print("[TelegramSignal] Tin hieu khong nhac symbol dang gan EA (", _Symbol, "), bo qua: ", text);
       return;
    }
 
@@ -261,9 +421,45 @@ void ProcessSignalText(const string text)
       return;
    }
 
+   // SL/TP/LOT kieu tu khoa (tuong thich nguoc voi cac kenh khac co ghi ro)
+   string parts[];
+   int cnt = StringSplit(upper, ' ', parts);
+   double sl = 0, tp = 0, lot = 0;
+   for (int i = 0; i < cnt; i++)
+   {
+      if (parts[i] == "SL"  && i + 1 < cnt) sl  = StringToDouble(parts[i + 1]);
+      if (parts[i] == "TP"  && i + 1 < cnt) tp  = StringToDouble(parts[i + 1]);
+      if (parts[i] == "LOT" && i + 1 < cnt) lot = StringToDouble(parts[i + 1]);
+   }
+
+   // Cac truong rieng cua mau MIK EmaCross: MIK Score, ty le thang lich su, gia "@"
+   double score    = ExtractNumberAfterMarker(upper, text, "SCORE:");
+   double winRate  = ExtractNumberBeforePercent(text);
+   double refPrice = ExtractNumberAfterMarker(upper, text, "@");
+
+   if (InpMinScore > 0 && score >= 0 && score < InpMinScore)
+   {
+      Print("[TelegramSignal] MIK Score ", score, " < nguong ", InpMinScore, " - bo qua tin hieu: ", text);
+      return;
+   }
+   if (InpMinWinRate > 0 && winRate >= 0 && winRate < InpMinWinRate)
+   {
+      Print("[TelegramSignal] Ty le thang lich su ", winRate, "% < nguong ", InpMinWinRate, "% - bo qua tin hieu: ", text);
+      return;
+   }
+   if (InpMaxPriceDeviation > 0 && refPrice > 0)
+   {
+      double curPrice = (direction == 1) ? SymbolInfoDouble(_Symbol, SYMBOL_ASK) : SymbolInfoDouble(_Symbol, SYMBOL_BID);
+      if (MathAbs(curPrice - refPrice) > InpMaxPriceDeviation)
+      {
+         PrintFormat("[TelegramSignal] Gia hien tai (%.2f) lech qua xa gia tin hieu (%.2f) - bo qua (tin hieu co the bi tre)", curPrice, refPrice);
+         return;
+      }
+   }
+
    ExecuteSignal(direction, sl, tp, lot);
-   Print("[TelegramSignal] Da xu ly tin hieu ", (direction == 1 ? "BUY" : "SELL"),
-         " SL=", sl, " TP=", tp, " LOT=", lot, " | goc: ", text);
+   PrintFormat("[TelegramSignal] Da xu ly tin hieu %s | Score=%.0f WinRate=%.1f%% RefPrice=%.2f SL=%.2f TP=%.2f LOT=%.2f | goc: %s",
+               (direction == 1 ? "BUY" : "SELL"), score, winRate, refPrice, sl, tp, lot, text);
 }
 
 //====================================================================
@@ -315,7 +511,7 @@ void SetLabel(string name, string text, color clr)
 
 void CreateDashboard()
 {
-   string keys[] = {"Title", "Status", "LastSignal", "Position"};
+   string keys[] = {"Title", "Status", "LastSignal", "Position", "Legs"};
    int x = 10, y = 18, dy = 16;
    for (int i = 0; i < ArraySize(keys); i++)
    {
@@ -349,6 +545,11 @@ void UpdateDashboard()
 
    bool hasPos = PositionExists();
    SetLabel(DASH_PREFIX + "Position", StringFormat("Lenh dang mo: %s", hasPos ? "CO" : "KHONG"), hasPos ? clrLimeGreen : clrSilver);
+
+   if (InpUseDualTpMode)
+      SetLabel(DASH_PREFIX + "Legs", StringFormat("TP1=#%I64u  TP2=#%I64u", g_tp1Ticket, g_tp2Ticket), clrSilver);
+   else
+      SetLabel(DASH_PREFIX + "Legs", "Che do: 1 lenh don", clrSilver);
 }
 
 //====================================================================
