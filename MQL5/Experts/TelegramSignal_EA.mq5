@@ -61,6 +61,10 @@ input group "=== [MOI] Tinh lot theo % so du tai khoan (thay cho lot co dinh) ==
 input bool   InpUseRiskPercent = false; // true: tu tinh lot theo % Balance thay vi dung InpDefaultLot - chi ap dung khi tin hieu KHONG tu ghi ro LOT
 input double InpRiskPercent    = 1.0;   // % Balance chap nhan mat neu dinh dung SL (vd 1.0 = mat 1% Balance neu SL bi cham)
 
+input group "=== [MOI] Giam nua lot khi Score thap ==="
+input bool   InpHalfLotOnLowScore = true;  // Score duoi nguong -> lot giam con 1 nua so voi muc da tinh (lot co dinh, lot tu tin hieu, hay lot theo risk% deu ap dung)
+input double InpLowScoreThreshold = 75.0;  // Score < muc nay (nhung van >= InpMinScore de qua duoc bo loc) thi giam lot
+
 input group "=== [MOI] Vao 2 lenh TP1/TP2, doi SL lenh con lai ve Entry ==="
 input bool   InpUseDualTpMode = true;  // true: moi tin hieu chia lam 2 lenh (TP1 va TP2); false: 1 lenh duy nhat (dung InpTp2Atr lam TP)
 input bool   InpMoveToBreakevenOnTp1 = true; // Khi lenh TP1 dong, doi SL lenh TP2 ve dung gia vao lenh
@@ -506,6 +510,15 @@ void ExecuteSignal(int direction, double sl, double tp, double lot, double score
    else
    {
       totalLot = InpDefaultLot;
+   }
+
+   // [MOI] Score thap (nhung van du de qua InpMinScore) -> giam nua lot,
+   // ap dung sau khi da xac dinh totalLot theo bat ky cach nao o tren.
+   if (InpHalfLotOnLowScore && score >= 0 && score < InpLowScoreThreshold)
+   {
+      double before = totalLot;
+      totalLot = NormalizeLot(totalLot / 2.0);
+      PrintFormat("[TelegramSignal] Score %.0f < %.0f - giam lot tu %.2f con %.2f", score, InpLowScoreThreshold, before, totalLot);
    }
 
    if (!InpUseDualTpMode || atr <= 0)
