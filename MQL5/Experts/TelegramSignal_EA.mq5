@@ -48,7 +48,7 @@ input int    InpPollSeconds  = 5;    // Tan suat kiem tra tin nhan moi (giay)
 input group "=== Tu khoa nhan dien tin hieu ==="
 input string InpBuyKeyword   = "BUY";
 input string InpSellKeyword  = "SELL";
-input string InpCloseKeyword = "CLOSE";
+input string InpCloseKeyword = "THOAT"; // [SUA] Kenh MIK that dung chu "THOAT" (khong dau) cho tin hieu dong lenh, khong phai "CLOSE"
 
 input group "=== Quan ly lenh khi tin hieu thieu SL/TP/LOT (theo dung ATR cua MIK) ==="
 input double InpDefaultLot = 0.01;  // Lot co dinh, dung khi InpUseRiskPercent=false
