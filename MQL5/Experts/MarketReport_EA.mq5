@@ -28,6 +28,12 @@ input int    InpPollSeconds = 5;    // Tan suat kiem tra lenh go tay (giay)
 input group "=== Lenh go tay de xin bao cao ngay ==="
 input string InpReportKeyword = "DA KHUNG"; // Go chua cum tu nay (khong phan biet hoa/thuong) trong chat de xin bao cao ngay
 
+input group "=== [MOI] Lich kinh te (Tin Hom Nay / Tin Ca Tuan) ==="
+input string InpTodayNewsKeyword = "TIN HOM NAY"; // Go chua cum tu nay de xin lich kinh te trong ngay
+input string InpWeekNewsKeyword  = "TIN CA TUAN";  // Go chua cum tu nay de xin lich kinh te ca tuan (Thu 2 - Chu Nhat)
+input string InpCalendarCurrency = "USD";           // Chi lay tin cua dong tien nay ("" = lay tat ca dong tien)
+input bool   InpCalendarOnlyImportant = true;       // true: chi lay tin muc Trung binh/Cao, bo qua tin Thap
+
 input group "=== Tu dong gui dinh ky ==="
 input int    InpAutoIntervalMinutes = 60;   // Tu dong gui bao cao moi X phut (0 = tat, chi gui khi co lenh go tay)
 
@@ -74,7 +80,9 @@ string UrlEncode(const string text)
 // khong bi an di sau khi bam.
 string BuildKeyboardMarkup()
 {
-   return "{\"keyboard\":[[{\"text\":\"📊 XAU DA KHUNG\"}]],\"resize_keyboard\":true,\"is_persistent\":true}";
+   return "{\"keyboard\":[[{\"text\":\"📊 XAU DA KHUNG\"}],"
+          "[{\"text\":\"📅 TIN HOM NAY\"},{\"text\":\"🗓 TIN CA TUAN\"}]],"
+          "\"resize_keyboard\":true,\"is_persistent\":true}";
 }
 
 // [MOI] Gui tin dang HTML (dung <pre> de giu bang canh deu font monospace,
@@ -264,6 +272,81 @@ void SendReport()
    g_lastAutoSend = TimeCurrent();
 }
 
+// [MOI] Icon theo muc do quan trong cua tin ("importance"), dung ham lich
+// kinh te co san cua MT5 (CalendarValueHistory/CalendarEventById) - khong
+// can API ben ngoai nao ca.
+string ImportanceIcon(ENUM_CALENDAR_EVENT_IMPORTANCE imp)
+{
+   if (imp == CALENDAR_IMPORTANCE_HIGH)     return "🔴";
+   if (imp == CALENDAR_IMPORTANCE_MODERATE) return "🟠";
+   return "⚪";
+}
+
+// [MOI] Lay lich kinh te trong khoang [fromTime, toTime), loc theo
+// InpCalendarCurrency va muc do quan trong (neu InpCalendarOnlyImportant),
+// gom nhom theo tung ngay giong dinh dang mau ban gui ("Thu Tu 16/09: ...").
+string BuildCalendarReport(datetime fromTime, datetime toTime, const string title)
+{
+   MqlCalendarValue values[];
+   if (!CalendarValueHistory(values, fromTime, toTime, NULL, InpCalendarCurrency))
+      return "📅 <b>" + title + "</b>\n⚠️ Không lấy được lịch kinh tế (kiểm tra lại kết nối Calendar của MT5).";
+
+   string msg = "📅 <b>" + title + "</b>\n";
+   datetime lastDay = -1;
+   int count = 0;
+
+   for (int i = 0; i < ArraySize(values); i++)
+   {
+      MqlCalendarEvent ev;
+      if (!CalendarEventById(values[i].event_id, ev)) continue;
+      if (InpCalendarOnlyImportant && ev.importance != CALENDAR_IMPORTANCE_MODERATE && ev.importance != CALENDAR_IMPORTANCE_HIGH)
+         continue;
+
+      datetime evTime = values[i].time;
+      datetime dayOnly = evTime - (evTime % 86400);
+      if (dayOnly != lastDay)
+      {
+         lastDay = dayOnly;
+         msg += "\n📆 " + TimeToString(evTime, TIME_DATE) + ":\n";
+      }
+
+      msg += StringFormat("⏰ %s %s %s\n", TimeToString(evTime, TIME_MINUTES), ImportanceIcon(ev.importance), HtmlEscape(ev.name));
+      count++;
+   }
+
+   if (count == 0)
+      msg += "\nKhông có tin " + (InpCalendarOnlyImportant ? "quan trọng (Trung bình/Cao) " : "") + "nào trong khoảng thời gian này.";
+
+   return msg;
+}
+
+void SendTodayNews()
+{
+   MqlDateTime dt;
+   TimeToStruct(TimeCurrent(), dt);
+   dt.hour = 0; dt.min = 0; dt.sec = 0;
+   datetime dayStart = StructToTime(dt);
+
+   string msg = BuildCalendarReport(dayStart, dayStart + 86400, "Tin Hôm Nay");
+   TelegramSendHtml(InpChatId, InpTopicId, msg, BuildKeyboardMarkup());
+}
+
+void SendWeekNews()
+{
+   MqlDateTime dt;
+   TimeToStruct(TimeCurrent(), dt);
+   dt.hour = 0; dt.min = 0; dt.sec = 0;
+   datetime dayStart = StructToTime(dt);
+
+   // day_of_week: 0=Chu Nhat...6=Thu Bay. Quy ve dau tuan la Thu Hai.
+   int daysSinceMonday = (dt.day_of_week == 0) ? 6 : dt.day_of_week - 1;
+   datetime weekStart = dayStart - daysSinceMonday * 86400;
+   datetime weekEnd   = weekStart + 7 * 86400;
+
+   string msg = BuildCalendarReport(weekStart, weekEnd, "Tin Cả Tuần");
+   TelegramSendHtml(InpChatId, InpTopicId, msg, BuildKeyboardMarkup());
+}
+
 // [MOI] Tin chao gui 1 lan luc EA khoi dong, kem nut bam - de nut hien ra
 // ngay trong khung chat tu dau, khong phai cho ai go lenh xin bao cao dau
 // tien thi nut moi xuat hien.
@@ -286,6 +369,10 @@ void PollTelegram()
    int len = StringLen(json);
    string kwUpper = InpReportKeyword;
    StringToUpper(kwUpper);
+   string kwTodayUpper = InpTodayNewsKeyword;
+   StringToUpper(kwTodayUpper);
+   string kwWeekUpper = InpWeekNewsKeyword;
+   StringToUpper(kwWeekUpper);
 
    while (pos < len)
    {
@@ -311,9 +398,19 @@ void PollTelegram()
       {
          string textUpper = text;
          StringToUpper(textUpper);
-         if (StringFind(textUpper, kwUpper) >= 0)
+         if (StringFind(textUpper, kwTodayUpper) >= 0)
          {
-            Print("[MarketReport] Nhan lenh xin bao cao tu chat");
+            Print("[MarketReport] Nhan lenh xin lich kinh te hom nay");
+            SendTodayNews();
+         }
+         else if (StringFind(textUpper, kwWeekUpper) >= 0)
+         {
+            Print("[MarketReport] Nhan lenh xin lich kinh te ca tuan");
+            SendWeekNews();
+         }
+         else if (StringFind(textUpper, kwUpper) >= 0)
+         {
+            Print("[MarketReport] Nhan lenh xin bao cao da khung");
             SendReport();
          }
       }
