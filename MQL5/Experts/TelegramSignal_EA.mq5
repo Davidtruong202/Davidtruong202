@@ -298,6 +298,9 @@ bool TelegramSendMessage(const string text)
    return TelegramSendMessageTo(chatId, text);
 }
 
+// [MOI] Icon dai dien cho huong lenh, dung chung cho cac tin gui Telegram
+string DirIcon(int direction) { return (direction == 1) ? "🟢" : "🔴"; }
+
 // [MOI] Gui ban tin tin hieu da lam sach (khong con "eafree.net | t.me/...")
 // sang channel rieng cua ban, dung dung SL/TP thuc te EA vua tinh/dat lenh.
 void SendMirrorSignal(int direction, double entryRef, double score, double winRate,
@@ -308,11 +311,11 @@ void SendMirrorSignal(int direction, double entryRef, double score, double winRa
    string dirTxt = (direction == 1) ? "BUY" : "SELL";
    string msg;
    if (tp2 > 0)
-      msg = StringFormat("%s %s\nEntry: %.2f\nSL: %.2f\nTP1: %.2f\nTP2: %.2f\nScore: %.0f/100\nWinRate: %.1f%%",
-                           dirTxt, _Symbol, entryRef, sl, tp1, tp2, score, winRate);
+      msg = StringFormat("%s %s %s\n📍 Entry: %.2f\n🛑 SL: %.2f\n🎯 TP1: %.2f\n🎯 TP2: %.2f\n⭐ Score: %.0f/100\n📊 Tỷ lệ thắng: %.1f%%",
+                           DirIcon(direction), dirTxt, _Symbol, entryRef, sl, tp1, tp2, score, winRate);
    else
-      msg = StringFormat("%s %s\nEntry: %.2f\nSL: %.2f\nTP: %.2f\nScore: %.0f/100\nWinRate: %.1f%%",
-                           dirTxt, _Symbol, entryRef, sl, tp1, score, winRate);
+      msg = StringFormat("%s %s %s\n📍 Entry: %.2f\n🛑 SL: %.2f\n🎯 TP: %.2f\n⭐ Score: %.0f/100\n📊 Tỷ lệ thắng: %.1f%%",
+                           DirIcon(direction), dirTxt, _Symbol, entryRef, sl, tp1, score, winRate);
 
    TelegramSendMessageTo(InpMirrorChatId, msg);
 }
@@ -546,7 +549,8 @@ void ExecuteSignal(int direction, double sl, double tp, double lot, double score
       double tpS = (tp > 0) ? tp : (atr > 0 ? (direction == 1 ? refPrice + atr * InpTp2Atr  : refPrice - atr * InpTp2Atr)  : 0);
       OpenSingleLeg(direction, totalLot, sl, tp, atr, "TG Signal");
       if (InpNotifyOnOpen)
-         TelegramSendMessage(StringFormat("EA %s\nDa mo lenh %s\nLot: %.2f", _Symbol, (direction == 1 ? "BUY" : "SELL"), totalLot));
+         TelegramSendMessage(StringFormat("%s EA %s — Đã mở lệnh %s\n💰 Lot: %.2f",
+                                            DirIcon(direction), _Symbol, (direction == 1 ? "BUY" : "SELL"), totalLot));
       SendMirrorSignal(direction, refPrice, score, winRate, NormalizeDouble(slS, digitsS), NormalizeDouble(tpS, digitsS), 0);
       return;
    }
@@ -585,8 +589,8 @@ void ExecuteSignal(int direction, double sl, double tp, double lot, double score
    g_tp2Ticket = FindPositionByComment("TP2");
 
    if (InpNotifyOnOpen)
-      TelegramSendMessage(StringFormat("EA %s\nDa mo 2 lenh %s (TP1 #%I64u lot %.2f, TP2 #%I64u lot %.2f)\nTong lot: %.2f",
-                                         _Symbol, (direction == 1 ? "BUY" : "SELL"), g_tp1Ticket, legLot1, g_tp2Ticket, legLot2, legLot1 + legLot2));
+      TelegramSendMessage(StringFormat("%s EA %s — Đã mở lệnh %s (2 lệnh: TP1 + TP2)\n💰 Lot mỗi lệnh: %.2f | Tổng lot: %.2f",
+                                         DirIcon(direction), _Symbol, (direction == 1 ? "BUY" : "SELL"), legLot1, legLot1 + legLot2));
 
    SendMirrorSignal(direction, entryPrice, score, winRate, useSl, useTp1, useTp2);
 }
@@ -681,10 +685,11 @@ void OnTradeTransaction(const MqlTradeTransaction &trans,
       double closePrice = HistoryDealGetDouble(dealTicket, DEAL_PRICE);
       long   dealType   = HistoryDealGetInteger(dealTicket, DEAL_TYPE);
       string origDir    = (dealType == DEAL_TYPE_SELL) ? "BUY" : "SELL"; // deal dong nguoc huong voi lenh goc
-      string resultTxt  = (profit >= 0) ? "LOI" : "LO";
+      string resultIcon = (profit >= 0) ? "✅" : "❌";
+      string resultTxt  = (profit >= 0) ? "LỜI" : "LỖ";
 
-      TelegramSendMessage(StringFormat("EA %s\nDa dong lenh %s\nGia dong: %.2f\nKet qua: %s %.2f %s",
-                                         _Symbol, origDir, closePrice, resultTxt, profit, AccountInfoString(ACCOUNT_CURRENCY)));
+      TelegramSendMessage(StringFormat("%s EA %s — Đã đóng lệnh %s\n📍 Giá đóng: %.2f\n💵 Kết quả: %s %.2f %s",
+                                         resultIcon, _Symbol, origDir, closePrice, resultTxt, profit, AccountInfoString(ACCOUNT_CURRENCY)));
    }
 
    // --- Breakeven cho cap TP1/TP2 (giu nguyen logic cu) ----------------
@@ -908,20 +913,20 @@ bool TryHandleTfCommand(const string text, long fromUserId, long msgChatId)
    ENUM_TIMEFRAMES tf = ParseTimeframeCode(parts[1]);
    if ((int)tf < 0)
    {
-      TelegramSendMessage("EA: Khong nhan dien khung gio '" + parts[1] + "'. Dung: M1/M5/M15/M30/H1/H4/D1/W1/MN1");
+      TelegramSendMessage("⚠️ Không nhận diện khung giờ '" + parts[1] + "'. Dùng: M1/M5/M15/M30/H1/H4/D1/W1/MN1");
       return true;
    }
    if (tf == (ENUM_TIMEFRAMES)Period())
    {
-      TelegramSendMessage("EA: Chart " + _Symbol + " da dang o khung " + parts[1] + " roi.");
+      TelegramSendMessage("ℹ️ Chart " + _Symbol + " đang ở khung " + parts[1] + " rồi.");
       return true;
    }
 
    // Gui xac nhan TRUOC khi doi khung, vi ChartSetSymbolPeriod se lam EA
    // nay khoi dong lai (OnDeinit/OnInit) ngay sau do.
-   TelegramSendMessage("EA: Dang doi chart " + _Symbol + " sang khung " + parts[1] + "...");
+   TelegramSendMessage("🔄 Đang đổi chart " + _Symbol + " sang khung " + parts[1] + "...");
    if (!ChartSetSymbolPeriod(0, _Symbol, tf))
-      TelegramSendMessage("EA: Doi khung gio that bai.");
+      TelegramSendMessage("❌ Đổi khung giờ thất bại.");
 
    return true;
 }
