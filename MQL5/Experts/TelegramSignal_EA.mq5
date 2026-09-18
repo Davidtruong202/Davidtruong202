@@ -69,6 +69,14 @@ input bool InpNotifyOnOpen  = true;   // Gui tin nhan ve Telegram khi EA vao len
 input bool InpNotifyOnClose = true;   // Gui tin nhan ve Telegram khi EA dong lenh (TP/SL/breakeven/CLOSE)
 input long InpNotifyChatId  = 0;      // Chat ID nhan bao cao (0 = gui ve cung InpChatId cua kenh tin hieu)
 
+input group "=== [MOI] Tu tinh dieu kien EXIT tai cho (khong phu thuoc indicator gui Telegram) ==="
+input bool InpUseLocalExit   = true;  // Tu tinh dung cong thuc EMA9/EMA20 + RSI cua MIK, dong lenh ngay khi gay - khong can cho tin CLOSE qua Telegram
+input int  InpLocalEma9      = 9;
+input int  InpLocalEma20     = 20;
+input int  InpLocalRsiPeriod = 14;
+input int  InpLocalRsiEma    = 9;
+input int  InpLocalRsiWma    = 45;
+
 //====================================================================
 // Globals
 //====================================================================
@@ -82,6 +90,12 @@ string g_lastStatus = "Chua ket noi";
 // InpOnePositionOnly) de biet luc nao can doi SL lenh TP2 ve breakeven.
 ulong g_tp1Ticket = 0;
 ulong g_tp2Ticket = 0;
+
+// [MOI] Handle + trang thai cho viec tu tinh EXIT tai cho
+int      emaFastHandleLocal = INVALID_HANDLE;
+int      emaSlowHandleLocal = INVALID_HANDLE;
+int      rsiHandleLocal     = INVALID_HANDLE;
+datetime g_lastBarTimeLocal = 0;
 
 #define DASH_PREFIX "TGSig_Dash_"
 
@@ -273,6 +287,83 @@ string ExtractStringAfter(const string &json, int fromPos, string key, int limit
 
 //====================================================================
 // Xu ly noi dung 1 tin hieu (text da lay tu Telegram)
+// [MOI] Tinh EMA(RSI) va WMA(RSI) tai nen vua dong (shift=1), dung cong thuc
+// giong het indicator MIK EmaCross de tu phat hien dieu kien EXIT tai cho,
+// khong phu thuoc indicator co gui tin CLOSE qua Telegram hay khong.
+bool ComputeRsiCrossLocal(double &rsiEma1, double &rsiWma1)
+{
+   int need = InpLocalRsiWma + InpLocalRsiEma + 60;
+   double rsiRaw[];
+   if (!GetBufferSeries(rsiHandleLocal, 0, need, rsiRaw)) return false;
+   ArraySetAsSeries(rsiRaw, false); // dao ve thu tu thoi gian tang dan de tinh de quy
+
+   double rsiEma[];
+   ArrayResize(rsiEma, need);
+   double kEma = 2.0 / (InpLocalRsiEma + 1.0);
+   for (int i = 0; i < need; i++)
+   {
+      if (i == 0) rsiEma[i] = rsiRaw[i];
+      else        rsiEma[i] = rsiRaw[i] * kEma + rsiEma[i - 1] * (1.0 - kEma);
+   }
+
+   double rsiWma[];
+   ArrayResize(rsiWma, need);
+   int wn = InpLocalRsiWma;
+   for (int i = 0; i < need; i++)
+   {
+      if (i + 1 < wn) { rsiWma[i] = rsiRaw[i]; continue; }
+      double sumW = 0, sumWX = 0;
+      for (int k = 0; k < wn; k++)
+      {
+         double w = (wn - k);
+         sumWX += w * rsiRaw[i - k];
+         sumW  += w;
+      }
+      rsiWma[i] = sumWX / sumW;
+   }
+
+   rsiEma1 = rsiEma[need - 2]; // shift1 = nen vua dong
+   rsiWma1 = rsiWma[need - 2];
+   return true;
+}
+
+int BarStateLocal(double e9, double e20, double re, double rw)
+{
+   if (e9 > e20 && re > rw) return 1;
+   if (e9 < e20 && re < rw) return -1;
+   return 0;
+}
+
+// [MOI] Kiem tra moi khi co nen moi: neu dang co lenh mo va dieu kien
+// EMA9/EMA20+RSI cua MIK khong con khop huong lenh dang giu (tuc la "EXIT"
+// hoac dao han) thi tu dong dong lenh NGAY, khong can cho tin nhan Telegram.
+void CheckLocalExit()
+{
+   if (!InpUseLocalExit) return;
+   if (!PositionExists()) return;
+
+   datetime t = iTime(_Symbol, PERIOD_CURRENT, 0);
+   if (t == 0 || t == g_lastBarTimeLocal) return;
+   g_lastBarTimeLocal = t;
+
+   double ema9[], ema20[];
+   if (!GetBufferSeries(emaFastHandleLocal, 0, 2, ema9)) return;
+   if (!GetBufferSeries(emaSlowHandleLocal, 0, 2, ema20)) return;
+
+   double rsiEma1, rsiWma1;
+   if (!ComputeRsiCrossLocal(rsiEma1, rsiWma1)) return;
+
+   int posDir = GetPositionDirection();
+   if (posDir == 0) return;
+
+   int state = BarStateLocal(ema9[1], ema20[1], rsiEma1, rsiWma1);
+   if (state != posDir)
+   {
+      Print("[TelegramSignal] Dieu kien EMA/RSI cua MIK da gay (tu tinh tai cho) - tu dong dong lenh, khong doi tin Telegram");
+      ClosePosition();
+   }
+}
+
 //====================================================================
 // Mo 1 lenh don (dung khi InpUseDualTpMode=false hoac khong lay duoc ATR)
 void OpenSingleLeg(int direction, double lot, double sl, double tp, double atr, string tag)
@@ -666,6 +757,18 @@ int OnInit()
       return INIT_FAILED;
    }
 
+   if (InpUseLocalExit)
+   {
+      emaFastHandleLocal = iMA(_Symbol, PERIOD_CURRENT, InpLocalEma9,  0, MODE_EMA, PRICE_CLOSE);
+      emaSlowHandleLocal = iMA(_Symbol, PERIOD_CURRENT, InpLocalEma20, 0, MODE_EMA, PRICE_CLOSE);
+      rsiHandleLocal      = iRSI(_Symbol, PERIOD_CURRENT, InpLocalRsiPeriod, PRICE_CLOSE);
+      if (emaFastHandleLocal == INVALID_HANDLE || emaSlowHandleLocal == INVALID_HANDLE || rsiHandleLocal == INVALID_HANDLE)
+      {
+         Print("[TelegramSignal] Khong tao duoc handle cho tu tinh EXIT tai cho");
+         return INIT_FAILED;
+      }
+   }
+
    CreateDashboard();
    EventSetTimer(MathMax(1, InpPollSeconds));
    return INIT_SUCCEEDED;
@@ -675,6 +778,9 @@ void OnDeinit(const int reason)
 {
    EventKillTimer();
    if (atrHandle != INVALID_HANDLE) IndicatorRelease(atrHandle);
+   if (emaFastHandleLocal != INVALID_HANDLE) IndicatorRelease(emaFastHandleLocal);
+   if (emaSlowHandleLocal != INVALID_HANDLE) IndicatorRelease(emaSlowHandleLocal);
+   if (rsiHandleLocal      != INVALID_HANDLE) IndicatorRelease(rsiHandleLocal);
    DeleteDashboard();
 }
 
@@ -687,5 +793,6 @@ void OnTimer()
 
 void OnTick()
 {
+   CheckLocalExit();
    UpdateDashboard();
 }
