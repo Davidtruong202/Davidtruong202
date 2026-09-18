@@ -61,6 +61,12 @@ input group "=== [MOI] Vao 2 lenh TP1/TP2, doi SL lenh con lai ve Entry ==="
 input bool   InpUseDualTpMode = true;  // true: moi tin hieu chia lam 2 lenh (TP1 va TP2); false: 1 lenh duy nhat (dung InpTp2Atr lam TP)
 input bool   InpMoveToBreakevenOnTp1 = true; // Khi lenh TP1 dong, doi SL lenh TP2 ve dung gia vao lenh
 
+input group "=== [MOI] Trailing SL cho lenh TP2 sau khi da ve breakeven ==="
+input bool   InpUseTrailingAfterTp1 = true;  // Sau khi TP1 dong va SL da ve breakeven, tiep tuc keo SL theo gia thay vi giu co dinh
+input double InpTrailStartAtr       = 0.5;   // Chi bat dau keo khi gia da di duoc it nhat bao nhieu x ATR tinh tu entry
+input double InpTrailDistanceAtr    = 0.75;  // Khoang cach giu SL phia sau gia hien tai, boi so ATR
+input double InpTrailStepAtr        = 0.1;   // Buoc toi thieu (boi so ATR) de cap nhat SL, tranh sua lenh lien tuc moi tick
+
 input group "=== An toan ==="
 input ulong  InpMagicNumber        = 20260919;
 input bool   InpOnePositionOnly    = true;   // Chan tin hieu moi neu da co lenh dang mo
@@ -108,6 +114,11 @@ string g_offsetGvName = "";  // ten Global Variable luu g_offset, gan trong OnIn
 // InpOnePositionOnly) de biet luc nao can doi SL lenh TP2 ve breakeven.
 ulong g_tp1Ticket = 0;
 ulong g_tp2Ticket = 0;
+
+// [MOI] Ticket lenh dang duoc trailing (= lenh TP2 sau khi TP1 da dong va
+// SL da ve breakeven). Tach rieng khoi g_tp2Ticket vi bien do bi reset ve 0
+// ngay sau khi MoveToBreakeven chay xong.
+ulong g_trailingTicket = 0;
 
 // [MOI] Handle + trang thai cho viec tu tinh EXIT tai cho
 int      emaFastHandleLocal = INVALID_HANDLE;
@@ -483,6 +494,54 @@ void MoveToBreakeven(ulong ticket)
       PrintFormat("[TelegramSignal] Loi doi SL ve breakeven cho lenh #%I64u: %d", ticket, trade.ResultRetcode());
 }
 
+// [MOI] Sau khi da ve breakeven, tiep tuc keo SL theo gia (chi keo theo huong
+// co loi, khong bao gio lui lai) de giu lai them loi nhuan neu gia chay gan
+// TP2 roi dao chieu, thay vi tra het ve dung breakeven.
+void TrailTp2Leg()
+{
+   if (!InpUseTrailingAfterTp1) return;
+   if (g_trailingTicket == 0) return;
+   if (!PositionSelectByTicket(g_trailingTicket)) { g_trailingTicket = 0; return; }
+
+   double atrVal[];
+   if (!GetBufferSeries(atrHandle, 0, 2, atrVal)) return;
+   double atr = atrVal[1];
+   if (atr <= 0) return;
+
+   long   type      = PositionGetInteger(POSITION_TYPE);
+   double openPrice = PositionGetDouble(POSITION_PRICE_OPEN);
+   double curSl      = PositionGetDouble(POSITION_SL);
+   double curTp      = PositionGetDouble(POSITION_TP);
+   int digits = (int)SymbolInfoInteger(_Symbol, SYMBOL_DIGITS);
+
+   double startDist = InpTrailStartAtr    * atr;
+   double trailDist = InpTrailDistanceAtr * atr;
+   double stepDist  = InpTrailStepAtr     * atr;
+
+   if (type == POSITION_TYPE_BUY)
+   {
+      double bid = SymbolInfoDouble(_Symbol, SYMBOL_BID);
+      if (bid < openPrice + startDist) return; // chua di du xa de bat dau keo
+      double newSl = NormalizeDouble(bid - trailDist, digits);
+      if (newSl > curSl + stepDist)
+      {
+         if (trade.PositionModify(g_trailingTicket, newSl, curTp))
+            PrintFormat("[TelegramSignal] Trailing SL lenh #%I64u: %.2f -> %.2f", g_trailingTicket, curSl, newSl);
+      }
+   }
+   else if (type == POSITION_TYPE_SELL)
+   {
+      double ask = SymbolInfoDouble(_Symbol, SYMBOL_ASK);
+      if (ask > openPrice - startDist) return;
+      double newSl = NormalizeDouble(ask + trailDist, digits);
+      if (newSl < curSl - stepDist || curSl == 0)
+      {
+         if (trade.PositionModify(g_trailingTicket, newSl, curTp))
+            PrintFormat("[TelegramSignal] Trailing SL lenh #%I64u: %.2f -> %.2f", g_trailingTicket, curSl, newSl);
+      }
+   }
+}
+
 // [MOI] Bat MOI su kien dong lenh cua EA nay: (1) bao ket qua ve Telegram,
 // (2) neu la lenh TP1 trong cap TP1/TP2 thi kich hoat breakeven cho lenh con lai.
 void OnTradeTransaction(const MqlTradeTransaction &trans,
@@ -523,6 +582,7 @@ void OnTradeTransaction(const MqlTradeTransaction &trans,
       if (posId == g_tp1Ticket && g_tp2Ticket != 0)
       {
          MoveToBreakeven(g_tp2Ticket);
+         g_trailingTicket = g_tp2Ticket; // [MOI] bat dau theo doi de trail tiep tu day
          g_tp1Ticket = 0;
          g_tp2Ticket = 0; // cap nay coi nhu da xu ly xong
       }
@@ -533,6 +593,11 @@ void OnTradeTransaction(const MqlTradeTransaction &trans,
          g_tp2Ticket = 0;
       }
    }
+
+   // [MOI] Neu chinh lenh dang duoc trail vua dong (cham SL trailing hoac
+   // van chinh dich TP2), dung theo doi lai.
+   if (g_trailingTicket != 0 && (ulong)HistoryDealGetInteger(dealTicket, DEAL_POSITION_ID) == g_trailingTicket)
+      g_trailingTicket = 0;
 }
 
 // Tim gia tri so ngay sau 1 marker (vd "SCORE:" -> "78/100", "@" -> "4382.85")
@@ -801,7 +866,7 @@ void SetLabel(string name, string text, color clr)
 
 void CreateDashboard()
 {
-   string keys[] = {"Title", "Status", "LastSignal", "Position", "Legs", "LocalCalc", "TfControl"};
+   string keys[] = {"Title", "Status", "LastSignal", "Position", "Legs", "Trailing", "LocalCalc", "TfControl"};
    int x = 10, y = 18, dy = 16;
    for (int i = 0; i < ArraySize(keys); i++)
    {
@@ -840,6 +905,15 @@ void UpdateDashboard()
       SetLabel(DASH_PREFIX + "Legs", StringFormat("TP1=#%I64u  TP2=#%I64u", g_tp1Ticket, g_tp2Ticket), clrSilver);
    else
       SetLabel(DASH_PREFIX + "Legs", "Che do: 1 lenh don", clrSilver);
+
+   if (!InpUseTrailingAfterTp1)
+      SetLabel(DASH_PREFIX + "Trailing", "Trailing sau TP1: TAT", clrSilver);
+   else if (g_trailingTicket == 0)
+      SetLabel(DASH_PREFIX + "Trailing", "Trailing sau TP1: cho TP1 dong...", clrSilver);
+   else if (PositionSelectByTicket(g_trailingTicket))
+      SetLabel(DASH_PREFIX + "Trailing",
+                StringFormat("Trailing #%I64u: SL=%.2f", g_trailingTicket, PositionGetDouble(POSITION_SL)),
+                clrKhaki);
 
    // [MOI] Hien thi 4 gia tri EA dang tu tinh, de doi chieu truc tiep voi so
    // hien tren panel RSI cua indicator MIK that (kiem chung do chinh xac).
@@ -890,6 +964,14 @@ int OnInit()
       g_offset = (long)GlobalVariableGet(g_offsetGvName);
    g_tp1Ticket = FindPositionByComment("TP1");
    g_tp2Ticket = FindPositionByComment("TP2");
+   g_trailingTicket = 0;
+   if (g_tp1Ticket == 0 && g_tp2Ticket != 0)
+   {
+      // TP1 da dong tu truoc khi EA khoi dong lai - lenh TP2 dang la "runner"
+      // (co the da o breakeven hoac dang trail), tiep tuc theo doi no.
+      g_trailingTicket = g_tp2Ticket;
+      g_tp2Ticket = 0;
+   }
 
    atrHandle = iATR(_Symbol, PERIOD_CURRENT, InpAtrPeriod);
    if (atrHandle == INVALID_HANDLE)
@@ -935,5 +1017,6 @@ void OnTimer()
 void OnTick()
 {
    CheckLocalExit();
+   TrailTp2Leg();
    UpdateDashboard();
 }
