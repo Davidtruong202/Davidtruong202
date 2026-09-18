@@ -293,7 +293,11 @@ bool TelegramSendMessageTo(long chatId, const string text, int threadId = 0)
    return true;
 }
 
-// Gui bao cao ve chat mac dinh (InpNotifyChatId hoac InpChatId)
+// Gui bao cao ve chat mac dinh (InpNotifyChatId hoac InpChatId). Neu
+// InpNotifyChatId duoc tro CHINH VAO group dang dung InpGroupTopicId (vd
+// cung group Forex Gold Hunter, topic Signal GOLD) thi tu dong gui kem
+// message_thread_id do luon - de bao cao mo/dong lenh cung roi dung vao
+// topic Signal GOLD, khong can khai bao them topic rieng.
 bool TelegramSendMessage(const string text)
 {
    long chatId = (InpNotifyChatId != 0) ? InpNotifyChatId : InpChatId;
@@ -302,7 +306,8 @@ bool TelegramSendMessage(const string text)
       Print("[TelegramSignal] Khong gui duoc bao cao - chua khai bao InpChatId hoac InpNotifyChatId");
       return false;
    }
-   return TelegramSendMessageTo(chatId, text);
+   int threadId = (InpGroupChatId != 0 && chatId == InpGroupChatId) ? InpGroupTopicId : 0;
+   return TelegramSendMessageTo(chatId, text, threadId);
 }
 
 // [MOI] Icon dai dien cho huong lenh, dung chung cho cac tin gui Telegram
