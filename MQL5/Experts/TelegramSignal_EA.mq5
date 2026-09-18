@@ -126,6 +126,14 @@ datetime g_lastSignalTime = 0;
 string g_lastStatus = "Chua ket noi";
 string g_offsetGvName = "";  // ten Global Variable luu g_offset, gan trong OnInit theo magic number
 
+// [MOI] Chong xu ly trung lap "song sot" qua ca luc EA restart (vd do doi
+// TF) - luu ma bam (hash) cua tin hieu vua xu ly + thoi diem, ghi xuong
+// Global Variable (giong g_offset) thay vi chi giu trong bo nho tam.
+long     g_lastSignalHash = 0;
+datetime g_lastSignalHashTime = 0;
+string   g_dedupHashGvName = "";
+string   g_dedupTimeGvName = "";
+
 // [MOI] Theo doi cap lenh TP1/TP2 dang mo (chi 1 cap tai 1 thoi diem, khop voi
 // InpOnePositionOnly) de biet luc nao can doi SL lenh TP2 ve breakeven.
 ulong g_tp1Ticket = 0;
@@ -246,6 +254,28 @@ ulong FindPositionByComment(string tag)
       if (StringFind(PositionGetString(POSITION_COMMENT), tag) >= 0) return ticket;
    }
    return 0;
+}
+
+// [MOI] Ma bam (hash) don gian cua 1 chuoi - dung de nhan dien tin hieu
+// TRUNG LAP ma khong can luu nguyen van chuoi dai vao Global Variable (GV
+// cua MT5 chi luu duoc so double, khong luu duoc string). Polynomial hash
+// tren tung byte UTF-8, du tot de phan biet cac noi dung tin hieu khac nhau.
+long StringHash(const string text)
+{
+   uchar bytes[];
+   int n = StringToCharArray(text, bytes, 0, WHOLE_ARRAY, CP_UTF8);
+   long h = 1469598103934665603; // FNV offset basis (64-bit)
+   for (int i = 0; i < n; i++)
+   {
+      if (bytes[i] == 0) break;
+      h ^= bytes[i];
+      h *= 1099511628211; // FNV prime (64-bit)
+   }
+   // GV cua MT5 chi luu chinh xac so nguyen toi da ~2^53 (double mantissa) -
+   // gioi han bot lai de luu/doc lai qua GlobalVariableSet/Get khong bi mat
+   // chinh xac (con du lon de rat hiem khi trung nhau giua 2 tin khac noi dung).
+   h = h & 0x1FFFFFFFFFFFFF;
+   return h;
 }
 
 // [MOI] URL-encode 1 chuoi UTF-8 (can cho ky tu co dau, khoang trang, xuong dong...
@@ -860,17 +890,21 @@ void ProcessSignalText(const string text)
          return; // khong phai nguon minh dang theo doi - im lang bo qua, khong log rac
    }
 
-   // [MOI] Chan xu ly TRUNG LAP theo NOI DUNG tin nhan (khong chi dua vao
-   // update_id nua) - thuc te da gap truong hop cung 1 noi dung tin nhan bi
-   // xu ly nhieu lan (do gui lai tay luc test, hoac do offset getUpdates bi
-   // lech), khien EA mo nhieu lenh/gui nhieu thong bao trung nhau cho cung
-   // 1 tin hieu. Neu tin moi den GIONG HET tin vua xu ly gan day (trong
-   // vong InpDedupSeconds giay), bo qua luon, khong xu ly lai.
-   if (InpDedupSeconds > 0 && text == g_lastSignalText && (TimeCurrent() - g_lastSignalTime) < InpDedupSeconds)
+   // [SUA] Chan xu ly TRUNG LAP theo MA BAM (hash) noi dung tin nhan, luu
+   // xuong Global Variable (song sot qua ca luc EA restart do doi TF...) -
+   // ban dau chi giu trong bien tam (mat khi restart), gio luu vinh vien
+   // giong cach luu g_offset, de khong bi xu ly lai tin cu du EA co khoi
+   // dong lai giua chung.
+   long thisHash = StringHash(text);
+   if (InpDedupSeconds > 0 && thisHash == g_lastSignalHash && (TimeCurrent() - g_lastSignalHashTime) < InpDedupSeconds)
    {
-      Print("[TelegramSignal] Tin hieu TRUNG LAP voi tin vua xu ly gan day - bo qua, khong xu ly lai");
+      Print("[TelegramSignal] Tin hieu TRUNG LAP voi tin vua xu ly gan day (ma bam giong het) - bo qua, khong xu ly lai");
       return;
    }
+   g_lastSignalHash = thisHash;
+   g_lastSignalHashTime = TimeCurrent();
+   if (StringLen(g_dedupHashGvName) > 0) GlobalVariableSet(g_dedupHashGvName, (double)g_lastSignalHash);
+   if (StringLen(g_dedupTimeGvName) > 0) GlobalVariableSet(g_dedupTimeGvName, (double)g_lastSignalHashTime);
 
    g_lastSignalText = text;
    g_lastSignalTime = TimeCurrent();
@@ -1201,6 +1235,16 @@ int OnInit()
    g_offsetGvName = "TGSig_Offset_" + IntegerToString(InpMagicNumber);
    if (GlobalVariableCheck(g_offsetGvName))
       g_offset = (long)GlobalVariableGet(g_offsetGvName);
+
+   // [MOI] Khoi phuc ma bam tin hieu gan nhat + thoi diem, de chan trung lap
+   // van hoat dong dung ngay ca khi EA vua khoi dong lai (vd do doi TF).
+   g_dedupHashGvName = "TGSig_DedupHash_" + IntegerToString(InpMagicNumber);
+   g_dedupTimeGvName = "TGSig_DedupTime_" + IntegerToString(InpMagicNumber);
+   if (GlobalVariableCheck(g_dedupHashGvName))
+      g_lastSignalHash = (long)GlobalVariableGet(g_dedupHashGvName);
+   if (GlobalVariableCheck(g_dedupTimeGvName))
+      g_lastSignalHashTime = (datetime)GlobalVariableGet(g_dedupTimeGvName);
+
    g_tp1Ticket = FindPositionByComment("TP1");
    g_tp2Ticket = FindPositionByComment("TP2");
    g_trailingTicket = 0;
