@@ -310,6 +310,18 @@ bool TelegramSendMessage(const string text)
    return TelegramSendMessageTo(chatId, text, threadId);
 }
 
+// [MOI] Rieng cho tin xac nhan lenh dieu khien (doi TF...) - dung chung
+// chat dich voi TelegramSendMessage() nhung KHONG tu gan vao InpGroupTopicId,
+// de tin dieu khien luon roi vao topic mac dinh (General) cua group, khong
+// lam loang topic Signal GOLD (topic do chi danh cho Entry/SL/TP va bao cao
+// mo/dong lenh).
+bool TelegramSendControlReply(const string text)
+{
+   long chatId = (InpNotifyChatId != 0) ? InpNotifyChatId : InpChatId;
+   if (chatId == 0) return false;
+   return TelegramSendMessageTo(chatId, text, 0);
+}
+
 // [MOI] Icon dai dien cho huong lenh, dung chung cho cac tin gui Telegram
 string DirIcon(int direction) { return (direction == 1) ? "🟢" : "🔴"; }
 
@@ -976,20 +988,20 @@ bool TryHandleTfCommand(const string text, long fromUserId, long msgChatId)
    ENUM_TIMEFRAMES tf = ParseTimeframeCode(parts[1]);
    if ((int)tf < 0)
    {
-      TelegramSendMessage("⚠️ Không nhận diện khung giờ '" + parts[1] + "'. Dùng: M1/M5/M15/M30/H1/H4/D1/W1/MN1");
+      TelegramSendControlReply("⚠️ Không nhận diện khung giờ '" + parts[1] + "'. Dùng: M1/M5/M15/M30/H1/H4/D1/W1/MN1");
       return true;
    }
    if (tf == (ENUM_TIMEFRAMES)Period())
    {
-      TelegramSendMessage("ℹ️ Chart " + _Symbol + " đang ở khung " + parts[1] + " rồi.");
+      TelegramSendControlReply("ℹ️ Chart " + _Symbol + " đang ở khung " + parts[1] + " rồi.");
       return true;
    }
 
    // Gui xac nhan TRUOC khi doi khung, vi ChartSetSymbolPeriod se lam EA
    // nay khoi dong lai (OnDeinit/OnInit) ngay sau do.
-   TelegramSendMessage("🔄 Đang đổi chart " + _Symbol + " sang khung " + parts[1] + "...");
+   TelegramSendControlReply("🔄 Đang đổi chart " + _Symbol + " sang khung " + parts[1] + "...");
    if (!ChartSetSymbolPeriod(0, _Symbol, tf))
-      TelegramSendMessage("❌ Đổi khung giờ thất bại.");
+      TelegramSendControlReply("❌ Đổi khung giờ thất bại.");
 
    return true;
 }
