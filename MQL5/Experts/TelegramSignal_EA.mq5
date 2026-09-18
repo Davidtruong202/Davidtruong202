@@ -163,6 +163,23 @@ bool PositionExists()
    return false;
 }
 
+// [SUA] Ham nay bi thieu (dung o CheckLocalExit nhung chua tung khai bao -
+// gay loi bien dich "undeclared identifier"). Tra ve 1 (buy), -1 (sell),
+// 0 (khong co lenh nao cua EA nay dang mo).
+int GetPositionDirection()
+{
+   for (int i = PositionsTotal() - 1; i >= 0; i--)
+   {
+      ulong ticket = PositionGetTicket(i);
+      if (ticket == 0) continue;
+      if (PositionGetString(POSITION_SYMBOL) != _Symbol) continue;
+      if (PositionGetInteger(POSITION_MAGIC) != (long)InpMagicNumber) continue;
+      long type = PositionGetInteger(POSITION_TYPE);
+      return (type == POSITION_TYPE_BUY) ? 1 : -1;
+   }
+   return 0;
+}
+
 void ClosePosition()
 {
    for (int i = PositionsTotal() - 1; i >= 0; i--)
