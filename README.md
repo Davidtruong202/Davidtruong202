@@ -1,5 +1,9 @@
 # XAUUSD ICT/SMC EA (MT5, khung M5)
 
+<p align="center">
+  <img src="assets/xauusd-ea-avatar.png" alt="XAUUSD ICT/SMC EA avatar" width="220">
+</p>
+
 EA tự động hoá phương pháp ICT (Inner Circle Trader / Smart Money Concepts)
 theo đúng tài liệu bạn cung cấp: killzone, liquidity sweep, Judas Swing, cấu
 trúc thị trường (BOS/CHoCH), Order Block + FVG, Premium/Discount/OTE, ICT
