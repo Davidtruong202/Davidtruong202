@@ -310,14 +310,16 @@ bool TelegramSendMessage(const string text)
    return TelegramSendMessageTo(chatId, text, threadId);
 }
 
-// [MOI] Rieng cho tin xac nhan lenh dieu khien (doi TF...) - dung chung
-// chat dich voi TelegramSendMessage() nhung KHONG tu gan vao InpGroupTopicId,
-// de tin dieu khien luon roi vao topic mac dinh (General) cua group, khong
-// lam loang topic Signal GOLD (topic do chi danh cho Entry/SL/TP va bao cao
-// mo/dong lenh).
+// [SUA] Tin xac nhan lenh dieu khien (doi TF...) gio gui THANG ve DM rieng
+// cua ban voi bot (dung InpAdminUserId lam chat_id - voi chat rieng 1-1 giua
+// user va bot, chat_id chinh la User ID do), KHONG con gui vao group nua -
+// tranh lam loan group/topic chi vi 1 lenh dieu khien ca nhan. Dieu kien de
+// nhan duoc: ban phai da nhan tin (bat ky noi dung gi) cho bot it nhat 1 lan
+// truoc do, de Telegram cho phep bot gui tin rieng nguoc lai cho ban.
 bool TelegramSendControlReply(const string text)
 {
-   long chatId = (InpNotifyChatId != 0) ? InpNotifyChatId : InpChatId;
+   long chatId = (InpAdminUserId != 0) ? InpAdminUserId
+                 : (InpNotifyChatId != 0) ? InpNotifyChatId : InpChatId;
    if (chatId == 0) return false;
    return TelegramSendMessageTo(chatId, text, 0);
 }
