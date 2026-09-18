@@ -89,23 +89,34 @@ string BuildKeyboardMarkup()
 // giong bang K/D/MACD/Trend trong anh mau ban gui). replyMarkup: truyen
 // chuoi JSON tra ve tu BuildKeyboardMarkup() de kem nut bam, hoac "" neu
 // khong can kem nut.
+// [SUA] Doi tu GET (nhet het vao URL) sang POST (noi dung nam trong body) -
+// GET voi URL qua dai/phuc tap (tin nhieu dong + reply_markup JSON) de bi
+// WebRequest tra ve loi (thuc te da gap loi 4002 khi test), trong khi cung
+// noi dung do gui thu bang GET don gian qua trinh duyet lai thanh cong -
+// chung to van de nam o do dai/cau truc URL, khong phai o bot/quyen group.
+// POST khong bi gioi han bang URL nen tranh duoc loi nay.
 bool TelegramSendHtml(long chatId, int topicId, const string htmlText, const string replyMarkup = "")
 {
    if (StringLen(InpBotToken) == 0 || chatId == 0) return false;
 
-   string url = "https://api.telegram.org/bot" + InpBotToken + "/sendMessage?chat_id=" +
-                IntegerToString(chatId) + "&parse_mode=HTML&text=" + UrlEncode(htmlText);
-   if (topicId > 0)
-      url += "&message_thread_id=" + IntegerToString(topicId);
-   if (StringLen(replyMarkup) > 0)
-      url += "&reply_markup=" + UrlEncode(replyMarkup);
+   string url = "https://api.telegram.org/bot" + InpBotToken + "/sendMessage";
 
-   char   post[];
+   string body = "chat_id=" + IntegerToString(chatId) + "&parse_mode=HTML&text=" + UrlEncode(htmlText);
+   if (topicId > 0)
+      body += "&message_thread_id=" + IntegerToString(topicId);
+   if (StringLen(replyMarkup) > 0)
+      body += "&reply_markup=" + UrlEncode(replyMarkup);
+
+   char postData[];
+   int  bodyLen = StringToCharArray(body, postData, 0, WHOLE_ARRAY, CP_UTF8) - 1; // bo byte NULL cuoi
+   if (bodyLen > 0) ArrayResize(postData, bodyLen);
+
    char   resultData[];
    string resultHeaders;
+   string headers = "Content-Type: application/x-www-form-urlencoded\r\n";
 
    ResetLastError();
-   int res = WebRequest("GET", url, "", 5000, post, resultData, resultHeaders);
+   int res = WebRequest("POST", url, headers, 5000, postData, resultData, resultHeaders);
    if (res == -1)
    {
       Print("[MarketReport] Gui Telegram that bai, loi ", GetLastError());
