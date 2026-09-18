@@ -882,11 +882,6 @@ bool TryHandleTfCommand(const string text, long fromUserId, long msgChatId)
 {
    if (!InpEnableTfCommand) return false;
 
-   bool authorized = false;
-   if (InpAdminUserId != 0 && fromUserId == InpAdminUserId) authorized = true;
-   if (!authorized && InpTrustSignalChannelForTf && InpChatId != 0 && msgChatId == InpChatId) authorized = true;
-   if (!authorized) return false;
-
    string upper = text;
    StringToUpper(upper);
    StringTrimLeft(upper);
@@ -894,7 +889,21 @@ bool TryHandleTfCommand(const string text, long fromUserId, long msgChatId)
 
    string parts[];
    int cnt = StringSplit(upper, ' ', parts);
-   if (cnt < 2 || parts[0] != "TF") return false;
+   if (cnt < 2 || parts[0] != "TF") return false; // khong phai dang "TF ..." - bo qua hoan toan, khong log
+
+   // [SUA] Tu day chac chan la 1 lenh "TF ..." that su - kiem tra quyen va
+   // LOG RO LY DO neu bi tu choi, de debug duoc thay vi im lang bo qua nhu
+   // truoc (nguoi dung khong biet dang vuong o dau).
+   bool authorized = false;
+   if (InpAdminUserId != 0 && fromUserId == InpAdminUserId) authorized = true;
+   if (!authorized && InpTrustSignalChannelForTf && InpChatId != 0 && msgChatId == InpChatId) authorized = true;
+
+   if (!authorized)
+   {
+      PrintFormat("[TelegramSignal] Lenh TF bi TU CHOI - tin nhan tu from.id=%I64d, chat.id=%I64d | Dieu kien: from.id phai == InpAdminUserId(%I64d), HOAC InpTrustSignalChannelForTf=true VA chat.id phai == InpChatId(%I64d)",
+                  fromUserId, msgChatId, InpAdminUserId, InpChatId);
+      return true; // van la lenh dieu khien (khong phai tin hieu giao dich), khong dua xuong ProcessSignalText
+   }
 
    ENUM_TIMEFRAMES tf = ParseTimeframeCode(parts[1]);
    if ((int)tf < 0)
