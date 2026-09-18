@@ -68,9 +68,20 @@ string UrlEncode(const string text)
    return result;
 }
 
+// [MOI] Bo nut bam "Custom Keyboard" - gan kem vao tin nhan de AI ban dang
+// hien luon o duoi khung chat, ai cung bam duoc (bam = tu dong gui dung
+// chu do, xu ly y het go tay). "is_persistent" giu nut hien lien tuc,
+// khong bi an di sau khi bam.
+string BuildKeyboardMarkup()
+{
+   return "{\"keyboard\":[[{\"text\":\"📊 XAU DA KHUNG\"}]],\"resize_keyboard\":true,\"is_persistent\":true}";
+}
+
 // [MOI] Gui tin dang HTML (dung <pre> de giu bang canh deu font monospace,
-// giong bang K/D/MACD/Trend trong anh mau ban gui).
-bool TelegramSendHtml(long chatId, int topicId, const string htmlText)
+// giong bang K/D/MACD/Trend trong anh mau ban gui). replyMarkup: truyen
+// chuoi JSON tra ve tu BuildKeyboardMarkup() de kem nut bam, hoac "" neu
+// khong can kem nut.
+bool TelegramSendHtml(long chatId, int topicId, const string htmlText, const string replyMarkup = "")
 {
    if (StringLen(InpBotToken) == 0 || chatId == 0) return false;
 
@@ -78,6 +89,8 @@ bool TelegramSendHtml(long chatId, int topicId, const string htmlText)
                 IntegerToString(chatId) + "&parse_mode=HTML&text=" + UrlEncode(htmlText);
    if (topicId > 0)
       url += "&message_thread_id=" + IntegerToString(topicId);
+   if (StringLen(replyMarkup) > 0)
+      url += "&reply_markup=" + UrlEncode(replyMarkup);
 
    char   post[];
    char   resultData[];
@@ -247,8 +260,17 @@ string BuildReport()
 void SendReport()
 {
    string msg = BuildReport();
-   TelegramSendHtml(InpChatId, InpTopicId, msg);
+   TelegramSendHtml(InpChatId, InpTopicId, msg, BuildKeyboardMarkup());
    g_lastAutoSend = TimeCurrent();
+}
+
+// [MOI] Tin chao gui 1 lan luc EA khoi dong, kem nut bam - de nut hien ra
+// ngay trong khung chat tu dau, khong phai cho ai go lenh xin bao cao dau
+// tien thi nut moi xuat hien.
+void SendWelcomeMenu()
+{
+   string msg = StringFormat("🤖 <b>Market Report EA</b> đã sẵn sàng cho %s.\nBấm nút bên dưới để xem báo cáo đa khung bất cứ lúc nào.", g_symbol);
+   TelegramSendHtml(InpChatId, InpTopicId, msg, BuildKeyboardMarkup());
 }
 
 //====================================================================
@@ -359,6 +381,8 @@ int OnInit()
       g_offset = (long)GlobalVariableGet(g_offsetGvName);
 
    CreateDashboard();
+   if (StringLen(InpBotToken) > 0 && InpChatId != 0)
+      SendWelcomeMenu();
    EventSetTimer(MathMax(1, InpPollSeconds));
    return INIT_SUCCEEDED;
 }
