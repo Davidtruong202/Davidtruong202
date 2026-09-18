@@ -87,6 +87,9 @@ input bool InpNotifyOnOpen  = true;   // Gui tin nhan ve Telegram khi EA vao len
 input bool InpNotifyOnClose = true;   // Gui tin nhan ve Telegram khi EA dong lenh (TP/SL/breakeven/CLOSE)
 input long InpNotifyChatId  = 0;      // Chat ID nhan bao cao (0 = gui ve cung InpChatId cua kenh tin hieu)
 
+input group "=== [MOI] Chuyen tiep tin hieu 'sach' sang channel rieng ==="
+input long InpMirrorChatId = 0;   // Chat ID channel MOI cua ban (0 = tat). Chi gom huong lenh/entry/SL/TP/Score/WinRate, khong con "eafree.net | t.me/botfather6868"
+
 input group "=== [MOI] Tu tinh dieu kien EXIT tai cho (khong phu thuoc indicator gui Telegram) ==="
 input bool InpUseLocalExit   = true;  // Tu tinh dung cong thuc EMA9/EMA20 + RSI cua MIK, dong lenh ngay khi gay - khong can cho tin CLOSE qua Telegram
 input int  InpLocalEma9      = 9;
@@ -213,16 +216,12 @@ string UrlEncode(const string text)
    return result;
 }
 
-// [MOI] Gui tin nhan TU EA len Telegram (chieu nguoc lai voi getUpdates)
-bool TelegramSendMessage(const string text)
+// [MOI] Gui tin nhan TU EA len 1 chat_id cu the (dung chung cho ca bao cao
+// va mirror sang channel rieng).
+bool TelegramSendMessageTo(long chatId, const string text)
 {
    if (StringLen(InpBotToken) == 0) return false;
-   long chatId = (InpNotifyChatId != 0) ? InpNotifyChatId : InpChatId;
-   if (chatId == 0)
-   {
-      Print("[TelegramSignal] Khong gui duoc bao cao - chua khai bao InpChatId hoac InpNotifyChatId");
-      return false;
-   }
+   if (chatId == 0) return false;
 
    string url = "https://api.telegram.org/bot" + InpBotToken + "/sendMessage?chat_id=" +
                 IntegerToString(chatId) + "&text=" + UrlEncode(text);
@@ -234,10 +233,41 @@ bool TelegramSendMessage(const string text)
    int res = WebRequest("GET", url, "", 5000, post, resultData, resultHeaders);
    if (res == -1)
    {
-      Print("[TelegramSignal] Gui bao cao Telegram that bai, loi ", GetLastError());
+      Print("[TelegramSignal] Gui tin Telegram (chat_id=", chatId, ") that bai, loi ", GetLastError());
       return false;
    }
    return true;
+}
+
+// Gui bao cao ve chat mac dinh (InpNotifyChatId hoac InpChatId)
+bool TelegramSendMessage(const string text)
+{
+   long chatId = (InpNotifyChatId != 0) ? InpNotifyChatId : InpChatId;
+   if (chatId == 0)
+   {
+      Print("[TelegramSignal] Khong gui duoc bao cao - chua khai bao InpChatId hoac InpNotifyChatId");
+      return false;
+   }
+   return TelegramSendMessageTo(chatId, text);
+}
+
+// [MOI] Gui ban tin tin hieu da lam sach (khong con "eafree.net | t.me/...")
+// sang channel rieng cua ban, dung dung SL/TP thuc te EA vua tinh/dat lenh.
+void SendMirrorSignal(int direction, double entryRef, double score, double winRate,
+                        double sl, double tp1, double tp2)
+{
+   if (InpMirrorChatId == 0) return;
+
+   string dirTxt = (direction == 1) ? "BUY" : "SELL";
+   string msg;
+   if (tp2 > 0)
+      msg = StringFormat("%s %s\nEntry: %.2f\nSL: %.2f\nTP1: %.2f\nTP2: %.2f\nScore: %.0f/100\nWinRate: %.1f%%",
+                           dirTxt, _Symbol, entryRef, sl, tp1, tp2, score, winRate);
+   else
+      msg = StringFormat("%s %s\nEntry: %.2f\nSL: %.2f\nTP: %.2f\nScore: %.0f/100\nWinRate: %.1f%%",
+                           dirTxt, _Symbol, entryRef, sl, tp1, score, winRate);
+
+   TelegramSendMessageTo(InpMirrorChatId, msg);
 }
 
 //====================================================================
@@ -419,7 +449,7 @@ void OpenSingleLeg(int direction, double lot, double sl, double tp, double atr, 
 // hieu chia lam 2 lenh cung SL - 1 lenh nham TP1, 1 lenh nham TP2. Khi lenh
 // TP1 dong (chay ve dich), lenh TP2 tu doi SL ve gia vao lenh (breakeven) -
 // xu ly trong OnTradeTransaction ben duoi.
-void ExecuteSignal(int direction, double sl, double tp, double lot)
+void ExecuteSignal(int direction, double sl, double tp, double lot, double score, double winRate)
 {
    if (InpOnePositionOnly && PositionExists())
    {
@@ -435,9 +465,14 @@ void ExecuteSignal(int direction, double sl, double tp, double lot)
 
    if (!InpUseDualTpMode || atr <= 0)
    {
+      double refPrice = (direction == 1) ? SymbolInfoDouble(_Symbol, SYMBOL_ASK) : SymbolInfoDouble(_Symbol, SYMBOL_BID);
+      int digitsS = (int)SymbolInfoInteger(_Symbol, SYMBOL_DIGITS);
+      double slS = (sl > 0) ? sl : (atr > 0 ? (direction == 1 ? refPrice - atr * InpSlAtrMik : refPrice + atr * InpSlAtrMik) : 0);
+      double tpS = (tp > 0) ? tp : (atr > 0 ? (direction == 1 ? refPrice + atr * InpTp2Atr  : refPrice - atr * InpTp2Atr)  : 0);
       OpenSingleLeg(direction, totalLot, sl, tp, atr, "TG Signal");
       if (InpNotifyOnOpen)
          TelegramSendMessage(StringFormat("EA %s\nDa mo lenh %s\nLot: %.2f", _Symbol, (direction == 1 ? "BUY" : "SELL"), totalLot));
+      SendMirrorSignal(direction, refPrice, score, winRate, NormalizeDouble(slS, digitsS), NormalizeDouble(tpS, digitsS), 0);
       return;
    }
 
@@ -451,23 +486,24 @@ void ExecuteSignal(int direction, double sl, double tp, double lot)
    double legLot2 = NormalizeLot(totalLot - legLot1);
    int digits = (int)SymbolInfoInteger(_Symbol, SYMBOL_DIGITS);
 
+   double entryPrice, useSl, useTp1, useTp2;
    if (direction == 1)
    {
-      double price  = SymbolInfoDouble(_Symbol, SYMBOL_ASK);
-      double useSl  = (sl > 0) ? sl : NormalizeDouble(price - atr * InpSlAtrMik, digits);
-      double useTp1 = NormalizeDouble(price + atr * InpTp1Atr, digits);
-      double useTp2 = (tp > 0) ? tp : NormalizeDouble(price + atr * InpTp2Atr, digits);
-      trade.Buy(legLot1, _Symbol, price, useSl, useTp1, "TG Signal TP1");
-      trade.Buy(legLot2, _Symbol, price, useSl, useTp2, "TG Signal TP2");
+      entryPrice = SymbolInfoDouble(_Symbol, SYMBOL_ASK);
+      useSl  = (sl > 0) ? sl : NormalizeDouble(entryPrice - atr * InpSlAtrMik, digits);
+      useTp1 = NormalizeDouble(entryPrice + atr * InpTp1Atr, digits);
+      useTp2 = (tp > 0) ? tp : NormalizeDouble(entryPrice + atr * InpTp2Atr, digits);
+      trade.Buy(legLot1, _Symbol, entryPrice, useSl, useTp1, "TG Signal TP1");
+      trade.Buy(legLot2, _Symbol, entryPrice, useSl, useTp2, "TG Signal TP2");
    }
    else
    {
-      double price  = SymbolInfoDouble(_Symbol, SYMBOL_BID);
-      double useSl  = (sl > 0) ? sl : NormalizeDouble(price + atr * InpSlAtrMik, digits);
-      double useTp1 = NormalizeDouble(price - atr * InpTp1Atr, digits);
-      double useTp2 = (tp > 0) ? tp : NormalizeDouble(price - atr * InpTp2Atr, digits);
-      trade.Sell(legLot1, _Symbol, price, useSl, useTp1, "TG Signal TP1");
-      trade.Sell(legLot2, _Symbol, price, useSl, useTp2, "TG Signal TP2");
+      entryPrice = SymbolInfoDouble(_Symbol, SYMBOL_BID);
+      useSl  = (sl > 0) ? sl : NormalizeDouble(entryPrice + atr * InpSlAtrMik, digits);
+      useTp1 = NormalizeDouble(entryPrice - atr * InpTp1Atr, digits);
+      useTp2 = (tp > 0) ? tp : NormalizeDouble(entryPrice - atr * InpTp2Atr, digits);
+      trade.Sell(legLot1, _Symbol, entryPrice, useSl, useTp1, "TG Signal TP1");
+      trade.Sell(legLot2, _Symbol, entryPrice, useSl, useTp2, "TG Signal TP2");
    }
 
    g_tp1Ticket = FindPositionByComment("TP1");
@@ -476,6 +512,8 @@ void ExecuteSignal(int direction, double sl, double tp, double lot)
    if (InpNotifyOnOpen)
       TelegramSendMessage(StringFormat("EA %s\nDa mo 2 lenh %s (TP1 #%I64u lot %.2f, TP2 #%I64u lot %.2f)\nTong lot: %.2f",
                                          _Symbol, (direction == 1 ? "BUY" : "SELL"), g_tp1Ticket, legLot1, g_tp2Ticket, legLot2, legLot1 + legLot2));
+
+   SendMirrorSignal(direction, entryPrice, score, winRate, useSl, useTp1, useTp2);
 }
 
 // [MOI] Khi lenh TP1 dong, doi SL lenh TP2 ve dung gia vao lenh (breakeven)
@@ -733,7 +771,7 @@ void ProcessSignalText(const string text)
       }
    }
 
-   ExecuteSignal(direction, sl, tp, lot);
+   ExecuteSignal(direction, sl, tp, lot, score, winRate);
    PrintFormat("[TelegramSignal] Da xu ly tin hieu %s | Score=%.0f WinRate=%.1f%% RefPrice=%.2f SL=%.2f TP=%.2f LOT=%.2f | goc: %s",
                (direction == 1 ? "BUY" : "SELL"), score, winRate, refPrice, sl, tp, lot, text);
 }
