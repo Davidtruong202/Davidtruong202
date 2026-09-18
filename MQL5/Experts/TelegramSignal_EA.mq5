@@ -15,6 +15,14 @@
 //|  khac co ghi them "SL x" / "TP x" / "LOT x" thi EA van doc duoc.  |
 //|  Dung "CLOSE" de dong lenh dang mo.                                |
 //|                                                                    |
+//|  DIEU KHIEN TU TELEGRAM: nhan tin "TF M5" (hoac M1/M15/M30/H1/H4/  |
+//|  D1/W1/MN1) tu dung Telegram User ID khai bao o InpAdminUserId de  |
+//|  doi khung gio cua chart dang chay EA - doi luon ca EA lan         |
+//|  indicator MIK vi cung gan tren 1 chart. BAT BUOC dien              |
+//|  InpAdminUserId (lay bang cach nhan tin cho bot roi xem truong      |
+//|  "from":{"id":...} trong ket qua getUpdates) - de trong se TAT tinh|
+//|  nang nay de tranh nguoi khac trong channel dieu khien duoc.        |
+//|                                                                    |
 //|  BAT BUOC: whitelist https://api.telegram.org trong Tools->       |
 //|  Options->Expert Advisors->Allow WebRequest for listed URL.        |
 //|  Bot phai da duoc them vao channel/group nguon tin hieu.           |
@@ -77,6 +85,10 @@ input int  InpLocalRsiPeriod = 14;
 input int  InpLocalRsiEma    = 9;
 input int  InpLocalRsiWma    = 45;
 
+input group "=== [MOI] Dieu khien EA tu Telegram (doi khung gio chart...) ==="
+input bool InpEnableTfCommand = true;   // Cho phep doi khung gio chart bang lenh chat, vd "TF M5"
+input long InpAdminUserId     = 0;      // BAT BUOC dien dung Telegram User ID cua ban de kich hoat - de trong (0) se TU TAT tinh nang nay de an toan
+
 //====================================================================
 // Globals
 //====================================================================
@@ -85,6 +97,7 @@ long   g_offset  = 0;      // update_id tiep theo can lay tu Telegram
 string g_lastSignalText = "";
 datetime g_lastSignalTime = 0;
 string g_lastStatus = "Chua ket noi";
+string g_offsetGvName = "";  // ten Global Variable luu g_offset, gan trong OnInit theo magic number
 
 // [MOI] Theo doi cap lenh TP1/TP2 dang mo (chi 1 cap tai 1 thoi diem, khop voi
 // InpOnePositionOnly) de biet luc nao can doi SL lenh TP2 ve breakeven.
@@ -648,6 +661,63 @@ void ProcessSignalText(const string text)
                (direction == 1 ? "BUY" : "SELL"), score, winRate, refPrice, sl, tp, lot, text);
 }
 
+// [MOI] Doi ma khung gio dang go trong chat ("M5", "H1"...) sang ENUM_TIMEFRAMES.
+// Tra ve -1 neu khong nhan dien duoc.
+ENUM_TIMEFRAMES ParseTimeframeCode(const string codeUpper)
+{
+   if (codeUpper == "M1")  return PERIOD_M1;
+   if (codeUpper == "M5")  return PERIOD_M5;
+   if (codeUpper == "M15") return PERIOD_M15;
+   if (codeUpper == "M30") return PERIOD_M30;
+   if (codeUpper == "H1")  return PERIOD_H1;
+   if (codeUpper == "H4")  return PERIOD_H4;
+   if (codeUpper == "D1")  return PERIOD_D1;
+   if (codeUpper == "W1")  return PERIOD_W1;
+   if (codeUpper == "MN1") return PERIOD_MN1;
+   return (ENUM_TIMEFRAMES)(-1);
+}
+
+// [MOI] Nhan tin nhan dang "TF M5" tu dung nguoi (InpAdminUserId) de doi khung
+// gio cua chinh chart dang chay EA nay (dong thoi doi luon khung tinh cua
+// indicator MIK vi cung gan tren 1 chart). Tra ve true neu tin nhan nay DA
+// duoc xu ly nhu 1 lenh dieu khien (du hop le hay khong), de PollTelegram
+// biet khong can dua xuong ProcessSignalText nua.
+bool TryHandleTfCommand(const string text, long fromUserId)
+{
+   if (!InpEnableTfCommand) return false;
+   if (InpAdminUserId == 0) return false; // an toan: bat buoc khai bao admin moi bat tinh nang nay
+   if (fromUserId != InpAdminUserId) return false;
+
+   string upper = text;
+   StringToUpper(upper);
+   StringTrimLeft(upper);
+   StringTrimRight(upper);
+
+   string parts[];
+   int cnt = StringSplit(upper, ' ', parts);
+   if (cnt < 2 || parts[0] != "TF") return false;
+
+   ENUM_TIMEFRAMES tf = ParseTimeframeCode(parts[1]);
+   if ((int)tf < 0)
+   {
+      TelegramSendMessage("EA: Khong nhan dien khung gio '" + parts[1] + "'. Dung: M1/M5/M15/M30/H1/H4/D1/W1/MN1");
+      return true;
+   }
+   if (tf == (ENUM_TIMEFRAMES)Period())
+   {
+      TelegramSendMessage("EA: Chart " + _Symbol + " da dang o khung " + parts[1] + " roi.");
+      return true;
+   }
+
+   // Gui xac nhan TRUOC khi doi khung, vi ChartSetSymbolPeriod se lam EA
+   // nay khoi dong lai (OnDeinit/OnInit) ngay sau do.
+   TelegramSendMessage("EA: Dang doi chart " + _Symbol + " sang khung " + parts[1] + "...");
+   if (!ChartSetSymbolPeriod(0, _Symbol, tf))
+      TelegramSendMessage("EA: Doi khung gio that bai.");
+
+   return true;
+}
+
 //====================================================================
 // Vong lap poll Telegram - tim tung "update_id" va cac truong lien   |
 // quan trong pham vi block cua update do.                            |
@@ -673,12 +743,25 @@ void PollTelegram()
       int blockEnd  = (nextIdPos < 0) ? len : nextIdPos;
 
       long   chatId = ExtractLongAfter(json, idPos, "\"chat\":{\"id\":", blockEnd);
+      long   fromId = ExtractLongAfter(json, idPos, "\"from\":{\"id\":", blockEnd);
       string text   = ExtractStringAfter(json, idPos, "\"text\":\"", blockEnd);
 
-      if (updateId >= g_offset) g_offset = updateId + 1;
+      if (updateId >= g_offset)
+      {
+         g_offset = updateId + 1;
+         if (StringLen(g_offsetGvName) > 0) GlobalVariableSet(g_offsetGvName, (double)g_offset);
+      }
 
-      if (StringLen(text) > 0 && (InpChatId == 0 || chatId == InpChatId))
-         ProcessSignalText(text);
+      if (StringLen(text) > 0)
+      {
+         // Lenh dieu khien (vd doi TF) khong bi rang buoc boi InpChatId, vi
+         // ban co the nhan tin rieng cho bot tu 1 chat khac voi kenh tin hieu.
+         if (!TryHandleTfCommand(text, fromId))
+         {
+            if (InpChatId == 0 || chatId == InpChatId)
+               ProcessSignalText(text);
+         }
+      }
 
       if (nextIdPos < 0) break;
       pos = blockEnd;
@@ -697,7 +780,7 @@ void SetLabel(string name, string text, color clr)
 
 void CreateDashboard()
 {
-   string keys[] = {"Title", "Status", "LastSignal", "Position", "Legs", "LocalCalc"};
+   string keys[] = {"Title", "Status", "LastSignal", "Position", "Legs", "LocalCalc", "TfControl"};
    int x = 10, y = 18, dy = 16;
    for (int i = 0; i < ArraySize(keys); i++)
    {
@@ -754,6 +837,11 @@ void UpdateDashboard()
    }
    else
       SetLabel(DASH_PREFIX + "LocalCalc", "Tu tinh EXIT: TAT", clrSilver);
+
+   string tfControlTxt = StringFormat("TF hien tai: %s | Dieu khien tu Telegram: %s",
+                                        EnumToString((ENUM_TIMEFRAMES)Period()),
+                                        (InpEnableTfCommand && InpAdminUserId != 0) ? "BAT" : "TAT (thieu InpAdminUserId)");
+   SetLabel(DASH_PREFIX + "TfControl", tfControlTxt, (InpEnableTfCommand && InpAdminUserId != 0) ? clrLimeGreen : clrSilver);
 }
 
 //====================================================================
@@ -767,6 +855,15 @@ int OnInit()
    {
       Print("[TelegramSignal] Chua nhap InpBotToken - EA se khong hoat dong");
    }
+
+   // [MOI] EA co the tu khoi dong lai giua chung khi doi TF qua lenh Telegram
+   // (ChartSetSymbolPeriod lam OnInit chay lai). Khoi phuc lai trang thai de
+   // khong xu ly lai tin nhan cu va khong mat dau vet cap lenh TP1/TP2.
+   g_offsetGvName = "TGSig_Offset_" + IntegerToString(InpMagicNumber);
+   if (GlobalVariableCheck(g_offsetGvName))
+      g_offset = (long)GlobalVariableGet(g_offsetGvName);
+   g_tp1Ticket = FindPositionByComment("TP1");
+   g_tp2Ticket = FindPositionByComment("TP2");
 
    atrHandle = iATR(_Symbol, PERIOD_CURRENT, InpAtrPeriod);
    if (atrHandle == INVALID_HANDLE)
