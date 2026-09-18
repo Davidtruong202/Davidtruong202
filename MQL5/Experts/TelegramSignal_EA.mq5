@@ -16,12 +16,16 @@
 //|  Dung "CLOSE" de dong lenh dang mo.                                |
 //|                                                                    |
 //|  DIEU KHIEN TU TELEGRAM: nhan tin "TF M5" (hoac M1/M15/M30/H1/H4/  |
-//|  D1/W1/MN1) tu dung Telegram User ID khai bao o InpAdminUserId de  |
-//|  doi khung gio cua chart dang chay EA - doi luon ca EA lan         |
-//|  indicator MIK vi cung gan tren 1 chart. BAT BUOC dien              |
-//|  InpAdminUserId (lay bang cach nhan tin cho bot roi xem truong      |
-//|  "from":{"id":...} trong ket qua getUpdates) - de trong se TAT tinh|
-//|  nang nay de tranh nguoi khac trong channel dieu khien duoc.        |
+//|  D1/W1/MN1) de doi khung gio cua chart dang chay EA - doi luon ca  |
+//|  EA lan indicator MIK vi cung gan tren 1 chart. Can BAT 1 trong 2  |
+//|  cach xac thuc: InpAdminUserId (User ID cua ban, dung khi DM rieng |
+//|  cho bot) hoac InpTrustSignalChannelForTf (tin thang tin nhan gui  |
+//|  trong chinh channel tin hieu - chi bat neu chac chan chi minh ban |
+//|  dang duoc trong channel do). Neu la Channel that (khong phai      |
+//|  Group), Telegram KHONG lo danh tinh nguoi gui tin dang trong      |
+//|  channel qua Bot API, nen InpAdminUserId se khong nhan dien duoc   |
+//|  lenh gui THANG trong channel - phai dung DM hoac bat              |
+//|  InpTrustSignalChannelForTf. Ca 2 deu tat mac dinh de an toan.     |
 //|                                                                    |
 //|  BAT BUOC: whitelist https://api.telegram.org trong Tools->       |
 //|  Options->Expert Advisors->Allow WebRequest for listed URL.        |
@@ -86,8 +90,9 @@ input int  InpLocalRsiEma    = 9;
 input int  InpLocalRsiWma    = 45;
 
 input group "=== [MOI] Dieu khien EA tu Telegram (doi khung gio chart...) ==="
-input bool InpEnableTfCommand = true;   // Cho phep doi khung gio chart bang lenh chat, vd "TF M5"
-input long InpAdminUserId     = 0;      // BAT BUOC dien dung Telegram User ID cua ban de kich hoat - de trong (0) se TU TAT tinh nang nay de an toan
+input bool InpEnableTfCommand         = true;  // Cho phep doi khung gio chart bang lenh chat, vd "TF M5"
+input long InpAdminUserId             = 0;     // Telegram User ID duoc phep goi lenh (dung khi nhan rieng cho bot) - 0 = khong dung cach nay
+input bool InpTrustSignalChannelForTf = false; // true: tin lenh TF gui THANG trong channel tin hieu (InpChatId), khong can biet User ID - chi bat neu chac chan chi minh ban dang duoc trong channel do
 
 //====================================================================
 // Globals
@@ -677,16 +682,25 @@ ENUM_TIMEFRAMES ParseTimeframeCode(const string codeUpper)
    return (ENUM_TIMEFRAMES)(-1);
 }
 
-// [MOI] Nhan tin nhan dang "TF M5" tu dung nguoi (InpAdminUserId) de doi khung
-// gio cua chinh chart dang chay EA nay (dong thoi doi luon khung tinh cua
-// indicator MIK vi cung gan tren 1 chart). Tra ve true neu tin nhan nay DA
+// [MOI] Nhan tin nhan dang "TF M5" de doi khung gio cua chinh chart dang chay
+// EA nay (dong thoi doi luon khung tinh cua indicator MIK vi cung gan tren 1
+// chart). Cho phep qua 1 trong 2 cach xac thuc: (1) dung Telegram User ID
+// (InpAdminUserId, dung khi nhan rieng cho bot - hoat dong voi ca Group lan
+// Channel), hoac (2) tin thang theo Chat ID cua channel tin hieu
+// (InpTrustSignalChannelForTf, dung khi gui ngay trong channel do - LUU Y:
+// voi Channel that su (khong phai Group), Telegram khong tra ve danh tinh
+// nguoi gui qua Bot API nen cach (1) se khong nhan dien duoc tin gui trong
+// channel, phai dung DM rieng cho bot). Tra ve true neu tin nhan nay DA
 // duoc xu ly nhu 1 lenh dieu khien (du hop le hay khong), de PollTelegram
 // biet khong can dua xuong ProcessSignalText nua.
-bool TryHandleTfCommand(const string text, long fromUserId)
+bool TryHandleTfCommand(const string text, long fromUserId, long msgChatId)
 {
    if (!InpEnableTfCommand) return false;
-   if (InpAdminUserId == 0) return false; // an toan: bat buoc khai bao admin moi bat tinh nang nay
-   if (fromUserId != InpAdminUserId) return false;
+
+   bool authorized = false;
+   if (InpAdminUserId != 0 && fromUserId == InpAdminUserId) authorized = true;
+   if (!authorized && InpTrustSignalChannelForTf && InpChatId != 0 && msgChatId == InpChatId) authorized = true;
+   if (!authorized) return false;
 
    string upper = text;
    StringToUpper(upper);
@@ -754,9 +768,9 @@ void PollTelegram()
 
       if (StringLen(text) > 0)
       {
-         // Lenh dieu khien (vd doi TF) khong bi rang buoc boi InpChatId, vi
-         // ban co the nhan tin rieng cho bot tu 1 chat khac voi kenh tin hieu.
-         if (!TryHandleTfCommand(text, fromId))
+         // Lenh dieu khien (vd doi TF) tu kiem tra quyen rieng (User ID hoac
+         // tin channel), khong bi rang buoc boi bo loc InpChatId ben duoi.
+         if (!TryHandleTfCommand(text, fromId, chatId))
          {
             if (InpChatId == 0 || chatId == InpChatId)
                ProcessSignalText(text);
@@ -838,10 +852,15 @@ void UpdateDashboard()
    else
       SetLabel(DASH_PREFIX + "LocalCalc", "Tu tinh EXIT: TAT", clrSilver);
 
+   bool tfAuthAny = InpEnableTfCommand && (InpAdminUserId != 0 || InpTrustSignalChannelForTf);
+   string tfMode = !InpEnableTfCommand ? "TAT"
+                    : (InpAdminUserId != 0 && InpTrustSignalChannelForTf) ? "BAT (User ID + Channel)"
+                    : (InpAdminUserId != 0) ? "BAT (chi qua User ID / DM)"
+                    : InpTrustSignalChannelForTf ? "BAT (tin thang channel tin hieu)"
+                    : "TAT (chua khai bao cach xac thuc nao)";
    string tfControlTxt = StringFormat("TF hien tai: %s | Dieu khien tu Telegram: %s",
-                                        EnumToString((ENUM_TIMEFRAMES)Period()),
-                                        (InpEnableTfCommand && InpAdminUserId != 0) ? "BAT" : "TAT (thieu InpAdminUserId)");
-   SetLabel(DASH_PREFIX + "TfControl", tfControlTxt, (InpEnableTfCommand && InpAdminUserId != 0) ? clrLimeGreen : clrSilver);
+                                        EnumToString((ENUM_TIMEFRAMES)Period()), tfMode);
+   SetLabel(DASH_PREFIX + "TfControl", tfControlTxt, tfAuthAny ? clrLimeGreen : clrSilver);
 }
 
 //====================================================================
