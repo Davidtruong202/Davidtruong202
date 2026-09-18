@@ -301,6 +301,47 @@ bool TelegramSendMessage(const string text)
 // [MOI] Icon dai dien cho huong lenh, dung chung cho cac tin gui Telegram
 string DirIcon(int direction) { return (direction == 1) ? "🟢" : "🔴"; }
 
+// [MOI] Ten symbol de hien thi trong tin nhan - bo ky tu 'c' cuoi cung neu co
+// (hau to cent-account cua mot so broker, vd "XAUUSDc" -> "XAUUSD"). Chi anh
+// huong hien thi, KHONG doi _Symbol thuc te dung de giao dich.
+string CleanSymbolForDisplay()
+{
+   string s = _Symbol;
+   int len = StringLen(s);
+   if (len > 0 && StringGetCharacter(s, len - 1) == 'c')
+      return StringSubstr(s, 0, len - 1);
+   return s;
+}
+
+// [MOI] Tong loi/lo cac lenh CUA EA NAY da dong trong ngay hien tai (tinh tu
+// 00:00 gio server toi hien tai), dung de hien thi thay cho ty le thang.
+double CalcDayProfit()
+{
+   MqlDateTime dt;
+   TimeToStruct(TimeCurrent(), dt);
+   dt.hour = 0; dt.min = 0; dt.sec = 0;
+   datetime dayStart = StructToTime(dt);
+   datetime now = TimeCurrent();
+
+   double profit = 0.0;
+   if (!HistorySelect(dayStart, now + 86400)) return 0.0;
+
+   int total = HistoryDealsTotal();
+   for (int i = 0; i < total; i++)
+   {
+      ulong ticket = HistoryDealGetTicket(i);
+      if (ticket == 0) continue;
+      if (HistoryDealGetString(ticket, DEAL_SYMBOL) != _Symbol) continue;
+      if (HistoryDealGetInteger(ticket, DEAL_MAGIC) != (long)InpMagicNumber) continue;
+      long entry = HistoryDealGetInteger(ticket, DEAL_ENTRY);
+      if (entry != DEAL_ENTRY_OUT && entry != DEAL_ENTRY_OUT_BY) continue;
+      profit += HistoryDealGetDouble(ticket, DEAL_PROFIT) +
+                HistoryDealGetDouble(ticket, DEAL_SWAP) +
+                HistoryDealGetDouble(ticket, DEAL_COMMISSION);
+   }
+   return profit;
+}
+
 // [MOI] Gui ban tin tin hieu da lam sach (khong con "eafree.net | t.me/...")
 // sang channel rieng cua ban, dung dung SL/TP thuc te EA vua tinh/dat lenh.
 void SendMirrorSignal(int direction, double entryRef, double score, double winRate,
@@ -309,13 +350,15 @@ void SendMirrorSignal(int direction, double entryRef, double score, double winRa
    if (InpMirrorChatId == 0) return;
 
    string dirTxt = (direction == 1) ? "BUY" : "SELL";
+   string symDisp = CleanSymbolForDisplay();
+   double dayProfit = CalcDayProfit();
    string msg;
    if (tp2 > 0)
-      msg = StringFormat("%s %s %s\n📍 Entry: %.2f\n🛑 SL: %.2f\n🎯 TP1: %.2f\n🎯 TP2: %.2f\n⭐ Score: %.0f/100\n📊 Tỷ lệ thắng: %.1f%%",
-                           DirIcon(direction), dirTxt, _Symbol, entryRef, sl, tp1, tp2, score, winRate);
+      msg = StringFormat("%s %s %s\n📍 Entry: %.2f\n🛑 SL: %.2f\n🎯 TP1: %.2f\n🎯 TP2: %.2f\n⭐ Score: %.0f/100\n📆 Lãi/lỗ hôm nay: %.2f %s",
+                           DirIcon(direction), dirTxt, symDisp, entryRef, sl, tp1, tp2, score, dayProfit, AccountInfoString(ACCOUNT_CURRENCY));
    else
-      msg = StringFormat("%s %s %s\n📍 Entry: %.2f\n🛑 SL: %.2f\n🎯 TP: %.2f\n⭐ Score: %.0f/100\n📊 Tỷ lệ thắng: %.1f%%",
-                           DirIcon(direction), dirTxt, _Symbol, entryRef, sl, tp1, score, winRate);
+      msg = StringFormat("%s %s %s\n📍 Entry: %.2f\n🛑 SL: %.2f\n🎯 TP: %.2f\n⭐ Score: %.0f/100\n📆 Lãi/lỗ hôm nay: %.2f %s",
+                           DirIcon(direction), dirTxt, symDisp, entryRef, sl, tp1, score, dayProfit, AccountInfoString(ACCOUNT_CURRENCY));
 
    TelegramSendMessageTo(InpMirrorChatId, msg);
 }
