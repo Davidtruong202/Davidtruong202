@@ -697,7 +697,7 @@ void SetLabel(string name, string text, color clr)
 
 void CreateDashboard()
 {
-   string keys[] = {"Title", "Status", "LastSignal", "Position", "Legs"};
+   string keys[] = {"Title", "Status", "LastSignal", "Position", "Legs", "LocalCalc"};
    int x = 10, y = 18, dy = 16;
    for (int i = 0; i < ArraySize(keys); i++)
    {
@@ -736,6 +736,24 @@ void UpdateDashboard()
       SetLabel(DASH_PREFIX + "Legs", StringFormat("TP1=#%I64u  TP2=#%I64u", g_tp1Ticket, g_tp2Ticket), clrSilver);
    else
       SetLabel(DASH_PREFIX + "Legs", "Che do: 1 lenh don", clrSilver);
+
+   // [MOI] Hien thi 4 gia tri EA dang tu tinh, de doi chieu truc tiep voi so
+   // hien tren panel RSI cua indicator MIK that (kiem chung do chinh xac).
+   if (InpUseLocalExit)
+   {
+      double ema9[], ema20[];
+      double rsiEma1 = 0, rsiWma1 = 0;
+      bool okEma = GetBufferSeries(emaFastHandleLocal, 0, 2, ema9) && GetBufferSeries(emaSlowHandleLocal, 0, 2, ema20);
+      bool okRsi = ComputeRsiCrossLocal(rsiEma1, rsiWma1);
+      if (okEma && okRsi)
+         SetLabel(DASH_PREFIX + "LocalCalc",
+                   StringFormat("Tu tinh: EMA9=%.2f EMA20=%.2f | E(RSI)=%.1f W(RSI)=%.1f", ema9[1], ema20[1], rsiEma1, rsiWma1),
+                   clrKhaki);
+      else
+         SetLabel(DASH_PREFIX + "LocalCalc", "Tu tinh: chua du du lieu", clrSilver);
+   }
+   else
+      SetLabel(DASH_PREFIX + "LocalCalc", "Tu tinh EXIT: TAT", clrSilver);
 }
 
 //====================================================================
