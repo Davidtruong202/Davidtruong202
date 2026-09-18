@@ -249,7 +249,7 @@ string BuildReport()
       bool trendUp;
       if (!GetTfRow(g_tfList[i], k, d, macdHist, trendUp))
       {
-         table += StringFormat("%-4s   khong lay duoc du lieu\n", g_tfLabel[i]);
+         table += StringFormat("%-4s   không lấy được dữ liệu\n", g_tfLabel[i]);
          continue;
       }
       string trendTxt = trendUp ? "UP" : "DOWN";
@@ -265,10 +265,10 @@ string BuildReport()
    }
 
    string mainTrend;
-   if (validCount == 0) mainTrend = "Khong du du lieu";
-   else if (upCount == validCount) mainTrend = "TANG (dong thuan)";
-   else if (downCount == validCount) mainTrend = "GIAM (dong thuan)";
-   else mainTrend = "GIANG CO / CHUA RO XU HUONG";
+   if (validCount == 0) mainTrend = "Không đủ dữ liệu";
+   else if (upCount == validCount) mainTrend = "TĂNG (đồng thuận)";
+   else if (downCount == validCount) mainTrend = "GIẢM (đồng thuận)";
+   else mainTrend = "GIẰNG CO / CHƯA RÕ XU HƯỚNG";
 
    string symDisp = g_symbol;
    string msg = StringFormat("%s <b>%s Da Khung</b>\n💰 Gia hien tai: <b>%.2f</b>\n📌 Mo cua hom nay: %.2f\n\n<pre>%s</pre>\n🎯 Xu huong chinh (H1-D1): <b>%s</b>",
