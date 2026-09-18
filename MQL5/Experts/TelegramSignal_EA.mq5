@@ -931,7 +931,19 @@ void ProcessSignalText(const string text)
    if (InpMaxPriceDeviation > 0 && refPrice > 0)
    {
       double curPrice = (direction == 1) ? SymbolInfoDouble(_Symbol, SYMBOL_ASK) : SymbolInfoDouble(_Symbol, SYMBOL_BID);
-      if (MathAbs(curPrice - refPrice) > InpMaxPriceDeviation)
+
+      // [SUA] Thuc te gap truong hop parse gia "@" ra so vo ly (vd 43801 thay
+      // vi 4382 - lech gan 10 lan), khien tin hieu hop le bi chan oan vi tuong
+      // nham la "gia lech qua xa". Neu refPrice lech qua 3 lan (gap 3 hoac chi
+      // bang 1/3) so voi gia hien tai, coi nhu do la loi parse chu khong phai
+      // gia that - bo qua han buoc loc nay thay vi tin theo so sai va chan
+      // nham tin hieu dung.
+      double ratio = (curPrice > 0) ? refPrice / curPrice : 1.0;
+      if (ratio > 3.0 || ratio < 0.333)
+      {
+         PrintFormat("[TelegramSignal] Gia '@' doc duoc (%.2f) lech bat thuong so voi gia hien tai (%.2f) - nghi ngo loi parse, bo qua buoc loc gia (khong chan tin hieu)", refPrice, curPrice);
+      }
+      else if (MathAbs(curPrice - refPrice) > InpMaxPriceDeviation)
       {
          PrintFormat("[TelegramSignal] Gia hien tai (%.2f) lech qua xa gia tin hieu (%.2f) - bo qua (tin hieu co the bi tre)", curPrice, refPrice);
          return;
