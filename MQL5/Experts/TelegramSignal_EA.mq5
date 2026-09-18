@@ -60,6 +60,10 @@ input double InpMinScore          = 70.0;  // Bo qua tin hieu neu "MIK Score" < 
 input double InpMinWinRate        = 0.0;   // Bo qua tin hieu neu "Ty le thang lich su" < muc nay % (0 = tat loc)
 input double InpMaxPriceDeviation = 5.0;   // Bo qua neu gia thi truong hien tai lech qua xa gia "@" trong tin hieu (don vi gia, 0 = tat kiem tra)
 
+input group "=== [MOI] Chi nhan tin hieu tu dung nguon (channel co nhieu bot/indicator khac) ==="
+input bool   InpRequireSourceTag = true;    // Chi xu ly tin nhan CO chua chuoi InpSourceTag - bo qua het tin cua bot/indicator khac trong cung channel
+input string InpSourceTag        = "MIK";   // Chuoi dac trung nhan dien dung nguon (vd "MIK", "MIK EMA CROSS"...)
+
 //====================================================================
 // Globals
 //====================================================================
@@ -378,11 +382,22 @@ double ExtractNumberBeforePercent(const string &raw)
 
 void ProcessSignalText(const string text)
 {
-   g_lastSignalText = text;
-   g_lastSignalTime = TimeCurrent();
-
    string upper = text;
    StringToUpper(upper);
+
+   // [MOI] Chan tu dau: neu channel co nhieu bot/indicator, chi xu ly tin
+   // nhan THUC SU den tu nguon mong muon (co chua InpSourceTag). Tin cua
+   // bot/indicator khac se bi bo qua hoan toan, du co chua BUY/SELL hay khong.
+   if (InpRequireSourceTag)
+   {
+      string tagUpper = InpSourceTag;
+      StringToUpper(tagUpper);
+      if (StringLen(tagUpper) > 0 && StringFind(upper, tagUpper) < 0)
+         return; // khong phai nguon minh dang theo doi - im lang bo qua, khong log rac
+   }
+
+   g_lastSignalText = text;
+   g_lastSignalTime = TimeCurrent();
 
    string buyKw = InpBuyKeyword,  sellKw = InpSellKeyword, closeKw = InpCloseKeyword;
    StringToUpper(buyKw); StringToUpper(sellKw); StringToUpper(closeKw);
@@ -437,14 +452,17 @@ void ProcessSignalText(const string text)
    double winRate  = ExtractNumberBeforePercent(text);
    double refPrice = ExtractNumberAfterMarker(upper, text, "@");
 
-   if (InpMinScore > 0 && score >= 0 && score < InpMinScore)
+   // [SIET] Neu bat loc nhung khong doc duoc Score/WinRate tu tin nhan (vd
+   // dinh dang bi doi khac di), coi nhu KHONG DAT thay vi im lang bo qua
+   // buoc loc - tranh vo tinh vao lenh du tin nhan khong du thong tin.
+   if (InpMinScore > 0 && score < InpMinScore)
    {
-      Print("[TelegramSignal] MIK Score ", score, " < nguong ", InpMinScore, " - bo qua tin hieu: ", text);
+      Print("[TelegramSignal] MIK Score ", score, " < nguong ", InpMinScore, " (hoac khong doc duoc) - bo qua tin hieu: ", text);
       return;
    }
-   if (InpMinWinRate > 0 && winRate >= 0 && winRate < InpMinWinRate)
+   if (InpMinWinRate > 0 && winRate < InpMinWinRate)
    {
-      Print("[TelegramSignal] Ty le thang lich su ", winRate, "% < nguong ", InpMinWinRate, "% - bo qua tin hieu: ", text);
+      Print("[TelegramSignal] Ty le thang lich su ", winRate, "% < nguong ", InpMinWinRate, "% (hoac khong doc duoc) - bo qua tin hieu: ", text);
       return;
    }
    if (InpMaxPriceDeviation > 0 && refPrice > 0)
