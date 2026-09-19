@@ -445,14 +445,15 @@ int OnCalculate(const int rates_total,
             BufBuy[sIdx] = low[sIdx] - atrDist;
             lastEntryBar = k;
 
-            // [MOI] Cap nhat trang thai cho dashboard - chi khi day la NEN
-            // MOI NHAT vua duoc xac nhan (tranh ghi de bang tin hieu cu moi
-            // khi indicator tinh lai toan bo lich su luc vua gan vao chart).
-            if (sIdx == rates_total - 1 || (InpConfirmClose && sIdx == rates_total - 2))
-            {
-               g_lastSignalTxt = "BUY @ " + DoubleToString(close[sIdx], _Digits);
-               g_lastSignalBarTime = time[sIdx];
-            }
+            // [SUA LOI v1.10] Ghi de KHONG DIEU KIEN moi khi co tin hieu moi qua filter.
+            // Vong lap nay luon chay theo thu tu THOI GIAN TANG DAN (k tu 1 den barsAvail-1),
+            // nen lan ghi CUOI CUNG truoc khi vong lap ket thuc chinh la tin hieu GAN NHAT
+            // trong toan bo lich su dang xet - khong can (va khong duoc) gioi han chi ghi
+            // khi sIdx la nen moi nhat, vi nhu vay se lam "Tin hieu gan nhat" bao sai thanh
+            // "Chua co tin hieu nao" moi khi tin hieu that su gan nhat khong roi dung vao
+            // nen dang duoc tinh o lan goi OnCalculate hien tai.
+            g_lastSignalTxt = "BUY @ " + DoubleToString(close[sIdx], _Digits);
+            g_lastSignalBarTime = time[sIdx];
          }
       }
       else if (crossDown)
@@ -464,11 +465,8 @@ int OnCalculate(const int rates_total,
             BufSell[sIdx] = high[sIdx] + atrDist;
             lastEntryBar = k;
 
-            if (sIdx == rates_total - 1 || (InpConfirmClose && sIdx == rates_total - 2))
-            {
-               g_lastSignalTxt = "SELL @ " + DoubleToString(close[sIdx], _Digits);
-               g_lastSignalBarTime = time[sIdx];
-            }
+            g_lastSignalTxt = "SELL @ " + DoubleToString(close[sIdx], _Digits);
+            g_lastSignalBarTime = time[sIdx];
          }
       }
    }
