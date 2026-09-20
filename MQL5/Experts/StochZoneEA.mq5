@@ -35,9 +35,25 @@
 //|  Không có trình biên dịch MQL5 thật trong môi trường này -- code   |
 //|  này CHƯA được compile/chạy thử thực tế. Đã tự kiểm tra cân bằng   |
 //|  ngoặc/dấu ngoặc bằng script riêng trước khi giao.                 |
+//|                                                                    |
+//|  NHẬT KÝ THAY ĐỔI:                                                 |
+//|   v1.00: Bản đầu tiên, InpStochKPeriod mặc định = 5 (Stochastic    |
+//|          nhanh, chuẩn 5-3-3).                                       |
+//|   v1.01: Đổi InpStochKPeriod mặc định 5 -> 100 (giữ D=3, Slowing=3) |
+//|          theo đúng bộ số người dùng đã backtest thực tế trên       |
+//|          XAUUSDr M15 (~5 tháng) cho kết quả rất tốt: Net Profit    |
+//|          +14.911 (10.000 vốn ban đầu), Profit Factor 1.44, tỷ lệ   |
+//|          thắng 57.92%. Stochastic chu kỳ 100 là bản "chậm", đo vị  |
+//|          trí giá trong 100 nến gần nhất -- mượt hơn hẳn 5-3-3 mặc  |
+//|          định cũ, ít bị nhiễu/whipsaw trong thị trường đi ngang.   |
+//|          LƯU Ý: kết quả trên mới test ở chế độ "OHLC on M1" của    |
+//|          Strategy Tester -- nên kiểm chứng lại bằng "Every tick    |
+//|          based on real ticks" trước khi tin tưởng hoàn toàn, vì    |
+//|          chiến lược phản ứng theo tick nên rất nhạy với độ chính   |
+//|          xác của mô phỏng giá.                                     |
 //+------------------------------------------------------------------+
 #property copyright "Gold Hunter"
-#property version   "1.00"
+#property version   "1.01"
 
 #include <Trade\Trade.mqh>
 CTrade trade;
@@ -46,7 +62,7 @@ CTrade trade;
 // Inputs
 //====================================================================
 input group "=== 1. Stochastic (dùng iStochastic gốc MT5) ==="
-input int               InpStochKPeriod   = 5;             // Chu kỳ %K
+input int               InpStochKPeriod   = 100;           // Chu kỳ %K -- mặc định 100 (chậm, mượt) theo đúng bộ số đã backtest cho kết quả tốt; Stochastic chuẩn nhanh là 5
 input int               InpStochDPeriod   = 3;              // Chu kỳ %D
 input int               InpStochSlowing   = 3;               // Độ làm mượt (slowing)
 input ENUM_MA_METHOD    InpStochMAMethod  = MODE_SMA;        // Phương pháp trung bình
@@ -799,7 +815,7 @@ int OnInit()
       Print("StochZoneEA: phát hiện lệnh đang mở khi khởi động lại EA - coi như TP1 đã xong, tiếp tục trailing nếu bật.");
    }
 
-   Print("StochZoneEA v1.00: OnInit THÀNH CÔNG -- EA bắt đầu chạy từ đây.");
+   Print("StochZoneEA v1.01: OnInit THÀNH CÔNG -- EA bắt đầu chạy từ đây.");
 
    CreateDashboard();
    return INIT_SUCCEEDED;
