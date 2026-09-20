@@ -19,9 +19,14 @@
 //|      (Buy) / cao nhất trong 2 đỉnh tương đối gần nhất (Sell) --     |
 //|      "đáy/đỉnh tương đối" = nến fractal (thấp/cao hơn N nến bên     |
 //|      trái VÀ N nến bên phải).                                       |
-//|   3) KHÔNG CÓ TP CỐ ĐỊNH -- chỉ thoát lệnh khi Lagging Span cắt     |
-//|      NGƯỢC LẠI qua Span B (đúng ý hệt điều kiện vào lệnh, đảo       |
-//|      chiều) -- giữ lệnh xuyên suốt dù giá đi ngang bao lâu.         |
+//|   3) THOÁT LỆNH: mặc định vẫn ưu tiên logic gốc của video -- không  |
+//|      TP cố định, chỉ thoát khi Lagging Span cắt NGƯỢC LẠI qua Span  |
+//|      B (đảo chiều). Từ v1.02, THÊM TÙY CHỌN đặt TP cố định theo tỷ  |
+//|      lệ R:R so với khoảng cách SL (nhóm input 10, mặc định BẬT) --  |
+//|      do backtest v1.01 thực tế cho thấy giữ lệnh vô thời hạn không  |
+//|      hiệu quả trên dữ liệu test. Tắt InpUseFixedTP để quay lại      |
+//|      đúng hành vi gốc của video (giữ lệnh tới khi có tín hiệu       |
+//|      ngược lại, không TP).                                          |
 //|   4) CỘNG LỆNH (pyramiding, phần mở rộng trong video -- ngoài phần  |
 //|      tóm tắt cuối video nhưng vẫn được video trình bày và người     |
 //|      dùng yêu cầu làm giống): trong lúc đang giữ lệnh, nếu giá tiếp |
@@ -71,9 +76,17 @@
 //|   v1.01: (1) Thêm tính năng CỘNG LỆNH (pyramiding) đúng ý mở rộng   |
 //|          trong video; (2) viết lại toàn bộ chú thích + input bằng   |
 //|          tiếng Việt có dấu đầy đủ.                                  |
+//|   v1.02: Thêm TÙY CHỌN Take Profit cố định theo tỷ lệ R:R so với    |
+//|          khoảng cách SL (nhóm input 10). Backtest v1.01 trên        |
+//|          XAUUSDr M15 (~5 tháng) cho kết quả LỖ: Profit Factor 0.86, |
+//|          tỷ lệ thắng 24.75%, drawdown 46-50%, 29 lệnh thua liên     |
+//|          tiếp -- giữ lệnh vô thời hạn tới khi Chikou cắt ngược lại  |
+//|          không hiệu quả trên dữ liệu test này. TP mặc định BẬT,     |
+//|          tắt được (InpUseFixedTP=false) để quay lại đúng hành vi    |
+//|          gốc video.                                                 |
 //+------------------------------------------------------------------+
 #property copyright "Gold Hunter"
-#property version   "1.01"
+#property version   "1.02"
 
 #include <Trade\Trade.mqh>
 CTrade trade;
@@ -124,6 +137,10 @@ input bool InpShowTestButtons = true; // Hiện/ẩn 3 nút Test (Test TG / Test
 input group "=== 9. Cộng lệnh (Pyramiding) khi giá tạo đỉnh/đáy tương đối MỚI cực đoan hơn ==="
 input bool InpUsePyramiding   = true; // Bật/tắt tính năng cộng lệnh khi đang giữ lệnh và giá tạo đỉnh/đáy tương đối mới có lợi hơn mọi mốc trước đó (đúng ý phần mở rộng trong video)
 input int  InpMaxPyramidUnits = 3;    // Số đơn vị lệnh tối đa cho 1 nhóm lệnh (tính cả lệnh gốc + các lệnh cộng thêm)
+
+input group "=== 10. Take Profit (chốt lời) -- thêm từ v1.02, khác thiết kế gốc video ==="
+input bool   InpUseFixedTP        = true; // Bật/tắt đặt TP cố định ngay lúc vào lệnh -- tắt (false) để quay lại đúng hành vi gốc video (không TP, chỉ thoát theo tín hiệu ngược lại)
+input double InpTpRiskRewardRatio = 1.5;  // Tỷ lệ TP:SL -- ví dụ 1.5 nghĩa là khoảng cách từ giá vào lệnh đến TP xa gấp 1.5 lần khoảng cách đến SL
 
 //====================================================================
 // Globals
@@ -558,6 +575,14 @@ bool OpenPosition(ENUM_ORDER_TYPE type, double slPrice, bool isTest, bool isPyra
    double slDistance = MathAbs(price - slPrice);
    double sl = NormalizeDouble(slPrice, digits);
 
+   double tp = 0.0;
+   if (InpUseFixedTP && InpTpRiskRewardRatio > 0)
+   {
+      double tpDistance = slDistance * InpTpRiskRewardRatio;
+      tp = (type == ORDER_TYPE_BUY) ? (price + tpDistance) : (price - tpDistance);
+      tp = NormalizeDouble(tp, digits);
+   }
+
    double lotToUse = InpUseRiskPercent ? CalcRiskLot(slDistance) : InpLotSize;
 
    double freeMargin = AccountInfoDouble(ACCOUNT_MARGIN_FREE);
@@ -587,9 +612,9 @@ bool OpenPosition(ENUM_ORDER_TYPE type, double slPrice, bool isTest, bool isPyra
 
    bool ok;
    if (type == ORDER_TYPE_BUY)
-      ok = trade.Buy(lotToUse, _Symbol, price, sl, 0, tag); // 0 = không đặt TP, đúng thiết kế chiến lược
+      ok = trade.Buy(lotToUse, _Symbol, price, sl, tp, tag);
    else
-      ok = trade.Sell(lotToUse, _Symbol, price, sl, 0, tag);
+      ok = trade.Sell(lotToUse, _Symbol, price, sl, tp, tag);
 
    if (!ok)
    {
@@ -598,15 +623,18 @@ bool OpenPosition(ENUM_ORDER_TYPE type, double slPrice, bool isTest, bool isPyra
       return false;
    }
 
+   string tpLogTxt = (tp > 0) ? (" TP=" + DoubleToString(tp, digits)) : " (không có TP - thoát theo tín hiệu ngược lại)";
    Print("IchimokuChikouEA: ", (isTest ? "[TEST] " : (isPyramid ? "[CỘNG LỆNH] " : "")), "mở lệnh ", EnumToString(type),
-         " lot=", DoubleToString(lotToUse, 2), " SL=", DoubleToString(sl, digits), " (không có TP - thoát theo tín hiệu ngược lại)");
+         " lot=", DoubleToString(lotToUse, 2), " SL=", DoubleToString(sl, digits), tpLogTxt);
 
    string dirIcon  = (type == ORDER_TYPE_BUY) ? "🟢" : "🔴";
    string groupTag = isTest ? "🧪 [TEST] " : (isPyramid ? "➕ " : "");
    string actionTxt = isPyramid ? StringFormat("CỘNG LỆNH (đơn vị %d/%d)", g_PyramidUnits + 1, InpMaxPyramidUnits) : "MỞ LỆNH";
    string lotModeTxt = InpUseRiskPercent ? StringFormat(" (risk %.1f%%)", InpRiskPercent) : "";
-   TelegramSendMessage(StringFormat("%s%s <b>%s %s</b> — %s\n\n📍 Giá vào: <b>%.2f</b>\n🛑 SL: %.2f (2 đáy/đỉnh tương đối gần nhất)\n🎯 TP: Không có — thoát khi Chikou cắt ngược lại\n💰 Lot: %.2f%s",
-                                      groupTag, dirIcon, actionTxt, EnumToString(type), _Symbol, price, sl, lotToUse, lotModeTxt));
+   string tpMsgTxt = (tp > 0) ? StringFormat("🎯 TP: <b>%.2f</b> (R:R %.1f lần SL)", tp, InpTpRiskRewardRatio)
+                               : "🎯 TP: Không có — thoát khi Chikou cắt ngược lại";
+   TelegramSendMessage(StringFormat("%s%s <b>%s %s</b> — %s\n\n📍 Giá vào: <b>%.2f</b>\n🛑 SL: %.2f (2 đáy/đỉnh tương đối gần nhất)\n%s\n💰 Lot: %.2f%s",
+                                      groupTag, dirIcon, actionTxt, EnumToString(type), _Symbol, price, sl, tpMsgTxt, lotToUse, lotModeTxt));
    return true;
 }
 
@@ -672,7 +700,9 @@ void UpdateDashboard()
       string dirTxt = (posType == POSITION_TYPE_BUY) ? "BUY" : "SELL";
       double openP = PositionGetDouble(POSITION_PRICE_OPEN);
       double slP   = PositionGetDouble(POSITION_SL);
-      string posTxt = StringFormat("Lệnh: %s @ %.2f | SL %.2f | TP: không có", dirTxt, openP, slP);
+      double tpP   = PositionGetDouble(POSITION_TP);
+      string tpDashTxt = (tpP > 0) ? DoubleToString(tpP, (int)SymbolInfoInteger(_Symbol, SYMBOL_DIGITS)) : "không có";
+      string posTxt = StringFormat("Lệnh: %s @ %.2f | SL %.2f | TP %s", dirTxt, openP, slP, tpDashTxt);
       if (g_PyramidUnits > 1) posTxt += StringFormat(" | Đơn vị: %d/%d", g_PyramidUnits, InpMaxPyramidUnits);
       SetLabel(DASH_PREFIX + "Position", posTxt, clrKhaki);
    }
