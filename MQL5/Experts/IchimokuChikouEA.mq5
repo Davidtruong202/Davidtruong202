@@ -93,9 +93,22 @@
 //|          Chikou cắt ngược. Áp dụng riêng cho từng lệnh trong nhóm   |
 //|          (kể cả các lệnh cộng thêm pyramid), SL chỉ siết lại gần    |
 //|          hơn, không bao giờ nới rộng ra xa hơn.                     |
+//|   v1.04: Đổi GIÁ TRỊ MẶC ĐỊNH theo kết quả backtest thực tế trên    |
+//|          XAUUSDr M15 (~5 tháng, so sánh nhiều tổ hợp):               |
+//|          - InpUseFixedTP: true -> false (tắt TP cố định) -- có TP   |
+//|            cho Profit Factor 0.67, tắt TP (chỉ dựa trailing + tín   |
+//|            hiệu ngược lại để thoát) cho Profit Factor 0.86, lỗ      |
+//|            giảm hơn nửa (Net Profit -1.505 -> -646).                |
+//|          - InpTrailStartAtr: 1.0 -> 2.0, InpTrailDistanceAtr: 1.0   |
+//|            -> 1.5 -- nới trailing để lệnh thắng "chạy" xa hơn        |
+//|            trước khi bị khóa lời, tăng lãi trung bình mỗi lệnh       |
+//|            thắng thay vì bị cắt non.                                |
+//|          Đây vẫn là input, chỉnh lại được bất cứ lúc nào -- không    |
+//|          có gì đảm bảo đây là bộ số tối ưu tuyệt đối, chỉ là tốt    |
+//|          nhất trong các tổ hợp đã thử trên đúng giai đoạn test này.  |
 //+------------------------------------------------------------------+
 #property copyright "Gold Hunter"
-#property version   "1.03"
+#property version   "1.04"
 
 #include <Trade\Trade.mqh>
 CTrade trade;
@@ -148,13 +161,13 @@ input bool InpUsePyramiding   = true; // Bật/tắt tính năng cộng lệnh k
 input int  InpMaxPyramidUnits = 3;    // Số đơn vị lệnh tối đa cho 1 nhóm lệnh (tính cả lệnh gốc + các lệnh cộng thêm)
 
 input group "=== 10. Take Profit (chốt lời) -- thêm từ v1.02, khác thiết kế gốc video ==="
-input bool   InpUseFixedTP        = true; // Bật/tắt đặt TP cố định ngay lúc vào lệnh -- tắt (false) để quay lại đúng hành vi gốc video (không TP, chỉ thoát theo tín hiệu ngược lại)
+input bool   InpUseFixedTP        = false; // Bật/tắt đặt TP cố định ngay lúc vào lệnh -- mặc định TẮT vì backtest thực tế cho kết quả tốt hơn khi để trailing SL (nhóm 11) tự quản lý thoát lệnh thay vì chặn lời bằng TP cố định
 input double InpTpRiskRewardRatio = 1.5;  // Tỷ lệ TP:SL -- ví dụ 1.5 nghĩa là khoảng cách từ giá vào lệnh đến TP xa gấp 1.5 lần khoảng cách đến SL
 
 input group "=== 11. Trailing SL bảo toàn lợi nhuận -- thêm từ v1.03 ==="
 input bool   InpUseTrailingProfit = true; // Bật/tắt siết SL theo giá khi lệnh đã lãi nổi đủ lớn, tránh bị "nhả hết lời" trước khi chạm TP hoặc có tín hiệu ngược lại
-input double InpTrailStartAtr     = 1.0;  // Lãi nổi tối thiểu (bội số ATR khung vào lệnh) để bắt đầu siết SL
-input double InpTrailDistanceAtr  = 1.0;  // Khoảng cách giữ giữa SL mới và giá hiện tại (bội số ATR), càng nhỏ càng siết sát
+input double InpTrailStartAtr     = 2.0;  // Lãi nổi tối thiểu (bội số ATR khung vào lệnh) để bắt đầu siết SL -- để cao hơn cho lệnh thắng "chạy" xa hơn trước khi bị khóa lời
+input double InpTrailDistanceAtr  = 1.5;  // Khoảng cách giữ giữa SL mới và giá hiện tại (bội số ATR), càng nhỏ càng siết sát
 input double InpTrailStepAtr      = 0.2;  // Bước tối thiểu (bội số ATR) để dời SL 1 lần, tránh gửi lệnh sửa SL liên tục
 
 //====================================================================
@@ -1042,7 +1055,7 @@ int OnInit()
       Print("IchimokuChikouEA: phát hiện lệnh đang mở khi khởi động lại EA - khôi phục trạng thái pyramid ở mức cơ bản (units=1). Nếu trước đó đã cộng lệnh nhiều lần, số đơn vị thực tế có thể cao hơn.");
    }
 
-   Print("IchimokuChikouEA v1.03: OnInit THÀNH CÔNG -- EA bắt đầu chạy từ đây.");
+   Print("IchimokuChikouEA v1.04: OnInit THÀNH CÔNG -- EA bắt đầu chạy từ đây.");
 
    CreateDashboard();
    return INIT_SUCCEEDED;
