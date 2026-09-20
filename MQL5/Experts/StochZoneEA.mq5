@@ -57,9 +57,11 @@
 //|          cho TP1 theo mức Stochastic khi bật (không dùng đồng thời  |
 //|          cả 2 cách). Vùng đối lập (nhóm 9) vẫn hoạt động song song  |
 //|          như 1 lớp thoát an toàn bổ sung ở cả 2 chế độ.             |
+//|   v1.03: Đổi InpRiskPercent mặc định 3.0 -> 2.0 theo yêu cầu chạy   |
+//|          thận trọng hơn khi bắt đầu test thật (cent/live).          |
 //+------------------------------------------------------------------+
 #property copyright "Gold Hunter"
-#property version   "1.02"
+#property version   "1.03"
 
 #include <Trade\Trade.mqh>
 CTrade trade;
@@ -98,7 +100,7 @@ input double InpMaxSpreadUSD = 0.0; // Bỏ qua vào lệnh mới nếu spread >
 
 input group "=== 6. Khối lượng lệnh theo % RISK ==="
 input bool   InpUseRiskPercent = true;  // true: tự tính lot theo % Balance (khuyến nghị); false: dùng InpLotSize cố định
-input double InpRiskPercent    = 3.0;   // % Balance chấp nhận mất nếu dính đúng SL
+input double InpRiskPercent    = 2.0;   // % Balance chấp nhận mất nếu dính đúng SL
 input double InpLotSize        = 0.01;  // Lot cố định, dùng khi InpUseRiskPercent=false hoặc khi thiếu dữ liệu để tính risk%
 input double InpMaxLotCap      = 1.0;   // Chặn lot tối đa (an toàn)
 
@@ -846,7 +848,7 @@ int OnInit()
       Print("StochZoneEA: phát hiện lệnh đang mở khi khởi động lại EA - coi như TP1 đã xong, tiếp tục trailing nếu bật.");
    }
 
-   Print("StochZoneEA v1.02: OnInit THÀNH CÔNG -- EA bắt đầu chạy từ đây.");
+   Print("StochZoneEA v1.03: OnInit THÀNH CÔNG -- EA bắt đầu chạy từ đây.");
 
    CreateDashboard();
    return INIT_SUCCEEDED;
