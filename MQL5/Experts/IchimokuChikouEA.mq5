@@ -84,9 +84,18 @@
 //|          không hiệu quả trên dữ liệu test này. TP mặc định BẬT,     |
 //|          tắt được (InpUseFixedTP=false) để quay lại đúng hành vi    |
 //|          gốc video.                                                 |
+//|   v1.03: Thêm TRAILING SL bảo toàn lợi nhuận (nhóm input 11): khi   |
+//|          1 lệnh đã lãi nổi đủ lớn (bội số ATR) mà giá chưa chạy tới |
+//|          TP cố định (TP thường ở khá xa vì tính theo R:R nhân với   |
+//|          khoảng cách SL fractal, có thể rất rộng), SL sẽ được siết  |
+//|          dần lại gần giá hiện tại để không bị "nhả hết lời" khi giá |
+//|          đảo chiều trước khi chạm TP hoặc trước khi có tín hiệu     |
+//|          Chikou cắt ngược. Áp dụng riêng cho từng lệnh trong nhóm   |
+//|          (kể cả các lệnh cộng thêm pyramid), SL chỉ siết lại gần    |
+//|          hơn, không bao giờ nới rộng ra xa hơn.                     |
 //+------------------------------------------------------------------+
 #property copyright "Gold Hunter"
-#property version   "1.02"
+#property version   "1.03"
 
 #include <Trade\Trade.mqh>
 CTrade trade;
@@ -141,6 +150,12 @@ input int  InpMaxPyramidUnits = 3;    // Số đơn vị lệnh tối đa cho 1 
 input group "=== 10. Take Profit (chốt lời) -- thêm từ v1.02, khác thiết kế gốc video ==="
 input bool   InpUseFixedTP        = true; // Bật/tắt đặt TP cố định ngay lúc vào lệnh -- tắt (false) để quay lại đúng hành vi gốc video (không TP, chỉ thoát theo tín hiệu ngược lại)
 input double InpTpRiskRewardRatio = 1.5;  // Tỷ lệ TP:SL -- ví dụ 1.5 nghĩa là khoảng cách từ giá vào lệnh đến TP xa gấp 1.5 lần khoảng cách đến SL
+
+input group "=== 11. Trailing SL bảo toàn lợi nhuận -- thêm từ v1.03 ==="
+input bool   InpUseTrailingProfit = true; // Bật/tắt siết SL theo giá khi lệnh đã lãi nổi đủ lớn, tránh bị "nhả hết lời" trước khi chạm TP hoặc có tín hiệu ngược lại
+input double InpTrailStartAtr     = 1.0;  // Lãi nổi tối thiểu (bội số ATR khung vào lệnh) để bắt đầu siết SL
+input double InpTrailDistanceAtr  = 1.0;  // Khoảng cách giữ giữa SL mới và giá hiện tại (bội số ATR), càng nhỏ càng siết sát
+input double InpTrailStepAtr      = 0.2;  // Bước tối thiểu (bội số ATR) để dời SL 1 lần, tránh gửi lệnh sửa SL liên tục
 
 //====================================================================
 // Globals
@@ -932,7 +947,58 @@ void CheckSignal()
 }
 
 //====================================================================
-// L. Vòng đời Expert
+// L. Trailing SL bảo toàn lợi nhuận -- xem chi tiết ở phần input nhóm
+// 11 và ghi chú thay đổi v1.03 ở đầu file. Duyệt qua TỪNG lệnh đang mở
+// của EA (kể cả các lệnh cộng thêm pyramid), chỉ siết SL lại gần hơn,
+// không bao giờ nới rộng ra xa hơn vị trí SL hiện tại.
+//====================================================================
+void TrailOpenPositions()
+{
+   if (!InpUseTrailingProfit || g_AtrHandleEntry == INVALID_HANDLE) return;
+
+   double atrArr[];
+   if (CopyBuffer(g_AtrHandleEntry, 0, 1, 1, atrArr) < 1) return;
+   double atr = atrArr[0];
+   if (atr <= 0) return;
+
+   int digits = (int)SymbolInfoInteger(_Symbol, SYMBOL_DIGITS);
+
+   for (int i = PositionsTotal() - 1; i >= 0; i--)
+   {
+      ulong ticket = PositionGetTicket(i);
+      if (ticket == 0) continue;
+      if (PositionGetString(POSITION_SYMBOL) != _Symbol) continue;
+      if (PositionGetInteger(POSITION_MAGIC) != (long)InpMagic) continue;
+
+      long   posType  = PositionGetInteger(POSITION_TYPE);
+      double openP    = PositionGetDouble(POSITION_PRICE_OPEN);
+      double curSl    = PositionGetDouble(POSITION_SL);
+      double curTp    = PositionGetDouble(POSITION_TP);
+      double curPrice = (posType == POSITION_TYPE_BUY) ? CurrentBid() : CurrentAsk();
+
+      double favorableDist = (posType == POSITION_TYPE_BUY) ? (curPrice - openP) : (openP - curPrice);
+      if (favorableDist < InpTrailStartAtr * atr) continue; // chưa lãi đủ nhiều để bắt đầu siết SL
+
+      double newSl;
+      if (posType == POSITION_TYPE_BUY)
+      {
+         newSl = curPrice - InpTrailDistanceAtr * atr;
+         if (newSl <= curSl + InpTrailStepAtr * atr) continue; // chưa đủ bước để siết thêm
+      }
+      else
+      {
+         newSl = curPrice + InpTrailDistanceAtr * atr;
+         if (newSl >= curSl - InpTrailStepAtr * atr) continue;
+      }
+
+      newSl = NormalizeDouble(newSl, digits);
+      if (trade.PositionModify(ticket, newSl, curTp))
+         Print("IchimokuChikouEA: đã siết SL bảo toàn lợi nhuận cho ticket #", ticket, " -> SL mới=", DoubleToString(newSl, digits));
+   }
+}
+
+//====================================================================
+// M. Vòng đời Expert
 //====================================================================
 int OnInit()
 {
@@ -976,7 +1042,7 @@ int OnInit()
       Print("IchimokuChikouEA: phát hiện lệnh đang mở khi khởi động lại EA - khôi phục trạng thái pyramid ở mức cơ bản (units=1). Nếu trước đó đã cộng lệnh nhiều lần, số đơn vị thực tế có thể cao hơn.");
    }
 
-   Print("IchimokuChikouEA v1.01: OnInit THÀNH CÔNG -- EA bắt đầu chạy từ đây.");
+   Print("IchimokuChikouEA v1.03: OnInit THÀNH CÔNG -- EA bắt đầu chạy từ đây.");
 
    CreateDashboard();
    return INIT_SUCCEEDED;
@@ -1002,10 +1068,11 @@ void OnTick()
 {
    UpdateDashboard();
    CheckSignal();
+   TrailOpenPositions();
 }
 
 //====================================================================
-// M. Nút Test trên chart (Test TG / Test BUY / Test SELL) -- Test BUY/SELL
+// N. Nút Test trên chart (Test TG / Test BUY / Test SELL) -- Test BUY/SELL
 // tự tìm SL theo swing low/high thật (không bịa số), rồi gọi đúng
 // OpenPosition() y hệt đường đi của tín hiệu thật.
 //====================================================================
