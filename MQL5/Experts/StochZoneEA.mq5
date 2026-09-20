@@ -51,9 +51,15 @@
 //|          based on real ticks" trước khi tin tưởng hoàn toàn, vì    |
 //|          chiến lược phản ứng theo tick nên rất nhạy với độ chính   |
 //|          xác của mô phỏng giá.                                     |
+//|   v1.02: Thêm TÙY CHỌN TP cố định theo tỷ lệ R:R (nhóm input 3a,   |
+//|          InpUseFixedTpRR/InpTpRRRatio, mặc định TP=2.0R) -- đặt     |
+//|          thẳng vào lệnh ở broker, đóng gọn 1 lần khi chạm, THAY THẾ |
+//|          cho TP1 theo mức Stochastic khi bật (không dùng đồng thời  |
+//|          cả 2 cách). Vùng đối lập (nhóm 9) vẫn hoạt động song song  |
+//|          như 1 lớp thoát an toàn bổ sung ở cả 2 chế độ.             |
 //+------------------------------------------------------------------+
 #property copyright "Gold Hunter"
-#property version   "1.01"
+#property version   "1.02"
 
 #include <Trade\Trade.mqh>
 CTrade trade;
@@ -74,9 +80,11 @@ input double InpSellZoneHigh = 95.0; // Cạnh trên vùng SELL (quá mua)
 input double InpBuyZoneLow   = 5.0;  // Cạnh dưới vùng BUY (quá bán)
 input double InpBuyZoneHigh  = 8.0;  // Cạnh trên vùng BUY (quá bán)
 
-input group "=== 3. Chốt lời TP1 theo mức Stochastic ==="
-input double InpTp1StochLevel   = 50.0; // Mức Stochastic để đóng TP1 (mặc định vùng giữa)
-input double InpTp1ClosePercent = 50.0; // % khối lượng đóng ở TP1 (phần còn lại sẽ trailing)
+input group "=== 3. Chốt lời -- chọn 1 trong 2 cách ==="
+input bool   InpUseFixedTpRR    = false; // true: dùng TP CỐ ĐỊNH theo tỷ lệ R:R (mục 3a); false: dùng TP1 theo mức Stochastic (mục 3b, mặc định gốc)
+input double InpTpRRRatio       = 2.0;   // [3a] Chỉ dùng khi InpUseFixedTpRR=true -- TP đặt cách giá vào 1 khoảng = khoảng cách SL nhân tỷ lệ này (vd 2.0 = TP 2R), đặt thẳng vào lệnh, đóng gọn 1 lần khi chạm
+input double InpTp1StochLevel   = 50.0; // [3b] Chỉ dùng khi InpUseFixedTpRR=false -- Mức Stochastic để đóng TP1 (mặc định vùng giữa)
+input double InpTp1ClosePercent = 50.0; // [3b] Chỉ dùng khi InpUseFixedTpRR=false -- % khối lượng đóng ở TP1 (phần còn lại sẽ trailing)
 
 input group "=== 4. Stop Loss theo đáy/đỉnh tương đối (fractal) ==="
 input int    InpFractalBars    = 2;   // Số nến 2 bên (trái/phải) phải cao/thấp hơn để tính là 1 đáy/đỉnh tương đối
@@ -496,6 +504,14 @@ bool OpenPosition(ENUM_ORDER_TYPE type, double slPrice, bool isTest)
    double slDistance = MathAbs(price - slPrice);
    double sl = NormalizeDouble(slPrice, digits);
 
+   double tp = 0.0;
+   if (InpUseFixedTpRR && InpTpRRRatio > 0)
+   {
+      double tpDistance = slDistance * InpTpRRRatio;
+      tp = (type == ORDER_TYPE_BUY) ? (price + tpDistance) : (price - tpDistance);
+      tp = NormalizeDouble(tp, digits);
+   }
+
    double lotToUse = InpUseRiskPercent ? CalcRiskLot(slDistance) : InpLotSize;
 
    double freeMargin = AccountInfoDouble(ACCOUNT_MARGIN_FREE);
@@ -518,9 +534,9 @@ bool OpenPosition(ENUM_ORDER_TYPE type, double slPrice, bool isTest)
 
    bool ok;
    if (type == ORDER_TYPE_BUY)
-      ok = trade.Buy(lotToUse, _Symbol, price, sl, 0, tag); // 0 = không đặt TP -- TP1 quản lý bằng code (theo mức Stochastic)
+      ok = trade.Buy(lotToUse, _Symbol, price, sl, tp, tag); // tp=0 nếu dùng TP1 theo Stochastic (quản lý bằng code); tp>0 nếu dùng TP cố định theo R:R
    else
-      ok = trade.Sell(lotToUse, _Symbol, price, sl, 0, tag);
+      ok = trade.Sell(lotToUse, _Symbol, price, sl, tp, tag);
 
    if (!ok)
    {
@@ -532,15 +548,18 @@ bool OpenPosition(ENUM_ORDER_TYPE type, double slPrice, bool isTest)
    g_Tp1Done = false;
    g_TrailingActive = false;
 
+   string tpLogTxt = (tp > 0) ? (" TP=" + DoubleToString(tp, digits)) : " (TP1 theo Stochastic, quản lý bằng code)";
    Print("StochZoneEA: ", (isTest ? "[TEST] " : ""), "mở lệnh ", EnumToString(type),
-         " lot=", DoubleToString(lotToUse, 2), " SL=", DoubleToString(sl, digits));
+         " lot=", DoubleToString(lotToUse, 2), " SL=", DoubleToString(sl, digits), tpLogTxt);
 
    string dirIcon = (type == ORDER_TYPE_BUY) ? "🟢" : "🔴";
    string testTag = isTest ? "🧪 [TEST] " : "";
    string lotModeTxt = InpUseRiskPercent ? StringFormat(" (risk %.1f%%)", InpRiskPercent) : "";
-   TelegramSendMessage(StringFormat("%s%s <b>MỞ LỆNH %s</b> — %s\n\n📍 Giá vào: <b>%.2f</b>\n🛑 SL: %.2f (đáy/đỉnh tương đối gần nhất)\n🎯 TP1: khi Stoch về mức %.0f (đóng %.0f%%), phần còn lại trailing\n💰 Lot: %.2f%s",
+   string tpMsgTxt = (tp > 0) ? StringFormat("🎯 TP: <b>%.2f</b> (%.1fR)", tp, InpTpRRRatio)
+                               : StringFormat("🎯 TP1: khi Stoch về mức %.0f (đóng %.0f%%), phần còn lại trailing", InpTp1StochLevel, InpTp1ClosePercent);
+   TelegramSendMessage(StringFormat("%s%s <b>MỞ LỆNH %s</b> — %s\n\n📍 Giá vào: <b>%.2f</b>\n🛑 SL: %.2f (đáy/đỉnh tương đối gần nhất)\n%s\n💰 Lot: %.2f%s",
                                       testTag, dirIcon, EnumToString(type), _Symbol, price, sl,
-                                      InpTp1StochLevel, InpTp1ClosePercent, lotToUse, lotModeTxt));
+                                      tpMsgTxt, lotToUse, lotModeTxt));
    return true;
 }
 
@@ -611,7 +630,10 @@ void ManageOpenPosition(double stochNow)
    }
 
    // --- TP1: đóng 1 phần khi Stoch về mức giữa, rồi dời SL phần còn lại về hòa vốn ---
-   if (!g_Tp1Done)
+   // (BỎ QUA hoàn toàn khối này khi đang dùng TP cố định theo R:R -- lúc đó lệnh đã có
+   // TP thật đặt sẵn ở broker (xem OpenPosition()), broker tự đóng khi chạm, không cần
+   // theo dõi bằng code nữa.)
+   if (!InpUseFixedTpRR && !g_Tp1Done)
    {
       bool tp1Hit = (posType == POSITION_TYPE_SELL && stochNow <= InpTp1StochLevel) ||
                     (posType == POSITION_TYPE_BUY  && stochNow >= InpTp1StochLevel);
@@ -677,7 +699,7 @@ void OnTradeTransaction(const MqlTradeTransaction &trans,
    long   dealType    = HistoryDealGetInteger(dealTicket, DEAL_TYPE);
    long   reason      = HistoryDealGetInteger(dealTicket, DEAL_REASON);
    string origDir     = (dealType == DEAL_TYPE_SELL) ? "BUY" : "SELL";
-   string reasonTxt   = (reason == DEAL_REASON_SL) ? "Dính SL" : "Đóng hẳn (chạm vùng đối lập/khác)";
+   string reasonTxt   = (reason == DEAL_REASON_SL) ? "Dính SL" : (reason == DEAL_REASON_TP) ? "Đạt TP" : "Đóng hẳn (chạm vùng đối lập/khác)";
    string resultIcon  = (profit >= 0) ? "✅" : "❌";
 
    TelegramSendMessage(StringFormat("%s <b>ĐÓNG LỆNH %s</b> — %s (%s)\n\n📍 Giá đóng: %.2f\n💵 Kết quả: <b>%s%.2f %s</b>",
@@ -710,7 +732,16 @@ void UpdateDashboard(double stochNow)
       double openP = PositionGetDouble(POSITION_PRICE_OPEN);
       double slP   = PositionGetDouble(POSITION_SL);
       double volP  = PositionGetDouble(POSITION_VOLUME);
-      string tp1Txt = g_Tp1Done ? "đã chốt TP1" : "chưa chốt TP1";
+      string tp1Txt;
+      if (InpUseFixedTpRR)
+      {
+         double tpP = PositionGetDouble(POSITION_TP);
+         tp1Txt = (tpP > 0) ? StringFormat("TP %.2f", tpP) : "TP: không có";
+      }
+      else
+      {
+         tp1Txt = g_Tp1Done ? "đã chốt TP1" : "chưa chốt TP1";
+      }
       string posTxt = StringFormat("Lệnh: %s @ %.2f | SL %.2f | Vol %.2f | %s", dirTxt, openP, slP, volP, tp1Txt);
       SetLabel(DASH_PREFIX + "Position", posTxt, clrKhaki);
    }
@@ -815,7 +846,7 @@ int OnInit()
       Print("StochZoneEA: phát hiện lệnh đang mở khi khởi động lại EA - coi như TP1 đã xong, tiếp tục trailing nếu bật.");
    }
 
-   Print("StochZoneEA v1.01: OnInit THÀNH CÔNG -- EA bắt đầu chạy từ đây.");
+   Print("StochZoneEA v1.02: OnInit THÀNH CÔNG -- EA bắt đầu chạy từ đây.");
 
    CreateDashboard();
    return INIT_SUCCEEDED;
