@@ -59,9 +59,14 @@
 //|          như 1 lớp thoát an toàn bổ sung ở cả 2 chế độ.             |
 //|   v1.03: Đổi InpRiskPercent mặc định 3.0 -> 2.0 theo yêu cầu chạy   |
 //|          thận trọng hơn khi bắt đầu test thật (cent/live).          |
+//|   v1.04: Thêm InpMinTpDistanceUSD (mục 3a) -- khi dùng TP cố định   |
+//|          theo R:R, TP thực tế = MAX(2R, mức tối thiểu này), theo    |
+//|          đúng yêu cầu "TP tối thiểu 100 pip hoặc 2R". Mặc định 1.0  |
+//|          ($ price distance, ~100 pip nếu gold báo giá 2 chữ số      |
+//|          thập phân) -- chỉnh lại nếu quy ước pip của broker khác.   |
 //+------------------------------------------------------------------+
 #property copyright "Gold Hunter"
-#property version   "1.03"
+#property version   "1.04"
 
 #include <Trade\Trade.mqh>
 CTrade trade;
@@ -85,6 +90,7 @@ input double InpBuyZoneHigh  = 8.0;  // Cạnh trên vùng BUY (quá bán)
 input group "=== 3. Chốt lời -- chọn 1 trong 2 cách ==="
 input bool   InpUseFixedTpRR    = false; // true: dùng TP CỐ ĐỊNH theo tỷ lệ R:R (mục 3a); false: dùng TP1 theo mức Stochastic (mục 3b, mặc định gốc)
 input double InpTpRRRatio       = 2.0;   // [3a] Chỉ dùng khi InpUseFixedTpRR=true -- TP đặt cách giá vào 1 khoảng = khoảng cách SL nhân tỷ lệ này (vd 2.0 = TP 2R), đặt thẳng vào lệnh, đóng gọn 1 lần khi chạm
+input double InpMinTpDistanceUSD = 1.0;  // [3a] Khoảng cách TP TỐI THIỂU ($ price distance) -- vd 1.0 ~ 100 pip (gold báo giá 2 chữ số thập phân, 1 pip=0.01$, chỉnh lại nếu broker bạn quy ước khác). TP thực tế = MAX(2R, giá trị này). 0 = tắt, chỉ dùng đúng 2R
 input double InpTp1StochLevel   = 50.0; // [3b] Chỉ dùng khi InpUseFixedTpRR=false -- Mức Stochastic để đóng TP1 (mặc định vùng giữa)
 input double InpTp1ClosePercent = 50.0; // [3b] Chỉ dùng khi InpUseFixedTpRR=false -- % khối lượng đóng ở TP1 (phần còn lại sẽ trailing)
 
@@ -510,6 +516,8 @@ bool OpenPosition(ENUM_ORDER_TYPE type, double slPrice, bool isTest)
    if (InpUseFixedTpRR && InpTpRRRatio > 0)
    {
       double tpDistance = slDistance * InpTpRRRatio;
+      if (InpMinTpDistanceUSD > 0 && tpDistance < InpMinTpDistanceUSD)
+         tpDistance = InpMinTpDistanceUSD; // TP thực tế = MAX(2R, mức tối thiểu) -- theo đúng yêu cầu "TP tối thiểu 100 pip hoặc 2R"
       tp = (type == ORDER_TYPE_BUY) ? (price + tpDistance) : (price - tpDistance);
       tp = NormalizeDouble(tp, digits);
    }
@@ -848,7 +856,7 @@ int OnInit()
       Print("StochZoneEA: phát hiện lệnh đang mở khi khởi động lại EA - coi như TP1 đã xong, tiếp tục trailing nếu bật.");
    }
 
-   Print("StochZoneEA v1.03: OnInit THÀNH CÔNG -- EA bắt đầu chạy từ đây.");
+   Print("StochZoneEA v1.04: OnInit THÀNH CÔNG -- EA bắt đầu chạy từ đây.");
 
    CreateDashboard();
    return INIT_SUCCEEDED;
