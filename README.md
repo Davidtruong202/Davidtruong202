@@ -100,3 +100,68 @@ EA tự vào lệnh sẵn). Để tự động hoá, mình đã lược bỏ/đ�
 indicator ICT Full Suite gốc — có nhiều điểm đã đơn giản hoá như liệt kê
 ở trên. EA không đảm bảo lợi nhuận; luôn kiểm thử kỹ trên demo và chỉ
 giao dịch với số vốn bạn chấp nhận rủi ro mất.
+
+---
+
+# DTC - v1.35 (port từ Pine Script sang MT5)
+
+Bản chuyển đổi indicator TradingView **"DTC - v1.35"** (hệ thống 6 đường
+EMA 30/35/40/45/50/60 xác định xu hướng, đổi màu theo trend, dashboard đa
+khung thời gian, vẽ Entry/SL/TP1-4, và cảnh báo Telegram) sang MetaTrader 5.
+Có 2 file, dùng độc lập với bộ EA ICT/SMC ở trên:
+
+- `MQL5/Indicators/DTC_v135.mq5` — **Custom Indicator**, bám sát bản Pine
+  Script gốc nhất có thể: 6 đường EMA đổi màu xanh/đỏ/xám theo trend, nhãn
+  mũi tên BUY/SELL tại mọi điểm tín hiệu lịch sử, đường + nhãn Entry/SL/TP1-4
+  cho tín hiệu gần nhất, dashboard 15M/30M/1H/4H/D ở góc trên-phải, và gửi
+  cảnh báo Telegram (gọi thẳng Telegram Bot API bằng `WebRequest`, không cần
+  `alert()` + webhook như trên TradingView). **Không tự vào lệnh.**
+- `MQL5/Experts/DTC_v135_EA.mq5` — **Expert Advisor** tự động giao dịch dựa
+  trên đúng tín hiệu cắt/thẳng hàng EMA của indicator trên. Vì bản Pine Script
+  gốc chỉ vẽ chart chứ không tự quản lý lệnh, EA bổ sung phần quản lý vị thế:
+  - Vào lệnh Buy/Sell khi 6 EMA vừa thẳng hàng (giống hệt điều kiện
+    `bullish_trend`/`bearish_trend` trong Pine Script), tính trên nến vừa
+    đóng cửa (không dùng nến đang chạy, tránh repaint).
+  - SL = `InpStopLossPercent` % giá vào lệnh; TP1-4 = SL × các hệ số
+    `InpTP1..4Multiplier` (mặc định 1/2/3/4x), y hệt công thức trong script.
+  - Chốt 25% khối lượng gốc tại mỗi TP1/TP2/TP3, dời SL về hoà vốn sau TP1,
+    25% còn lại chạy tới TP4.
+  - Khi có tín hiệu ngược chiều, EA đóng lệnh đang giữ và đảo chiều
+    (`InpReverseOnOpposite`, mặc định bật) — có thể tắt để chỉ đóng lệnh khi
+    chạm SL/TP.
+  - Khối lượng lệnh tính theo `InpRiskPercent` % số dư tài khoản trên
+    khoảng cách SL, chuẩn hoá theo bước khối lượng của sàn.
+  - Dashboard đa khung thời gian trong script gốc **chỉ mang tính hiển thị**,
+    không dùng làm bộ lọc vào lệnh — EA giữ đúng hành vi này (đúng theo yêu
+    cầu "giống chỉ báo gốc nhất có thể"), không bắt buộc các khung MTF phải
+    đồng thuận mới vào lệnh.
+
+## Những khác biệt so với script Pine gốc
+
+1. Input `Stop-Loss Lookback` (Tiny/Small/Mid/Large) trong script gốc tính
+   ra `sl_length` nhưng **không được dùng ở đâu khác** trong code Pine (biến
+   `lowest_low`/`highest_high` tính ra rồi bỏ không) — coi như dead code nên
+   không port sang, không ảnh hưởng gì đến hành vi hiển thị hay giao dịch.
+2. TradingView gửi Telegram qua cơ chế `alert()` + webhook URL (đã chứa sẵn
+   Bot Token) do người dùng dán vào ô Alert; MT5 không có khái niệm này nên
+   indicator/EA gọi thẳng Telegram Bot API bằng `WebRequest`, cần thêm input
+   **Bot Token** (lấy từ @BotFather) chứ không chỉ Chat ID.
+3. Script gốc chỉ vẽ Entry/SL/TP — không tự đóng/chốt lệnh. EA thêm logic
+   chốt lời từng phần tại TP1/TP2/TP3 + chạy TP4 (đã thống nhất khi tạo EA),
+   đây là phần hoàn toàn mới so với bản Pine Script.
+
+## Cài đặt
+
+1. Copy `DTC_v135.mq5` vào `MQL5/Indicators/` và/hoặc `DTC_v135_EA.mq5` vào
+   `MQL5/Experts/`, mở MetaEditor, biên dịch (F7). Môi trường này không có
+   MetaTrader để compile/test — kiểm tra kỹ lỗi cú pháp trước khi chạy thật.
+2. Nếu bật Telegram Alert: vào **Tools → Options → Expert Advisors**, tick
+   "Allow WebRequest for listed URL" và thêm
+   `https://api.telegram.org` vào danh sách, rồi điền Bot Token + Chat ID
+   vào input của indicator/EA.
+3. Gắn EA/indicator lên đúng symbol + khung thời gian bạn muốn giao dịch
+   (không cố định XAUUSD như bộ EA ICT — hệ EMA này dùng được trên mọi
+   symbol/khung giống bản Pine Script gốc `overlay=true`).
+4. Backtest EA trong Strategy Tester (Every tick based on real ticks) và
+   chạy demo nhiều tuần trước khi cân nhắc live; không có gì đảm bảo lợi
+   nhuận, tự chịu trách nhiệm rủi ro khi giao dịch thật.
