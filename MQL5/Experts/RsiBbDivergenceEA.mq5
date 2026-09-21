@@ -33,8 +33,46 @@
 //|  ngoac/dau ngoac va thu tu khai bao ham bang script rieng truoc    |
 //|  khi giao (xem quy trinh da dung cho ca EMACrossClone/EA truoc do).|
 //+------------------------------------------------------------------+
+//|  v1.01: bro gui them 5 anh chart khac (cung kenh "Tho dao vang"),  |
+//|  cho thay day KHONG PHAI 1 cong thuc duy nhat ma la nhieu setup    |
+//|  khac nhau ho dang chia se moi ngay (RSI period doi 10/14, co luc  |
+//|  dung BB co luc khong). Gop lai thanh 2 CHE DO doc lap trong CUNG  |
+//|  1 EA nay (theo yeu cau "tong hop luon vao 1 EA"):                 |
+//|                                                                     |
+//|  CHE DO 1 (Phan ky, giu nguyen tu v1.00): nhu mo ta o tren. THEM   |
+//|  tuy chon InpRequireReversalCandle -- neu bat, bat buoc dung nen    |
+//|  swing phai la nen dao chieu (Bullish/Bearish Engulfing hoac Pin    |
+//|  Bar/Hammer) moi xac nhan tin hieu -- mac dinh TAT de KHONG doi     |
+//|  hanh vi da test cua v1.00.                                         |
+//|                                                                     |
+//|  CHE DO 2 (MOI -- "Thuan theo xu huong RSI + nen pha vo", tu 3/5    |
+//|  anh moi): day CHINH LA y tuong "tu duy nguoc" da noi se de lai o   |
+//|  v1.00 (tiep tuc theo xu huong thay vi fade), nhung dung tieu chi   |
+//|  RO RANG/do luong duoc thay vi khai niem mo ho "bam dai BB":         |
+//|   - RSI phai giu LIEN TUC tren 50 (huong tang) hoac duoi 50 (huong  |
+//|     giam) it nhat InpTrendRsiBars nen gan nhat => xac nhan "dang co  |
+//|     xu huong ro rang".                                               |
+//|   - Dong thoi phai co 1 "nen pha vo": than nen (body) lon hon        |
+//|     InpBreakoutBodyMult lan than nen trung binh cua InpBreakoutBody-  |
+//|     AvgBars nen truoc, VA dong cua vuot qua dinh/day cao nhat/thap    |
+//|     nhat cua InpBreakoutRangeBars nen truoc do (pha vo vung tich luy).|
+//|   - Neu ca 2 dieu kien tren dung => vao lenh THEO xu huong (Buy neu   |
+//|     tang, Sell neu giam) -- NGUOC HAN voi Che do 1 (fade/dao chieu). |
+//|   - Che do 2 KHONG dung Bollinger Bands (dung tieu chi rieng), va    |
+//|     KHONG dung swing/phan kỳ -- hoan toan doc lap voi Che do 1.       |
+//|                                                                       |
+//|  Uu tien khi ca 2 che do cung ra tin hieu trong CUNG 1 nen: Che do   |
+//|  1 (phan ky) xu ly TRUOC, Che do 2 CHI vao lenh neu Che do 1 chua     |
+//|  vao lenh nao trong chinh nen do (xem alreadyActedThisTick trong      |
+//|  OnTick()) -- tranh mo 2 lenh nguoc huong nhau tren cung 1 nen.       |
+//|                                                                       |
+//|  Ca 2 che do co the BAT/TAT rieng (InpUseDivergenceMode/InpUse-      |
+//|  TrendBreakoutMode), dung chung risk management (SL/TP/lot) de don   |
+//|  gian, chi khac diem tham chieu SL (swing point vs. dinh/day nen pha |
+//|  vo).                                                                 |
+//+------------------------------------------------------------------+
 #property copyright "Gold Hunter"
-#property version   "1.00"
+#property version   "1.01"
 #property strict
 
 #include <Trade\Trade.mqh>
@@ -69,6 +107,18 @@ input int    InpMagic        = 990100; // Magic number rieng cua EA nay -- doi n
 input double InpSlippageUSD  = 0.30;   // Do lech gia toi da chap nhan khi khop lenh ($ price distance)
 input int    InpMinBarsBetweenSignals = 5; // So nen toi thieu giua 2 lenh MOI lien tiep (chong nhieu)
 
+// === 5. [MOI v1.01] Che do 1 -- Phan ky: xac nhan them bang mo hinh nen dao chieu (tuy chon) ===
+input bool   InpUseDivergenceMode     = true;  // Bat/tat toan bo Che do 1 (phan ky RSI+BB)
+input bool   InpRequireReversalCandle = false; // Bat buoc nen swing phai la nen dao chieu (Engulfing/Pin Bar) moi xac nhan -- mac dinh TAT (giu dung hanh vi v1.00)
+input double InpPinWickRatio          = 2.0;   // Ty le toi thieu bong nen / than nen de tinh la Pin Bar/Hammer
+
+// === 6. [MOI v1.01] Che do 2 -- Thuan theo xu huong RSI + nen pha vo (doc lap voi Che do 1) ===
+input bool   InpUseTrendBreakoutMode = true; // Bat/tat toan bo Che do 2
+input int    InpTrendRsiBars        = 5;    // So nen RSI phai giu LIEN TUC tren/duoi 50 de tinh la "dang co xu huong ro rang"
+input int    InpBreakoutRangeBars   = 10;   // So nen gan nhat de xac dinh vung dinh/day can "pha vo"
+input double InpBreakoutBodyMult    = 1.5;  // Than nen hien tai phai lon hon than nen trung binh bao nhieu lan moi tinh la "nen pha vo"
+input int    InpBreakoutBodyAvgBars = 10;   // So nen dung de tinh than nen trung binh (so sanh voi nen pha vo)
+
 //====================================================================
 // Globals
 //====================================================================
@@ -88,9 +138,18 @@ datetime g_LastBuySwingTime  = 0;
 int      g_LastEntryBarIndex = -1000000; // ap dung InpMinBarsBetweenSignals (dem theo so nen da xu ly, khong theo shift)
 int      g_BarsProcessed     = 0;
 
+// [MOI v1.01] chong lap tin hieu rieng cho Che do 2 -- luu THOI GIAN cua nen pha vo GAN NHAT da tung dung
+// de vao lenh, cho tung huong rieng (tuong tu g_LastSellSwingTime/g_LastBuySwingTime cua Che do 1).
+datetime g_LastBreakoutSellTime = 0;
+datetime g_LastBreakoutBuyTime  = 0;
+
 //--- CHAN DOAN: dem so lan phat hien phan ky (truoc khi loc trung lap/khoang cach) va so lan xac nhan vao lenh
 int g_DbgBearishSeen = 0, g_DbgBullishSeen = 0, g_DbgBuyOpened = 0, g_DbgSellOpened = 0;
 int g_DbgBlockedSpread = 0, g_DbgBlockedBarsWait = 0, g_DbgBlockedPyramid = 0, g_DbgOrderSendFail = 0;
+//--- [MOI v1.01] CHAN DOAN rieng cho Che do 2 (thuan xu huong + nen pha vo) va bo loc nen dao chieu cua Che do 1
+int g_DbgTrendBreakoutUpSeen = 0, g_DbgTrendBreakoutDownSeen = 0;
+int g_DbgTrendBuyOpened = 0, g_DbgTrendSellOpened = 0;
+int g_DbgBlockedNoReversalCandle = 0;
 
 struct SwingPoint
 {
@@ -197,6 +256,117 @@ int CollectSwingLows(const double &low[], const double &rsiArr[], const double &
 }
 
 //+------------------------------------------------------------------+
+//| [MOI v1.01] Nhan dien nen dao chieu -- CHI 2 mo hinh RO RANG, do   |
+//| luong duoc bang cong thuc (Engulfing + Pin Bar/Hammer), KHONG co   |
+//| gang nhan dien moi mo hinh nen kinh dien khac -- de tranh nhan     |
+//| dien sai/qua chu quan nhu mat nguoi xem chart.                     |
+//+------------------------------------------------------------------+
+bool IsBullishEngulfing(const double &openArr[], const double &closeArr[], int shift)
+{
+   bool prevBearish = closeArr[shift + 1] < openArr[shift + 1];
+   bool curBullish  = closeArr[shift]     > openArr[shift];
+   if (!prevBearish || !curBullish) return false;
+   return (openArr[shift] <= closeArr[shift + 1]) && (closeArr[shift] >= openArr[shift + 1]);
+}
+
+bool IsBearishEngulfing(const double &openArr[], const double &closeArr[], int shift)
+{
+   bool prevBullish = closeArr[shift + 1] > openArr[shift + 1];
+   bool curBearish  = closeArr[shift]     < openArr[shift];
+   if (!prevBullish || !curBearish) return false;
+   return (openArr[shift] >= closeArr[shift + 1]) && (closeArr[shift] <= openArr[shift + 1]);
+}
+
+bool IsBullishPinBar(const double &openArr[], const double &highArr[], const double &lowArr[], const double &closeArr[], int shift)
+{
+   double body      = MathAbs(closeArr[shift] - openArr[shift]);
+   double lowerWick = MathMin(openArr[shift], closeArr[shift]) - lowArr[shift];
+   double upperWick = highArr[shift] - MathMax(openArr[shift], closeArr[shift]);
+   if (body <= 0) return false;
+   return (lowerWick >= body * InpPinWickRatio) && (upperWick <= body * 0.5);
+}
+
+bool IsBearishPinBar(const double &openArr[], const double &highArr[], const double &lowArr[], const double &closeArr[], int shift)
+{
+   double body      = MathAbs(closeArr[shift] - openArr[shift]);
+   double upperWick = highArr[shift] - MathMax(openArr[shift], closeArr[shift]);
+   double lowerWick = MathMin(openArr[shift], closeArr[shift]) - lowArr[shift];
+   if (body <= 0) return false;
+   return (upperWick >= body * InpPinWickRatio) && (lowerWick <= body * 0.5);
+}
+
+bool IsReversalCandleBullish(const double &openArr[], const double &highArr[], const double &lowArr[], const double &closeArr[], int shift)
+{
+   return IsBullishEngulfing(openArr, closeArr, shift) || IsBullishPinBar(openArr, highArr, lowArr, closeArr, shift);
+}
+
+bool IsReversalCandleBearish(const double &openArr[], const double &highArr[], const double &lowArr[], const double &closeArr[], int shift)
+{
+   return IsBearishEngulfing(openArr, closeArr, shift) || IsBearishPinBar(openArr, highArr, lowArr, closeArr, shift);
+}
+
+//+------------------------------------------------------------------+
+//| [MOI v1.01] Che do 2 -- "nen pha vo": than nen lon hon trung binh  |
+//| InpBreakoutBodyAvgBars nen truoc it nhat InpBreakoutBodyMult lan,  |
+//| VA dong cua vuot qua dinh/day cao nhat/thap nhat cua               |
+//| InpBreakoutRangeBars nen truoc do (shift+1 .. shift+N, KHONG tinh  |
+//| chinh nen dang xet).                                                |
+//+------------------------------------------------------------------+
+bool IsBreakoutCandleUp(const double &openArr[], const double &highArr[], const double &closeArr[], int shift)
+{
+   double body = closeArr[shift] - openArr[shift];
+   if (body <= 0) return false; // phai la nen tang (bullish)
+
+   double sumBody = 0;
+   for (int j = shift + 1; j <= shift + InpBreakoutBodyAvgBars; j++)
+      sumBody += MathAbs(closeArr[j] - openArr[j]);
+   double avgBody = sumBody / InpBreakoutBodyAvgBars;
+   if (avgBody <= 0 || body < avgBody * InpBreakoutBodyMult) return false;
+
+   double priorHigh = highArr[shift + 1];
+   for (int j = shift + 2; j <= shift + InpBreakoutRangeBars; j++)
+      if (highArr[j] > priorHigh) priorHigh = highArr[j];
+
+   return closeArr[shift] > priorHigh;
+}
+
+bool IsBreakoutCandleDown(const double &openArr[], const double &lowArr[], const double &closeArr[], int shift)
+{
+   double body = openArr[shift] - closeArr[shift];
+   if (body <= 0) return false; // phai la nen giam (bearish)
+
+   double sumBody = 0;
+   for (int j = shift + 1; j <= shift + InpBreakoutBodyAvgBars; j++)
+      sumBody += MathAbs(closeArr[j] - openArr[j]);
+   double avgBody = sumBody / InpBreakoutBodyAvgBars;
+   if (avgBody <= 0 || body < avgBody * InpBreakoutBodyMult) return false;
+
+   double priorLow = lowArr[shift + 1];
+   for (int j = shift + 2; j <= shift + InpBreakoutRangeBars; j++)
+      if (lowArr[j] < priorLow) priorLow = lowArr[j];
+
+   return closeArr[shift] < priorLow;
+}
+
+//+------------------------------------------------------------------+
+//| [MOI v1.01] Che do 2 -- "dang co xu huong ro rang": RSI giu LIEN   |
+//| TUC tren (hoac duoi) 50 trong it nhat 'bars' nen gan nhat.         |
+//+------------------------------------------------------------------+
+bool IsRsiTrendingUp(const double &rsiArr[], int shift, int bars)
+{
+   for (int j = shift; j < shift + bars; j++)
+      if (!MathIsValidNumber(rsiArr[j]) || rsiArr[j] <= 50.0) return false;
+   return true;
+}
+
+bool IsRsiTrendingDown(const double &rsiArr[], int shift, int bars)
+{
+   for (int j = shift; j < shift + bars; j++)
+      if (!MathIsValidNumber(rsiArr[j]) || rsiArr[j] >= 50.0) return false;
+   return true;
+}
+
+//+------------------------------------------------------------------+
 //| Tim vi the dang mo CUA CHINH EA NAY (Symbol + Magic). Thiet ke    |
 //| chi giu 1 lenh tai 1 thoi diem (khong pyramid).                    |
 //+------------------------------------------------------------------+
@@ -273,17 +443,22 @@ int OnInit()
 
    g_LastBarTime = 0; // force-align vao nen moi ngay tick dau tien
 
-   Print("RsiBbDivergenceEA v1.00: OnInit THANH CONG -- RSI/Bands/ATR handle deu tao duoc. EA bat dau chay tu day.");
+   Print("RsiBbDivergenceEA v1.01: OnInit THANH CONG -- RSI/Bands/ATR handle deu tao duoc. Che do 1 (phan ky)=",
+         InpUseDivergenceMode, " | Che do 2 (thuan xu huong+nen pha vo)=", InpUseTrendBreakoutMode,
+         " -- EA bat dau chay tu day.");
    return(INIT_SUCCEEDED);
 }
 
 void OnDeinit(const int reason)
 {
-   Print("RsiBbDivergenceEA: [CHAN DOAN v1.00] Tong ket khi ket thuc -- ",
-         "so nen da xu ly=", g_BarsProcessed, " | ",
+   Print("RsiBbDivergenceEA: [CHAN DOAN v1.01] Che do 1 (phan ky) -- so nen da xu ly=", g_BarsProcessed, " | ",
          "phan ky GIAM (bearish) thay=", g_DbgBearishSeen, " (Sell mo thanh cong=", g_DbgSellOpened, ") | ",
-         "phan ky TANG (bullish) thay=", g_DbgBullishSeen, " (Buy mo thanh cong=", g_DbgBuyOpened, ")");
-   Print("RsiBbDivergenceEA: [CHAN DOAN v1.00] Chi tiet ly do BI CHAN -- ",
+         "phan ky TANG (bullish) thay=", g_DbgBullishSeen, " (Buy mo thanh cong=", g_DbgBuyOpened, ") | ",
+         "bi chan vi thieu nen dao chieu (InpRequireReversalCandle)=", g_DbgBlockedNoReversalCandle);
+   Print("RsiBbDivergenceEA: [CHAN DOAN v1.01] Che do 2 (thuan xu huong+nen pha vo) -- ",
+         "breakout LEN thay=", g_DbgTrendBreakoutUpSeen, " (Buy mo thanh cong=", g_DbgTrendBuyOpened, ") | ",
+         "breakout XUONG thay=", g_DbgTrendBreakoutDownSeen, " (Sell mo thanh cong=", g_DbgTrendSellOpened, ")");
+   Print("RsiBbDivergenceEA: [CHAN DOAN v1.01] Chi tiet ly do BI CHAN (chung ca 2 che do) -- ",
          "spread vuot nguong=", g_DbgBlockedSpread, " | ",
          "chua du InpMinBarsBetweenSignals=", g_DbgBlockedBarsWait, " | ",
          "dang co lenh mo (khong pyramid)=", g_DbgBlockedPyramid, " | ",
@@ -302,12 +477,16 @@ void OnTick()
    g_LastBarTime = barTime;
    g_BarsProcessed++;
 
-   int needBars = InpMaxSwingSearchBars + 2 * InpSwingLookback + 10;
+   // [MOI v1.01] needBars gio phai du cho CA 2 che do: quet swing (Che do 1) LAN nhin lui cho
+   // nen pha vo + than nen trung binh (Che do 2) -- lay so lon nhat can, cong them đem an toan.
+   int needBars = InpMaxSwingSearchBars + 2 * InpSwingLookback + InpBreakoutRangeBars + InpBreakoutBodyAvgBars + 20;
 
-   double high[], low[], rsiArr[], bbUpper[], bbLower[], atrArr[];
+   double high[], low[], openP[], closeP[], rsiArr[], bbUpper[], bbLower[], atrArr[];
    datetime timeArr[];
    ArraySetAsSeries(high, true);
    ArraySetAsSeries(low, true);
+   ArraySetAsSeries(openP, true);
+   ArraySetAsSeries(closeP, true);
    ArraySetAsSeries(rsiArr, true);
    ArraySetAsSeries(bbUpper, true);
    ArraySetAsSeries(bbLower, true);
@@ -316,40 +495,13 @@ void OnTick()
 
    if (CopyHigh(_Symbol, PERIOD_CURRENT, 0, needBars, high) < needBars) return;
    if (CopyLow(_Symbol, PERIOD_CURRENT, 0, needBars, low) < needBars) return;
+   if (CopyOpen(_Symbol, PERIOD_CURRENT, 0, needBars, openP) < needBars) return;
+   if (CopyClose(_Symbol, PERIOD_CURRENT, 0, needBars, closeP) < needBars) return;
    if (CopyTime(_Symbol, PERIOD_CURRENT, 0, needBars, timeArr) < needBars) return;
    if (CopyBuffer(g_RsiHandle, 0, 0, needBars, rsiArr) < needBars) return;
    if (CopyBuffer(g_BbHandle, 1, 0, needBars, bbUpper) < needBars) return; // BANDS_UPPER
    if (CopyBuffer(g_BbHandle, 2, 0, needBars, bbLower) < needBars) return; // BANDS_LOWER
    if (CopyBuffer(g_AtrHandle, 0, 0, needBars, atrArr) < needBars) return;
-
-   SwingPoint highs[], lows[];
-   int highCount = CollectSwingHighs(high, rsiArr, bbUpper, atrArr, timeArr, InpMaxSwingSearchBars, highs);
-   int lowCount  = CollectSwingLows(low, rsiArr, bbLower, atrArr, timeArr, InpMaxSwingSearchBars, lows);
-
-   bool bearishDivergence = false;
-   bool bullishDivergence = false;
-
-   if (highCount == 2)
-   {
-      bool priceHigherHigh = highs[0].price > highs[1].price;
-      bool rsiLowerHigh    = highs[0].rsi   < highs[1].rsi;
-      if (priceHigherHigh && rsiLowerHigh)
-      {
-         bearishDivergence = true;
-         g_DbgBearishSeen++;
-      }
-   }
-
-   if (lowCount == 2)
-   {
-      bool priceLowerLow = lows[0].price < lows[1].price;
-      bool rsiHigherLow  = lows[0].rsi   > lows[1].rsi;
-      if (priceLowerLow && rsiHigherLow)
-      {
-         bullishDivergence = true;
-         g_DbgBullishSeen++;
-      }
-   }
 
    long  openType   = -1;
    ulong openTicket = GetOpenPosition(openType);
@@ -357,87 +509,226 @@ void OnTick()
    bool spreadOK = (InpMaxSpreadUSD <= 0.0) || (CurrentSpreadPrice() <= InpMaxSpreadUSD);
    bool waitOK   = (g_BarsProcessed - g_LastEntryBarIndex >= InpMinBarsBetweenSignals);
 
-   // --- Ban Sell (phan ky GIAM) ---
-   if (bearishDivergence && highs[0].time != g_LastSellSwingTime)
+   bool alreadyActedThisTick = false; // [MOI v1.01] chi cho phep 1 trong 2 che do vao lenh MOI tren CUNG 1 nen
+
+   //====================================================================
+   // CHE DO 1 -- Phan ky RSI + Bollinger Bands (xem chi tiet o v1.00)
+   //====================================================================
+   if (InpUseDivergenceMode)
    {
-      if (openTicket != 0)
-      {
-         g_DbgBlockedPyramid++;
-      }
-      else if (!spreadOK)
-      {
-         g_DbgBlockedSpread++;
-      }
-      else if (!waitOK)
-      {
-         g_DbgBlockedBarsWait++;
-      }
-      else
-      {
-         double atrNow = atrArr[0];
-         double slBuffer = (MathIsValidNumber(atrNow) && atrNow > 0) ? atrNow * InpSLBufferATR : 0.0;
-         double entryPrice = CurrentBid();
-         double slPrice = highs[0].price + slBuffer;
-         double slDist  = slPrice - entryPrice;
+      SwingPoint highs[], lows[];
+      int highCount = CollectSwingHighs(high, rsiArr, bbUpper, atrArr, timeArr, InpMaxSwingSearchBars, highs);
+      int lowCount  = CollectSwingLows(low, rsiArr, bbLower, atrArr, timeArr, InpMaxSwingSearchBars, lows);
 
-         if (slDist > 0)
+      bool bearishDivergence = false;
+      bool bullishDivergence = false;
+
+      if (highCount == 2 && (highs[0].price > highs[1].price) && (highs[0].rsi < highs[1].rsi))
+      {
+         bearishDivergence = true;
+         g_DbgBearishSeen++;
+      }
+      if (lowCount == 2 && (lows[0].price < lows[1].price) && (lows[0].rsi > lows[1].rsi))
+      {
+         bullishDivergence = true;
+         g_DbgBullishSeen++;
+      }
+
+      // --- Ban Sell (phan ky GIAM) ---
+      if (bearishDivergence && highs[0].time != g_LastSellSwingTime && !alreadyActedThisTick)
+      {
+         bool candleOK = (!InpRequireReversalCandle) || IsReversalCandleBearish(openP, high, low, closeP, highs[0].shift);
+         if (!candleOK)
          {
-            double tpPrice = entryPrice - slDist * InpRR;
-            double lot = CalcRiskLot(slDist);
+            g_DbgBlockedNoReversalCandle++;
+         }
+         else if (openTicket != 0)
+         {
+            g_DbgBlockedPyramid++;
+         }
+         else if (!spreadOK)
+         {
+            g_DbgBlockedSpread++;
+         }
+         else if (!waitOK)
+         {
+            g_DbgBlockedBarsWait++;
+         }
+         else
+         {
+            double atrNow = atrArr[0];
+            double slBuffer = (MathIsValidNumber(atrNow) && atrNow > 0) ? atrNow * InpSLBufferATR : 0.0;
+            double entryPrice = CurrentBid();
+            double slPrice = highs[0].price + slBuffer;
+            double slDist  = slPrice - entryPrice;
 
-            if (trade.Sell(lot, _Symbol, entryPrice, slPrice, tpPrice, "RsiBbDivergenceEA Sell"))
+            if (slDist > 0)
             {
-               g_LastSellSwingTime = highs[0].time;
-               g_LastEntryBarIndex = g_BarsProcessed;
-               g_DbgSellOpened++;
+               double tpPrice = entryPrice - slDist * InpRR;
+               double lot = CalcRiskLot(slDist);
+
+               if (trade.Sell(lot, _Symbol, entryPrice, slPrice, tpPrice, "RsiBbDivergenceEA Sell"))
+               {
+                  g_LastSellSwingTime = highs[0].time;
+                  g_LastEntryBarIndex = g_BarsProcessed;
+                  g_DbgSellOpened++;
+                  alreadyActedThisTick = true;
+               }
+               else
+               {
+                  g_DbgOrderSendFail++;
+                  Print("RsiBbDivergenceEA: trade.Sell() (Che do 1) that bai -- ", trade.ResultRetcode(), " ", trade.ResultRetcodeDescription());
+               }
             }
-            else
+         }
+      }
+
+      // --- Ban Buy (phan ky TANG) ---
+      if (bullishDivergence && lows[0].time != g_LastBuySwingTime && !alreadyActedThisTick)
+      {
+         bool candleOK = (!InpRequireReversalCandle) || IsReversalCandleBullish(openP, high, low, closeP, lows[0].shift);
+         if (!candleOK)
+         {
+            g_DbgBlockedNoReversalCandle++;
+         }
+         else if (openTicket != 0)
+         {
+            g_DbgBlockedPyramid++;
+         }
+         else if (!spreadOK)
+         {
+            g_DbgBlockedSpread++;
+         }
+         else if (!waitOK)
+         {
+            g_DbgBlockedBarsWait++;
+         }
+         else
+         {
+            double atrNow = atrArr[0];
+            double slBuffer = (MathIsValidNumber(atrNow) && atrNow > 0) ? atrNow * InpSLBufferATR : 0.0;
+            double entryPrice = CurrentAsk();
+            double slPrice = lows[0].price - slBuffer;
+            double slDist  = entryPrice - slPrice;
+
+            if (slDist > 0)
             {
-               g_DbgOrderSendFail++;
-               Print("RsiBbDivergenceEA: trade.Sell() that bai -- ", trade.ResultRetcode(), " ", trade.ResultRetcodeDescription());
+               double tpPrice = entryPrice + slDist * InpRR;
+               double lot = CalcRiskLot(slDist);
+
+               if (trade.Buy(lot, _Symbol, entryPrice, slPrice, tpPrice, "RsiBbDivergenceEA Buy"))
+               {
+                  g_LastBuySwingTime = lows[0].time;
+                  g_LastEntryBarIndex = g_BarsProcessed;
+                  g_DbgBuyOpened++;
+                  alreadyActedThisTick = true;
+               }
+               else
+               {
+                  g_DbgOrderSendFail++;
+                  Print("RsiBbDivergenceEA: trade.Buy() (Che do 1) that bai -- ", trade.ResultRetcode(), " ", trade.ResultRetcodeDescription());
+               }
             }
          }
       }
    }
 
-   // --- Ban Buy (phan ky TANG) ---
-   if (bullishDivergence && lows[0].time != g_LastBuySwingTime)
+   //====================================================================
+   // CHE DO 2 -- [MOI v1.01] Thuan theo xu huong RSI + nen pha vo
+   // Danh gia tren nen DA DONG (shift=1), KHONG dung nen dang chay (shift=0), tranh repaint.
+   //====================================================================
+   if (InpUseTrendBreakoutMode)
    {
-      if (openTicket != 0)
-      {
-         g_DbgBlockedPyramid++;
-      }
-      else if (!spreadOK)
-      {
-         g_DbgBlockedSpread++;
-      }
-      else if (!waitOK)
-      {
-         g_DbgBlockedBarsWait++;
-      }
-      else
-      {
-         double atrNow = atrArr[0];
-         double slBuffer = (MathIsValidNumber(atrNow) && atrNow > 0) ? atrNow * InpSLBufferATR : 0.0;
-         double entryPrice = CurrentAsk();
-         double slPrice = lows[0].price - slBuffer;
-         double slDist  = entryPrice - slPrice;
+      bool breakoutUp   = IsRsiTrendingUp(rsiArr, 1, InpTrendRsiBars)   && IsBreakoutCandleUp(openP, high, closeP, 1);
+      bool breakoutDown = IsRsiTrendingDown(rsiArr, 1, InpTrendRsiBars) && IsBreakoutCandleDown(openP, low, closeP, 1);
 
-         if (slDist > 0)
+      if (breakoutUp)   g_DbgTrendBreakoutUpSeen++;
+      if (breakoutDown) g_DbgTrendBreakoutDownSeen++;
+
+      // --- Mua THEO xu huong (breakout LEN) ---
+      if (breakoutUp && timeArr[1] != g_LastBreakoutBuyTime && !alreadyActedThisTick)
+      {
+         if (openTicket != 0)
          {
-            double tpPrice = entryPrice + slDist * InpRR;
-            double lot = CalcRiskLot(slDist);
+            g_DbgBlockedPyramid++;
+         }
+         else if (!spreadOK)
+         {
+            g_DbgBlockedSpread++;
+         }
+         else if (!waitOK)
+         {
+            g_DbgBlockedBarsWait++;
+         }
+         else
+         {
+            double atrNow = atrArr[1];
+            double slBuffer = (MathIsValidNumber(atrNow) && atrNow > 0) ? atrNow * InpSLBufferATR : 0.0;
+            double entryPrice = CurrentAsk();
+            double slPrice = low[1] - slBuffer; // duoi day nen pha vo
+            double slDist  = entryPrice - slPrice;
 
-            if (trade.Buy(lot, _Symbol, entryPrice, slPrice, tpPrice, "RsiBbDivergenceEA Buy"))
+            if (slDist > 0)
             {
-               g_LastBuySwingTime = lows[0].time;
-               g_LastEntryBarIndex = g_BarsProcessed;
-               g_DbgBuyOpened++;
+               double tpPrice = entryPrice + slDist * InpRR;
+               double lot = CalcRiskLot(slDist);
+
+               if (trade.Buy(lot, _Symbol, entryPrice, slPrice, tpPrice, "RsiBbDivergenceEA TrendBuy"))
+               {
+                  g_LastBreakoutBuyTime = timeArr[1];
+                  g_LastEntryBarIndex = g_BarsProcessed;
+                  g_DbgTrendBuyOpened++;
+                  alreadyActedThisTick = true;
+               }
+               else
+               {
+                  g_DbgOrderSendFail++;
+                  Print("RsiBbDivergenceEA: trade.Buy() (Che do 2) that bai -- ", trade.ResultRetcode(), " ", trade.ResultRetcodeDescription());
+               }
             }
-            else
+         }
+      }
+
+      // --- Ban THEO xu huong (breakout XUONG) ---
+      if (breakoutDown && timeArr[1] != g_LastBreakoutSellTime && !alreadyActedThisTick)
+      {
+         if (openTicket != 0)
+         {
+            g_DbgBlockedPyramid++;
+         }
+         else if (!spreadOK)
+         {
+            g_DbgBlockedSpread++;
+         }
+         else if (!waitOK)
+         {
+            g_DbgBlockedBarsWait++;
+         }
+         else
+         {
+            double atrNow = atrArr[1];
+            double slBuffer = (MathIsValidNumber(atrNow) && atrNow > 0) ? atrNow * InpSLBufferATR : 0.0;
+            double entryPrice = CurrentBid();
+            double slPrice = high[1] + slBuffer; // tren dinh nen pha vo
+            double slDist  = slPrice - entryPrice;
+
+            if (slDist > 0)
             {
-               g_DbgOrderSendFail++;
-               Print("RsiBbDivergenceEA: trade.Buy() that bai -- ", trade.ResultRetcode(), " ", trade.ResultRetcodeDescription());
+               double tpPrice = entryPrice - slDist * InpRR;
+               double lot = CalcRiskLot(slDist);
+
+               if (trade.Sell(lot, _Symbol, entryPrice, slPrice, tpPrice, "RsiBbDivergenceEA TrendSell"))
+               {
+                  g_LastBreakoutSellTime = timeArr[1];
+                  g_LastEntryBarIndex = g_BarsProcessed;
+                  g_DbgTrendSellOpened++;
+                  alreadyActedThisTick = true;
+               }
+               else
+               {
+                  g_DbgOrderSendFail++;
+                  Print("RsiBbDivergenceEA: trade.Sell() (Che do 2) that bai -- ", trade.ResultRetcode(), " ", trade.ResultRetcodeDescription());
+               }
             }
          }
       }
