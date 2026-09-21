@@ -79,6 +79,9 @@ input bool   InpTelegramEnabled  = false;
 input string InpTelegramBotToken = ""; // from @BotFather
 input string InpTelegramChatId   = "";
 
+input group "=== Win-Rate Stats Table ==="
+input bool   InpShowStatsTable = true; // historical % of signals that reached TP1-4 vs hit SL first
+
 //====================================================================
 // Buffers
 //====================================================================
@@ -102,6 +105,24 @@ datetime g_lastAlertBarTime = 0;
 bool   g_firstCalc = true;
 
 #define OBJ_PREFIX "DTC135_"
+
+//====================================================================
+// Win-rate stats: forward-simulate each historical signal (SL moves to
+// breakeven once TP1 is reached, same as the EA) until it resolves as
+// either a loss (SL hit before TP1) or reaches TP1/2/3/4.
+//====================================================================
+struct PendingSignal
+{
+   bool   bullish;
+   double entry, sl, tp1, tp2, tp3, tp4;
+   int    phase;       // next target index: 0=TP1 .. 3=TP4
+   double stopLevel;   // sl initially, moves to entry (breakeven) after TP1
+   int    lastScanned; // last bar index already scanned (inclusive)
+};
+PendingSignal g_pending[];
+long   g_statTotal = 0;
+long   g_statReached[4] = {0,0,0,0};
+long   g_statSL = 0;
 
 //====================================================================
 // Init / Deinit
@@ -218,6 +239,114 @@ void SendTelegramAlert(string signalType, double entry, double sl, double t1, do
       PrintFormat("[DTC-Ind] Telegram WebRequest failed, error=%d. Add %s to Tools>Options>Expert Advisors>Allow WebRequest.", GetLastError(), url);
 }
 
+void QueueSignalForStats(bool bullish, double entry, double sl, double tp1, double tp2, double tp3, double tp4, int barIndex)
+{
+   int idx = ArraySize(g_pending);
+   ArrayResize(g_pending, idx+1);
+   g_pending[idx].bullish = bullish;
+   g_pending[idx].entry = entry; g_pending[idx].sl = sl;
+   g_pending[idx].tp1 = tp1; g_pending[idx].tp2 = tp2; g_pending[idx].tp3 = tp3; g_pending[idx].tp4 = tp4;
+   g_pending[idx].phase = 0;
+   g_pending[idx].stopLevel = sl;
+   g_pending[idx].lastScanned = barIndex;
+}
+
+// Advances every pending (not-yet-resolved) signal using bars that are now available,
+// moves the stop to breakeven each time a TP level is reached (mirrors the EA), and
+// commits resolved signals (loss at SL, or exit/close after reaching TP1-4) into the
+// win-rate counters. Unresolved (still-open) signals are kept for the next call.
+void ResolvePendingSignals(const double &high[], const double &low[], int rates_total)
+{
+   int n = ArraySize(g_pending);
+   if(n==0) return;
+
+   bool resolved[];
+   ArrayResize(resolved, n);
+   ArrayInitialize(resolved, false);
+   double tp[4];
+
+   for(int p=0; p<n; p++)
+   {
+      tp[0]=g_pending[p].tp1; tp[1]=g_pending[p].tp2; tp[2]=g_pending[p].tp3; tp[3]=g_pending[p].tp4;
+      int j = g_pending[p].lastScanned+1;
+      for(; j<rates_total; j++)
+      {
+         bool hitStop   = g_pending[p].bullish ? (low[j] <= g_pending[p].stopLevel) : (high[j] >= g_pending[p].stopLevel);
+         bool hitTarget = g_pending[p].bullish ? (high[j] >= tp[g_pending[p].phase])  : (low[j]  <= tp[g_pending[p].phase]);
+         if(hitStop && hitTarget) hitTarget = false; // both touched same bar: assume the stop was hit first (conservative)
+
+         if(hitStop)
+         {
+            g_statTotal++;
+            if(g_pending[p].phase==0) g_statSL++; // full loss only if SL hit before ever reaching TP1
+            resolved[p] = true;
+            break;
+         }
+         if(hitTarget)
+         {
+            g_statReached[g_pending[p].phase]++;
+            g_pending[p].phase++;
+            g_pending[p].stopLevel = g_pending[p].entry; // breakeven after each TP, same as the EA
+            if(g_pending[p].phase>=4) { g_statTotal++; resolved[p]=true; break; }
+         }
+      }
+      g_pending[p].lastScanned = MathMin(j, rates_total-1);
+   }
+
+   // rebuild the pending array keeping only the still-unresolved signals
+   PendingSignal keep[];
+   for(int p=0; p<n; p++)
+      if(!resolved[p])
+      {
+         int k = ArraySize(keep);
+         ArrayResize(keep, k+1);
+         keep[k] = g_pending[p];
+      }
+   ArrayFree(g_pending);
+   ArrayResize(g_pending, ArraySize(keep));
+   for(int k=0; k<ArraySize(keep); k++) g_pending[k] = keep[k];
+}
+
+// Win-rate table drawn right below the MTF rows: % of resolved historical signals
+// that reached TP1/TP2/TP3/TP4, and % that hit SL before ever reaching TP1.
+void UpdateStatsTable(int rowOffset)
+{
+   if(!InpShowStatsTable) { ObjectsDeleteAll(0, OBJ_PREFIX+"dash_stat"); return; }
+
+   long total = g_statTotal;
+   string rows[6];
+   color  clrs[6];
+   rows[0] = "Win Rate (n=" + IntegerToString((int)total) + ")"; clrs[0] = clrWhite;
+
+   string tpLabel[4] = {"TP1","TP2","TP3","TP4"};
+   for(int k=0; k<4; k++)
+   {
+      double pct = (total>0) ? (100.0*g_statReached[k]/total) : 0.0;
+      rows[k+1] = tpLabel[k] + "  " + DoubleToString(pct,1) + "%  (" + IntegerToString((int)g_statReached[k]) + ")";
+      clrs[k+1] = clrLime;
+   }
+   double slPct = (total>0) ? (100.0*g_statSL/total) : 0.0;
+   rows[5] = "SL   " + DoubleToString(slPct,1) + "%  (" + IntegerToString((int)g_statSL) + ")";
+   clrs[5] = clrRed;
+
+   for(int r=0; r<6; r++)
+   {
+      string name = OBJ_PREFIX+"dash_stat_row"+IntegerToString(r);
+      if(ObjectFind(0, name) < 0)
+      {
+         ObjectCreate(0, name, OBJ_LABEL, 0, 0, 0);
+         ObjectSetInteger(0, name, OBJPROP_CORNER, InpDashboardCorner);
+         ObjectSetInteger(0, name, OBJPROP_XDISTANCE, 10);
+         ObjectSetInteger(0, name, OBJPROP_YDISTANCE, 10 + (rowOffset+r)*(InpDashboardFontSize+6));
+         ObjectSetString(0, name, OBJPROP_FONT, "Consolas");
+         ObjectSetInteger(0, name, OBJPROP_FONTSIZE, InpDashboardFontSize);
+         ObjectSetInteger(0, name, OBJPROP_SELECTABLE, false);
+      }
+      ObjectSetString(0, name, OBJPROP_TEXT, rows[r]);
+      ObjectSetInteger(0, name, OBJPROP_COLOR, clrs[r]);
+   }
+}
+
 void UpdateDashboard()
 {
    if(!InpShowDashboard) { ObjectsDeleteAll(0, OBJ_PREFIX+"dash_"); return; }
@@ -255,6 +384,8 @@ void UpdateDashboard()
       ObjectSetString(0, name, OBJPROP_TEXT, rows[r]);
       ObjectSetInteger(0, name, OBJPROP_COLOR, r==0 ? clrWhite : (bull[r]?clrLime:clrRed));
    }
+
+   UpdateStatsTable(6);
 }
 
 //====================================================================
@@ -281,6 +412,13 @@ int OnCalculate(const int rates_total, const int prev_calculated, const datetime
    if(CopyBuffer(handleEma5,0,0,rates_total,e5)<=0) return prev_calculated;
    if(CopyBuffer(handleEma6,0,0,rates_total,e6)<=0) return prev_calculated;
    if(CopyBuffer(handleAtr,0,0,rates_total,atrArr)<=0) return prev_calculated;
+
+   if(prev_calculated==0) // fresh (re)load: reset the win-rate stats so history isn't double-counted
+   {
+      ArrayFree(g_pending);
+      g_statTotal=0; g_statSL=0;
+      ArrayInitialize(g_statReached, 0);
+   }
 
    int start = (prev_calculated>1) ? prev_calculated-1 : 0;
    int lastClosedBar = rates_total-2; // last fully closed bar (current bar is still forming)
@@ -352,6 +490,7 @@ int OnCalculate(const int rates_total, const int prev_calculated, const datetime
 
       g_entry=entry; g_sl=sl; g_tp1=tp1; g_tp2=tp2; g_tp3=tp3; g_tp4=tp4;
       g_haveSignal = true;
+      QueueSignalForStats(longSignal, entry, sl, tp1, tp2, tp3, tp4, i);
 
       // Only alert for the newest closed bar, and never on the indicator's first (historical) calc pass
       if(i==lastClosedBar && !g_firstCalc && time[i]>g_lastAlertBarTime)
@@ -360,6 +499,8 @@ int OnCalculate(const int rates_total, const int prev_calculated, const datetime
          g_lastAlertBarTime = time[i];
       }
    }
+
+   ResolvePendingSignals(high, low, rates_total);
 
    // Keep the latest signal's lines extended to the current bar, like the Pine script does every bar
    if(g_haveSignal)

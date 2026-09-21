@@ -115,7 +115,8 @@ Có 2 file, dùng độc lập với bộ EA ICT/SMC ở trên:
   mũi tên BUY/SELL tại mọi điểm tín hiệu lịch sử, đường + nhãn Entry/SL/TP1-4
   cho tín hiệu gần nhất, dashboard 15M/30M/1H/4H/D ở góc trên-phải, và gửi
   cảnh báo Telegram (gọi thẳng Telegram Bot API bằng `WebRequest`, không cần
-  `alert()` + webhook như trên TradingView). **Không tự vào lệnh.**
+  `alert()` + webhook như trên TradingView), và bảng **thống kê Win Rate**
+  (xem mục riêng bên dưới). **Không tự vào lệnh.**
 - `MQL5/Experts/DTC_v135_EA.mq5` — **Expert Advisor** tự động giao dịch dựa
   trên đúng tín hiệu cắt/thẳng hàng EMA của indicator trên. Vì bản Pine Script
   gốc chỉ vẽ chart chứ không tự quản lý lệnh, EA bổ sung phần quản lý vị thế:
@@ -135,6 +136,33 @@ Có 2 file, dùng độc lập với bộ EA ICT/SMC ở trên:
     không dùng làm bộ lọc vào lệnh — EA giữ đúng hành vi này (đúng theo yêu
     cầu "giống chỉ báo gốc nhất có thể"), không bắt buộc các khung MTF phải
     đồng thuận mới vào lệnh.
+
+## Bảng thống kê Win Rate (indicator)
+
+`DTC_v135.mq5` hiển thị thêm một bảng nhỏ ngay dưới dashboard MTF (bật/tắt
+bằng `InpShowStatsTable`), liệt kê % tín hiệu lịch sử đã chạm từng mốc:
+
+```
+Win Rate (n=42)
+TP1  71.4%  (30)
+TP2  47.6%  (20)
+TP3  28.6%  (12)
+TP4  16.7%  (7)
+SL   28.6%  (12)
+```
+
+Cách tính: với mỗi tín hiệu Long/Short trong lịch sử, indicator tự mô
+phỏng tiến về sau trên đúng dữ liệu giá của chart (dùng high/low từng nến)
+để xem giá chạm SL hay TP1 trước; nếu chạm TP1 trước, SL được dời về hoà
+vốn (giống hệt cách EA quản lý lệnh) rồi tiếp tục xét TP2, v.v. Một tín
+hiệu được tính là **thắng ở mức TPx** nếu giá từng chạm tới đó, bất kể sau
+đó lệnh dừng ở hoà vốn hay đi tiếp; **SL** chỉ tính khi giá chạm SL gốc
+*trước khi* từng chạm TP1 (thua toàn bộ). Tín hiệu quá mới, giá chưa kịp đi
+đến đâu, sẽ tạm không được tính vào `n` cho tới khi có đủ nến để phân định
+kết quả. Đây là thống kê dựa trên đúng lịch sử giá của chart đang mở —
+không phải kết quả backtest chính thức của Strategy Tester, và nếu SL/TP
+chạm cùng một nến thì mặc định coi SL chạm trước (giả định an toàn/thận
+trọng vì không có dữ liệu tick trong lịch sử OHLC).
 
 ## Những khác biệt so với script Pine gốc
 
