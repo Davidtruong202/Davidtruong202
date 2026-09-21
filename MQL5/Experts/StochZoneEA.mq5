@@ -95,9 +95,16 @@
 //|          - InpUseCooldownAfterLoss/InpCooldownMinutesAfterLoss: sau  |
 //|            khi 1 lệnh đóng LỖ, khóa vào lệnh mới (cả 2 hướng) trong   |
 //|            InpCooldownMinutesAfterLoss phút (mặc định 15).           |
+//|   v1.09: Thêm HÒA VỐN SỚM (nhóm input 8, trước cả TP1): dời SL về    |
+//|          giá vào lệnh ngay khi lời đạt InpEarlyBreakevenSlMult lần   |
+//|          khoảng cách SL (mặc định 1.0 = tỷ lệ 1:1), không cần đợi    |
+//|          tới TP1 -- phòng trường hợp TP1 đặt xa hơn SL nhiều (vd     |
+//|          TP1=10, SL chỉ 2-3), giá chạy có lời rồi quay đầu về lỗ     |
+//|          trước khi kịp chạm TP1. Áp dụng cho mọi chế độ TP           |
+//|          (InpTpMode), kể cả TP_MODE_FIXED_RR vốn không có TP1.       |
 //+------------------------------------------------------------------+
 #property copyright "Gold Hunter"
-#property version   "1.08"
+#property version   "1.09"
 
 #include <Trade\Trade.mqh>
 CTrade trade;
@@ -157,7 +164,11 @@ input group "=== 7. Tự động DỪNG VÀO LỆNH MỚI khi lỗ quá ngưỡn
 input bool   InpUseDailyLossLimit = true;
 input double InpMaxDailyLossUSD   = 15.0;
 
-input group "=== 8. Trailing SL sau khi chốt TP1 (bảo toàn phần lệnh còn lại) ==="
+input group "=== 8. Hòa vốn SỚM (trước khi chạm TP1) khi lời đạt 1 mức nhất định ==="
+input bool   InpUseEarlyBreakeven  = true; // Bật/tắt dời SL về giá vào lệnh NGAY khi lời đủ, không cần đợi TP1 -- phòng trường hợp TP1 đặt xa hơn SL nhiều, giá chạy có lời rồi quay đầu về lỗ trước khi kịp chạm TP1
+input double InpEarlyBreakevenSlMult = 1.0; // Lời tối thiểu = khoảng cách SL nhân hệ số này (mặc định 1.0 = tỷ lệ 1:1, lời bằng đúng phần rủi ro ban đầu) thì dời SL về hòa vốn
+
+input group "=== 8b. Trailing SL sau khi chốt TP1 (bảo toàn phần lệnh còn lại) ==="
 input bool   InpMoveToBreakevenOnTp1 = true; // Dời SL phần lệnh còn lại về hòa vốn ngay khi TP1 đóng xong
 input bool   InpUseTrailingAfterTp1  = true; // Bật/tắt trailing SL cho phần lệnh còn lại sau khi đã hòa vốn
 input double InpTrailStartAtr        = 0.5;  // Lãi nổi tối thiểu thêm (bội số ATR) tính từ lúc hòa vốn để bắt đầu siết SL
@@ -190,6 +201,7 @@ bool   g_SellArmed = true; // true = sẵn sàng bắn tín hiệu SELL ở lầ
 bool   g_BuyArmed  = true; // true = sẵn sàng bắn tín hiệu BUY ở lần chạm vùng tiếp theo
 bool   g_Tp1Done       = false; // Đã đóng TP1 cho lệnh đang mở hiện tại chưa
 bool   g_TrailingActive = false; // Đã hòa vốn và đang trailing phần lệnh còn lại
+bool   g_EarlyBreakevenDone = false; // Đã dời SL về hòa vốn SỚM (trước TP1) cho lệnh đang mở hiện tại chưa
 
 datetime g_DailyLossAlertDay = 0;
 datetime g_CooldownUntil     = 0; // Khóa vào lệnh mới (cả 2 hướng) tới thời điểm này sau khi vừa thua 1 lệnh -- xem nhóm input 12
@@ -646,6 +658,7 @@ bool OpenPosition(ENUM_ORDER_TYPE type, double slPrice, bool isTest)
 
    g_Tp1Done = false;
    g_TrailingActive = false;
+   g_EarlyBreakevenDone = false;
 
    string tpLogTxt = (tp > 0) ? (" TP=" + DoubleToString(tp, digits)) : " (TP1 quản lý bằng code)";
    Print("StochZoneEA: ", (isTest ? "[TEST] " : ""), "mở lệnh ", EnumToString(type),
@@ -730,6 +743,29 @@ void ManageOpenPosition(double stochNow)
          trade.PositionClose(ticket);
          g_DbgOppositeZoneExit++;
          return;
+      }
+   }
+
+   // --- Hòa vốn SỚM (trước khi chạm TP1): phòng trường hợp TP1 đặt xa hơn SL nhiều, giá
+   // chạy có lời rồi quay đầu về lỗ trước khi kịp chạm TP1. Áp dụng cho MỌI chế độ TP,
+   // chỉ 1 lần cho tới khi lệnh đóng hẳn (không lặp lại, không xung đột với hòa vốn ở TP1). ---
+   if (InpUseEarlyBreakeven && !g_Tp1Done && !g_EarlyBreakevenDone)
+   {
+      double openP = PositionGetDouble(POSITION_PRICE_OPEN);
+      double curSl = PositionGetDouble(POSITION_SL);
+      double curTp = PositionGetDouble(POSITION_TP);
+      double curPrice = (posType == POSITION_TYPE_BUY) ? CurrentBid() : CurrentAsk();
+      double slDist = MathAbs(openP - curSl);
+      double favorableDist = (posType == POSITION_TYPE_BUY) ? (curPrice - openP) : (openP - curPrice);
+
+      if (slDist > 0 && favorableDist >= slDist * InpEarlyBreakevenSlMult)
+      {
+         if (trade.PositionModify(ticket, openP, curTp))
+         {
+            g_EarlyBreakevenDone = true;
+            Print("StochZoneEA: đã dời SL về hòa vốn SỚM (trước TP1) cho ticket #", ticket);
+            TelegramSendMessage(StringFormat("🔒 <b>HÒA VỐN SỚM</b> — %s\n\nĐã dời SL về giá vào lệnh (%.2f) trước khi kịp chạm TP1, để bảo toàn lệnh nếu giá quay đầu.", _Symbol, openP));
+         }
       }
    }
 
@@ -830,6 +866,7 @@ void OnTradeTransaction(const MqlTradeTransaction &trans,
 
    g_Tp1Done = false;
    g_TrailingActive = false;
+   g_EarlyBreakevenDone = false;
 }
 
 //====================================================================
@@ -975,10 +1012,11 @@ int OnInit()
    {
       g_Tp1Done = true;
       g_TrailingActive = InpUseTrailingAfterTp1;
+      g_EarlyBreakevenDone = true;
       Print("StochZoneEA: phát hiện lệnh đang mở khi khởi động lại EA - coi như TP1 đã xong, tiếp tục trailing nếu bật.");
    }
 
-   Print("StochZoneEA v1.08: OnInit THÀNH CÔNG -- EA bắt đầu chạy từ đây.");
+   Print("StochZoneEA v1.09: OnInit THÀNH CÔNG -- EA bắt đầu chạy từ đây.");
 
    CreateDashboard();
    return INIT_SUCCEEDED;
