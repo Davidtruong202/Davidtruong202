@@ -71,8 +71,26 @@
 //|  gian, chi khac diem tham chieu SL (swing point vs. dinh/day nen pha |
 //|  vo).                                                                 |
 //+------------------------------------------------------------------+
+//|  v1.02: theo yeu cau "moi PP deu co tag rieng de nhan biet lai lo,   |
+//|  them len bang co input bat tat":                                    |
+//|   - Comment() cua tung lenh gio mang tag PHAN BIET ro rang: Che do 1 |
+//|     dat comment "RsiBbDivergenceEA PP1-Buy"/"PP1-Sell", Che do 2 dat |
+//|     "RsiBbDivergenceEA PP2-Buy"/"PP2-Sell" -- doc duoc ca tren MT5   |
+//|     (cot Comment trong tab Trade/History) lan trong code.            |
+//|   - Ham moi CalcDayProfitUSD(tagFilter): tinh lai/lo TRONG NGAY (da  |
+//|     dong + dang mo) loc theo tag "PP1"/"PP2" (truyen "" = tinh CA 2  |
+//|     gop lai). Loc CHINH XAC bang cach tim POSITION_ID cua cac lenh   |
+//|     co deal MO (DEAL_ENTRY_IN) chua tag trong comment TRUOC (comment |
+//|     luc mo lenh la dang tin cay duy nhat -- deal DONG co the bi      |
+//|     broker ghi de comment khac, vd "tp"/"sl", nen KHONG loc truc     |
+//|     tiep tren deal dong).                                            |
+//|   - Them bang trang thai OBJ_LABEL tren chart (CreateDashboard/      |
+//|     UpdateDashboard, kieu giong EMACrossCloneEA), hien 3 dong: PP1    |
+//|     hom nay, PP2 hom nay, Tong hom nay -- cap nhat MOI TICK. Input    |
+//|     moi InpShowDashboard (mac dinh true) de bat/tat toan bo bang.     |
+//+------------------------------------------------------------------+
 #property copyright "Gold Hunter"
-#property version   "1.01"
+#property version   "1.02"
 #property strict
 
 #include <Trade\Trade.mqh>
@@ -118,6 +136,13 @@ input int    InpTrendRsiBars        = 5;    // So nen RSI phai giu LIEN TUC tren
 input int    InpBreakoutRangeBars   = 10;   // So nen gan nhat de xac dinh vung dinh/day can "pha vo"
 input double InpBreakoutBodyMult    = 1.5;  // Than nen hien tai phai lon hon than nen trung binh bao nhieu lan moi tinh la "nen pha vo"
 input int    InpBreakoutBodyAvgBars = 10;   // So nen dung de tinh than nen trung binh (so sanh voi nen pha vo)
+
+// === 7. [MOI v1.02] Bang trang thai tren chart -- lai/lo rieng theo tung PP ===
+input bool   InpShowDashboard = true; // Bat/tat bang trang thai tren chart (lai/lo rieng PP1/PP2 hom nay, cap nhat moi tick)
+
+#define DASH_PREFIX "RsiBbDivEA_Dash_"
+#define TAG_PP1 "PP1"
+#define TAG_PP2 "PP2"
 
 //====================================================================
 // Globals
@@ -423,6 +448,181 @@ double CalcRiskLot(double slDistancePrice)
 }
 
 //+------------------------------------------------------------------+
+//| [MOI v1.02] Lai/lo TRONG NGAY (da dong + dang mo), loc theo tag    |
+//| "PP1"/"PP2" trong comment cua lenh -- truyen "" de tinh CA 2 PP     |
+//| gop lai. Xem giai thich cach loc CHINH XAC qua POSITION_ID trong    |
+//| changelog v1.02 o dau file (deal DONG khong dang tin cay de loc     |
+//| truc tiep comment).                                                 |
+//+------------------------------------------------------------------+
+double CalcDayProfitUSD(string tagFilter)
+{
+   double total = 0.0;
+
+   MqlDateTime dtNow;
+   TimeToStruct(TimeCurrent(), dtNow);
+   dtNow.hour = 0; dtNow.min = 0; dtNow.sec = 0;
+   datetime dayStart = StructToTime(dtNow);
+   datetime now = TimeCurrent();
+
+   if (HistorySelect(dayStart, now + 86400))
+   {
+      int totalDeals = HistoryDealsTotal();
+
+      ulong matchedPosId[];
+      if (tagFilter != "")
+      {
+         for (int i = 0; i < totalDeals; i++)
+         {
+            ulong ticket = HistoryDealGetTicket(i);
+            if (ticket == 0) continue;
+            if (HistoryDealGetString(ticket, DEAL_SYMBOL) != _Symbol) continue;
+            if (HistoryDealGetInteger(ticket, DEAL_MAGIC) != InpMagic) continue;
+            if (HistoryDealGetInteger(ticket, DEAL_ENTRY) != DEAL_ENTRY_IN) continue;
+            if (StringFind(HistoryDealGetString(ticket, DEAL_COMMENT), tagFilter) < 0) continue;
+
+            int sz = ArraySize(matchedPosId);
+            ArrayResize(matchedPosId, sz + 1);
+            matchedPosId[sz] = (ulong)HistoryDealGetInteger(ticket, DEAL_POSITION_ID);
+         }
+      }
+
+      for (int i = 0; i < totalDeals; i++)
+      {
+         ulong ticket = HistoryDealGetTicket(i);
+         if (ticket == 0) continue;
+         if (HistoryDealGetString(ticket, DEAL_SYMBOL) != _Symbol) continue;
+         if (HistoryDealGetInteger(ticket, DEAL_MAGIC) != InpMagic) continue;
+         long entry = HistoryDealGetInteger(ticket, DEAL_ENTRY);
+         if (entry != DEAL_ENTRY_OUT && entry != DEAL_ENTRY_OUT_BY) continue;
+
+         if (tagFilter != "")
+         {
+            ulong posId = (ulong)HistoryDealGetInteger(ticket, DEAL_POSITION_ID);
+            bool found = false;
+            for (int k = 0; k < ArraySize(matchedPosId); k++)
+               if (matchedPosId[k] == posId) { found = true; break; }
+            if (!found) continue;
+         }
+
+         total += HistoryDealGetDouble(ticket, DEAL_PROFIT) +
+                  HistoryDealGetDouble(ticket, DEAL_SWAP) +
+                  HistoryDealGetDouble(ticket, DEAL_COMMISSION);
+      }
+   }
+
+   // Lenh dang mo: POSITION_COMMENT VAN la comment goc luc mo lenh (khong bi ghi de nhu deal dong),
+   // nen loc truc tiep duoc, khong can tra POSITION_ID nhu o tren.
+   for (int i = PositionsTotal() - 1; i >= 0; i--)
+   {
+      ulong ticket = PositionGetTicket(i);
+      if (ticket == 0) continue;
+      if (PositionGetString(POSITION_SYMBOL) != _Symbol) continue;
+      if (PositionGetInteger(POSITION_MAGIC) != InpMagic) continue;
+      if (tagFilter != "" && StringFind(PositionGetString(POSITION_COMMENT), tagFilter) < 0) continue;
+
+      total += PositionGetDouble(POSITION_PROFIT) + PositionGetDouble(POSITION_SWAP);
+   }
+
+   return total;
+}
+
+//+------------------------------------------------------------------+
+//| [MOI v1.02] Bang trang thai tren chart -- OBJ_LABEL + khung nen     |
+//| OBJ_RECTANGLE_LABEL, cung kieu da dung trong EMACrossCloneEA.        |
+//+------------------------------------------------------------------+
+void SetLabel(string name, string text, color clr)
+{
+   if (ObjectFind(0, name) < 0) return;
+   ObjectSetString(0, name, OBJPROP_TEXT, text);
+   ObjectSetInteger(0, name, OBJPROP_COLOR, clr);
+}
+
+void CreateDashboard()
+{
+   string keys[] = {"Title", "PP1", "PP2", "Total", "Position"};
+   int x = 10, y = 16, dy = 16;
+   int panelW = 300, panelH = ArraySize(keys) * dy + 14;
+
+   string bgName = DASH_PREFIX + "BG";
+   if (ObjectFind(0, bgName) < 0)
+      ObjectCreate(0, bgName, OBJ_RECTANGLE_LABEL, 0, 0, 0);
+   ObjectSetInteger(0, bgName, OBJPROP_CORNER, CORNER_LEFT_UPPER);
+   ObjectSetInteger(0, bgName, OBJPROP_XDISTANCE, x - 6);
+   ObjectSetInteger(0, bgName, OBJPROP_YDISTANCE, y - 8);
+   ObjectSetInteger(0, bgName, OBJPROP_XSIZE, panelW);
+   ObjectSetInteger(0, bgName, OBJPROP_YSIZE, panelH);
+   ObjectSetInteger(0, bgName, OBJPROP_BGCOLOR, clrBlack);
+   ObjectSetInteger(0, bgName, OBJPROP_BORDER_TYPE, BORDER_FLAT);
+   ObjectSetInteger(0, bgName, OBJPROP_COLOR, clrDimGray);
+   ObjectSetInteger(0, bgName, OBJPROP_STYLE, STYLE_SOLID);
+   ObjectSetInteger(0, bgName, OBJPROP_WIDTH, 1);
+   ObjectSetInteger(0, bgName, OBJPROP_BACK, false);
+   ObjectSetInteger(0, bgName, OBJPROP_SELECTABLE, false);
+   ObjectSetInteger(0, bgName, OBJPROP_HIDDEN, true);
+
+   for (int i = 0; i < ArraySize(keys); i++)
+   {
+      string name = DASH_PREFIX + keys[i];
+      if (ObjectFind(0, name) < 0)
+         ObjectCreate(0, name, OBJ_LABEL, 0, 0, 0);
+      ObjectSetInteger(0, name, OBJPROP_CORNER, CORNER_LEFT_UPPER);
+      ObjectSetInteger(0, name, OBJPROP_XDISTANCE, x);
+      ObjectSetInteger(0, name, OBJPROP_YDISTANCE, y + i * dy);
+      ObjectSetInteger(0, name, OBJPROP_FONTSIZE, 9);
+      ObjectSetString(0, name, OBJPROP_FONT, "Consolas");
+      ObjectSetInteger(0, name, OBJPROP_COLOR, clrSilver);
+      ObjectSetInteger(0, name, OBJPROP_SELECTABLE, false);
+      ObjectSetInteger(0, name, OBJPROP_HIDDEN, true);
+      ObjectSetString(0, name, OBJPROP_TEXT, "...");
+   }
+}
+
+void DeleteDashboard() { ObjectsDeleteAll(0, DASH_PREFIX); }
+
+//+------------------------------------------------------------------+
+//| [MOI v1.02] Dien so lieu that vao bang -- dat SAU GetOpenPosition() |
+//| va CalcDayProfitUSD() vi can goi 2 ham do (MQL5 doi khai bao truoc, |
+//| goi sau).                                                            |
+//+------------------------------------------------------------------+
+void UpdateDashboard()
+{
+   SetLabel(DASH_PREFIX + "Title", StringFormat("=== RsiBbDivergenceEA v1.02 (%s) ===", _Symbol), clrWhite);
+
+   double pp1USD = CalcDayProfitUSD(TAG_PP1);
+   double pp2USD = CalcDayProfitUSD(TAG_PP2);
+   double totalUSD = pp1USD + pp2USD;
+
+   SetLabel(DASH_PREFIX + "PP1", StringFormat("PP1 (Phan ky) hom nay: %s%.2f %s",
+            (pp1USD >= 0 ? "+" : ""), pp1USD, AccountInfoString(ACCOUNT_CURRENCY)),
+            (pp1USD >= 0 ? clrLimeGreen : clrTomato));
+
+   SetLabel(DASH_PREFIX + "PP2", StringFormat("PP2 (Xu huong) hom nay: %s%.2f %s",
+            (pp2USD >= 0 ? "+" : ""), pp2USD, AccountInfoString(ACCOUNT_CURRENCY)),
+            (pp2USD >= 0 ? clrLimeGreen : clrTomato));
+
+   SetLabel(DASH_PREFIX + "Total", StringFormat("Tong hom nay: %s%.2f %s",
+            (totalUSD >= 0 ? "+" : ""), totalUSD, AccountInfoString(ACCOUNT_CURRENCY)),
+            (totalUSD >= 0 ? clrLimeGreen : clrTomato));
+
+   long  posType   = -1;
+   ulong posTicket = GetOpenPosition(posType);
+   if (posTicket != 0 && PositionSelectByTicket(posTicket))
+   {
+      string dirTxt = (posType == POSITION_TYPE_BUY) ? "BUY" : "SELL";
+      string cmt    = PositionGetString(POSITION_COMMENT);
+      double openP  = PositionGetDouble(POSITION_PRICE_OPEN);
+      double slP    = PositionGetDouble(POSITION_SL);
+      double tpP    = PositionGetDouble(POSITION_TP);
+      SetLabel(DASH_PREFIX + "Position", StringFormat("Lenh: [%s] %s @ %.2f | SL %.2f | TP %.2f",
+               cmt, dirTxt, openP, slP, tpP), clrKhaki);
+   }
+   else
+   {
+      SetLabel(DASH_PREFIX + "Position", "Lenh: Khong co", clrSilver);
+   }
+}
+
+//+------------------------------------------------------------------+
 int OnInit()
 {
    g_Slippage = PriceDistanceToPoints(InpSlippageUSD);
@@ -443,7 +643,9 @@ int OnInit()
 
    g_LastBarTime = 0; // force-align vao nen moi ngay tick dau tien
 
-   Print("RsiBbDivergenceEA v1.01: OnInit THANH CONG -- RSI/Bands/ATR handle deu tao duoc. Che do 1 (phan ky)=",
+   if (InpShowDashboard) CreateDashboard(); // [MOI v1.02]
+
+   Print("RsiBbDivergenceEA v1.02: OnInit THANH CONG -- RSI/Bands/ATR handle deu tao duoc. Che do 1 (phan ky)=",
          InpUseDivergenceMode, " | Che do 2 (thuan xu huong+nen pha vo)=", InpUseTrendBreakoutMode,
          " -- EA bat dau chay tu day.");
    return(INIT_SUCCEEDED);
@@ -451,14 +653,16 @@ int OnInit()
 
 void OnDeinit(const int reason)
 {
-   Print("RsiBbDivergenceEA: [CHAN DOAN v1.01] Che do 1 (phan ky) -- so nen da xu ly=", g_BarsProcessed, " | ",
+   DeleteDashboard(); // [MOI v1.02]
+
+   Print("RsiBbDivergenceEA: [CHAN DOAN v1.02] Che do 1 (phan ky) -- so nen da xu ly=", g_BarsProcessed, " | ",
          "phan ky GIAM (bearish) thay=", g_DbgBearishSeen, " (Sell mo thanh cong=", g_DbgSellOpened, ") | ",
          "phan ky TANG (bullish) thay=", g_DbgBullishSeen, " (Buy mo thanh cong=", g_DbgBuyOpened, ") | ",
          "bi chan vi thieu nen dao chieu (InpRequireReversalCandle)=", g_DbgBlockedNoReversalCandle);
-   Print("RsiBbDivergenceEA: [CHAN DOAN v1.01] Che do 2 (thuan xu huong+nen pha vo) -- ",
+   Print("RsiBbDivergenceEA: [CHAN DOAN v1.02] Che do 2 (thuan xu huong+nen pha vo) -- ",
          "breakout LEN thay=", g_DbgTrendBreakoutUpSeen, " (Buy mo thanh cong=", g_DbgTrendBuyOpened, ") | ",
          "breakout XUONG thay=", g_DbgTrendBreakoutDownSeen, " (Sell mo thanh cong=", g_DbgTrendSellOpened, ")");
-   Print("RsiBbDivergenceEA: [CHAN DOAN v1.01] Chi tiet ly do BI CHAN (chung ca 2 che do) -- ",
+   Print("RsiBbDivergenceEA: [CHAN DOAN v1.02] Chi tiet ly do BI CHAN (chung ca 2 che do) -- ",
          "spread vuot nguong=", g_DbgBlockedSpread, " | ",
          "chua du InpMinBarsBetweenSignals=", g_DbgBlockedBarsWait, " | ",
          "dang co lenh mo (khong pyramid)=", g_DbgBlockedPyramid, " | ",
@@ -472,6 +676,10 @@ void OnDeinit(const int reason)
 //+------------------------------------------------------------------+
 void OnTick()
 {
+   // [MOI v1.02] Dat TRUOC gate "nen moi" ben duoi co y -- can cap nhat MOI TICK (khong phai moi nen)
+   // de lai/lo hien thi thay doi lien tuc theo gia thi truong (giong EMACrossCloneEA).
+   if (InpShowDashboard) UpdateDashboard();
+
    datetime barTime = iTime(_Symbol, PERIOD_CURRENT, 0);
    if (barTime == 0 || barTime == g_LastBarTime) return;
    g_LastBarTime = barTime;
@@ -567,7 +775,7 @@ void OnTick()
                double tpPrice = entryPrice - slDist * InpRR;
                double lot = CalcRiskLot(slDist);
 
-               if (trade.Sell(lot, _Symbol, entryPrice, slPrice, tpPrice, "RsiBbDivergenceEA Sell"))
+               if (trade.Sell(lot, _Symbol, entryPrice, slPrice, tpPrice, "RsiBbDivergenceEA PP1-Sell"))
                {
                   g_LastSellSwingTime = highs[0].time;
                   g_LastEntryBarIndex = g_BarsProcessed;
@@ -616,7 +824,7 @@ void OnTick()
                double tpPrice = entryPrice + slDist * InpRR;
                double lot = CalcRiskLot(slDist);
 
-               if (trade.Buy(lot, _Symbol, entryPrice, slPrice, tpPrice, "RsiBbDivergenceEA Buy"))
+               if (trade.Buy(lot, _Symbol, entryPrice, slPrice, tpPrice, "RsiBbDivergenceEA PP1-Buy"))
                {
                   g_LastBuySwingTime = lows[0].time;
                   g_LastEntryBarIndex = g_BarsProcessed;
@@ -673,7 +881,7 @@ void OnTick()
                double tpPrice = entryPrice + slDist * InpRR;
                double lot = CalcRiskLot(slDist);
 
-               if (trade.Buy(lot, _Symbol, entryPrice, slPrice, tpPrice, "RsiBbDivergenceEA TrendBuy"))
+               if (trade.Buy(lot, _Symbol, entryPrice, slPrice, tpPrice, "RsiBbDivergenceEA PP2-Buy"))
                {
                   g_LastBreakoutBuyTime = timeArr[1];
                   g_LastEntryBarIndex = g_BarsProcessed;
@@ -717,7 +925,7 @@ void OnTick()
                double tpPrice = entryPrice - slDist * InpRR;
                double lot = CalcRiskLot(slDist);
 
-               if (trade.Sell(lot, _Symbol, entryPrice, slPrice, tpPrice, "RsiBbDivergenceEA TrendSell"))
+               if (trade.Sell(lot, _Symbol, entryPrice, slPrice, tpPrice, "RsiBbDivergenceEA PP2-Sell"))
                {
                   g_LastBreakoutSellTime = timeArr[1];
                   g_LastEntryBarIndex = g_BarsProcessed;
