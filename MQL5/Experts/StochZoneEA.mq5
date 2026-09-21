@@ -70,9 +70,14 @@
 //|          -- nằm ngay mép vùng giá mà Stochastic đang đo, thay vì    |
 //|          tìm swing point nhỏ lẻ gần nhất như cách fractal cũ (4b,   |
 //|          vẫn là mặc định gốc).                                      |
+//|   v1.06: Thêm InpSlBufferUSD -- đệm SL CỐ ĐỊNH ($ price distance,   |
+//|          "vài giá"), không phụ thuộc ATR, mặc định 0.3. Đổi         |
+//|          InpSlBufferAtr mặc định 0.1 -> 0 (tắt) vì trên khung nhỏ   |
+//|          (M5) đệm theo ATR hay đẩy SL xa hơn cần thiết. 2 kiểu đệm  |
+//|          cộng dồn nếu cả 2 cùng bật.                                |
 //+------------------------------------------------------------------+
 #property copyright "Gold Hunter"
-#property version   "1.05"
+#property version   "1.06"
 
 #include <Trade\Trade.mqh>
 CTrade trade;
@@ -105,7 +110,8 @@ input bool   InpUseRangeSl     = false; // true: SL = đỉnh/đáy của N cây
 input int    InpSlRangeBars    = 100;   // [4a] Chỉ dùng khi InpUseRangeSl=true -- số cây nến lùi về quá khứ (không tính nến vào lệnh) để tìm đỉnh/đáy làm SL. Mặc định 100, trùng chu kỳ Stochastic mặc định -- SL nằm ngay mép vùng mà Stochastic đang đo
 input int    InpFractalBars    = 2;     // [4b] Chỉ dùng khi InpUseRangeSl=false -- số nến 2 bên (trái/phải) phải cao/thấp hơn để tính là 1 đáy/đỉnh tương đối
 input int    InpMaxSwingSearch = 300;   // [4b] Chỉ dùng khi InpUseRangeSl=false -- số nến tối đa lùi về quá khứ để tìm đáy/đỉnh tương đối gần nhất
-input double InpSlBufferAtr    = 0.1;   // Dùng chung cho cả 2 cách -- đệm thêm 1 khoảng nhỏ (bội số ATR) ra ngoài đáy/đỉnh, tránh SL bị chạm do râu nến
+input double InpSlBufferAtr    = 0.0;   // Dùng chung cho cả 2 cách -- đệm thêm ra ngoài đáy/đỉnh theo bội số ATR (tùy chọn, mặc định TẮT vì hay đẩy SL quá xa trên khung nhỏ như M5). 0 = tắt
+input double InpSlBufferUSD    = 0.3;   // Dùng chung cho cả 2 cách -- đệm thêm CỐ ĐỊNH ($ price distance, không phụ thuộc ATR) ra ngoài đáy/đỉnh, tránh SL bị chạm do râu nến. Cộng dồn với InpSlBufferAtr nếu cả 2 cùng bật. 0 = tắt
 
 input group "=== 5. Quản lý lệnh ==="
 input ulong  InpMagic        = 20260921;
@@ -404,14 +410,18 @@ double CalcSlForDirection(int direction) // 1=Buy (dò đáy làm SL), -1=Sell (
       }
    }
 
-   if (slPrice > 0 && InpSlBufferAtr > 0 && g_AtrHandle != INVALID_HANDLE)
+   if (slPrice > 0)
    {
-      double atrArr[];
-      if (CopyBuffer(g_AtrHandle, 0, 1, 1, atrArr) >= 1)
+      double buf = 0.0;
+      if (InpSlBufferAtr > 0 && g_AtrHandle != INVALID_HANDLE)
       {
-         double buf = InpSlBufferAtr * atrArr[0];
-         slPrice = (direction == 1) ? (slPrice - buf) : (slPrice + buf);
+         double atrArr[];
+         if (CopyBuffer(g_AtrHandle, 0, 1, 1, atrArr) >= 1)
+            buf += InpSlBufferAtr * atrArr[0];
       }
+      buf += InpSlBufferUSD; // đệm cố định "vài giá", không phụ thuộc ATR
+      if (buf > 0)
+         slPrice = (direction == 1) ? (slPrice - buf) : (slPrice + buf);
    }
    return slPrice;
 }
@@ -892,7 +902,7 @@ int OnInit()
       Print("StochZoneEA: phát hiện lệnh đang mở khi khởi động lại EA - coi như TP1 đã xong, tiếp tục trailing nếu bật.");
    }
 
-   Print("StochZoneEA v1.05: OnInit THÀNH CÔNG -- EA bắt đầu chạy từ đây.");
+   Print("StochZoneEA v1.06: OnInit THÀNH CÔNG -- EA bắt đầu chạy từ đây.");
 
    CreateDashboard();
    return INIT_SUCCEEDED;
