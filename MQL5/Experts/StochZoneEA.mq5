@@ -64,9 +64,15 @@
 //|          đúng yêu cầu "TP tối thiểu 100 pip hoặc 2R". Mặc định 1.0  |
 //|          ($ price distance, ~100 pip nếu gold báo giá 2 chữ số      |
 //|          thập phân) -- chỉnh lại nếu quy ước pip của broker khác.   |
+//|   v1.05: Thêm CÁCH TÍNH SL THỨ 2 (mục 4a, InpUseRangeSl mặc định    |
+//|          TẮT): SL = đỉnh/đáy của InpSlRangeBars cây nến gần nhất    |
+//|          TRƯỚC nến vào lệnh (mặc định 100, trùng chu kỳ Stochastic) |
+//|          -- nằm ngay mép vùng giá mà Stochastic đang đo, thay vì    |
+//|          tìm swing point nhỏ lẻ gần nhất như cách fractal cũ (4b,   |
+//|          vẫn là mặc định gốc).                                      |
 //+------------------------------------------------------------------+
 #property copyright "Gold Hunter"
-#property version   "1.04"
+#property version   "1.05"
 
 #include <Trade\Trade.mqh>
 CTrade trade;
@@ -94,10 +100,12 @@ input double InpMinTpDistanceUSD = 1.0;  // [3a] Khoảng cách TP TỐI THIỂU
 input double InpTp1StochLevel   = 50.0; // [3b] Chỉ dùng khi InpUseFixedTpRR=false -- Mức Stochastic để đóng TP1 (mặc định vùng giữa)
 input double InpTp1ClosePercent = 50.0; // [3b] Chỉ dùng khi InpUseFixedTpRR=false -- % khối lượng đóng ở TP1 (phần còn lại sẽ trailing)
 
-input group "=== 4. Stop Loss theo đáy/đỉnh tương đối (fractal) ==="
-input int    InpFractalBars    = 2;   // Số nến 2 bên (trái/phải) phải cao/thấp hơn để tính là 1 đáy/đỉnh tương đối
-input int    InpMaxSwingSearch = 300; // Số nến tối đa lùi về quá khứ để tìm đáy/đỉnh tương đối gần nhất
-input double InpSlBufferAtr    = 0.1; // Đệm thêm 1 khoảng nhỏ (bội số ATR) ra ngoài đáy/đỉnh, tránh SL bị chạm do râu nến
+input group "=== 4. Stop Loss -- chọn 1 trong 2 cách ==="
+input bool   InpUseRangeSl     = false; // true: SL = đỉnh/đáy của N cây nến gần nhất TRƯỚC nến vào lệnh (mục 4a); false: SL theo đáy/đỉnh tương đối fractal (mục 4b, mặc định gốc)
+input int    InpSlRangeBars    = 100;   // [4a] Chỉ dùng khi InpUseRangeSl=true -- số cây nến lùi về quá khứ (không tính nến vào lệnh) để tìm đỉnh/đáy làm SL. Mặc định 100, trùng chu kỳ Stochastic mặc định -- SL nằm ngay mép vùng mà Stochastic đang đo
+input int    InpFractalBars    = 2;     // [4b] Chỉ dùng khi InpUseRangeSl=false -- số nến 2 bên (trái/phải) phải cao/thấp hơn để tính là 1 đáy/đỉnh tương đối
+input int    InpMaxSwingSearch = 300;   // [4b] Chỉ dùng khi InpUseRangeSl=false -- số nến tối đa lùi về quá khứ để tìm đáy/đỉnh tương đối gần nhất
+input double InpSlBufferAtr    = 0.1;   // Dùng chung cho cả 2 cách -- đệm thêm 1 khoảng nhỏ (bội số ATR) ra ngoài đáy/đỉnh, tránh SL bị chạm do râu nến
 
 input group "=== 5. Quản lý lệnh ==="
 input ulong  InpMagic        = 20260921;
@@ -347,25 +355,53 @@ double FindSellSlFromSwingHighs(const double &highArr[], int n, int fractalBars,
    return 0.0;
 }
 
-double CalcSlForDirection(int direction) // 1=Buy (dò đáy tương đối gần nhất), -1=Sell (dò đỉnh tương đối gần nhất)
+double CalcSlForDirection(int direction) // 1=Buy (dò đáy làm SL), -1=Sell (dò đỉnh làm SL)
 {
-   int needSwing = InpFractalBars + InpMaxSwingSearch + 5;
-   int startIdx  = InpFractalBars + 1;
    double slPrice = 0.0;
 
-   if (direction == 1)
+   if (InpUseRangeSl)
    {
-      double lowArr[];
-      ArraySetAsSeries(lowArr, true);
-      if (CopyLow(_Symbol, PERIOD_CURRENT, 0, needSwing, lowArr) >= needSwing)
-         slPrice = FindBuySlFromSwingLows(lowArr, ArraySize(lowArr), InpFractalBars, startIdx, InpMaxSwingSearch);
+      // [4a] SL = đỉnh/đáy của InpSlRangeBars cây nến gần nhất TRƯỚC nến vào lệnh (shift=1, không
+      // tính nến hiện tại) -- nằm ngay mép vùng mà Stochastic InpStochKPeriod nến đang đo.
+      if (direction == 1)
+      {
+         double lowArr[];
+         if (CopyLow(_Symbol, PERIOD_CURRENT, 1, InpSlRangeBars, lowArr) >= InpSlRangeBars)
+         {
+            int idx = ArrayMinimum(lowArr, 0, WHOLE_ARRAY);
+            slPrice = lowArr[idx];
+         }
+      }
+      else
+      {
+         double highArr[];
+         if (CopyHigh(_Symbol, PERIOD_CURRENT, 1, InpSlRangeBars, highArr) >= InpSlRangeBars)
+         {
+            int idx = ArrayMaximum(highArr, 0, WHOLE_ARRAY);
+            slPrice = highArr[idx];
+         }
+      }
    }
    else
    {
-      double highArr[];
-      ArraySetAsSeries(highArr, true);
-      if (CopyHigh(_Symbol, PERIOD_CURRENT, 0, needSwing, highArr) >= needSwing)
-         slPrice = FindSellSlFromSwingHighs(highArr, ArraySize(highArr), InpFractalBars, startIdx, InpMaxSwingSearch);
+      // [4b] SL theo đáy/đỉnh tương đối kiểu fractal (mặc định gốc)
+      int needSwing = InpFractalBars + InpMaxSwingSearch + 5;
+      int startIdx  = InpFractalBars + 1;
+
+      if (direction == 1)
+      {
+         double lowArr[];
+         ArraySetAsSeries(lowArr, true);
+         if (CopyLow(_Symbol, PERIOD_CURRENT, 0, needSwing, lowArr) >= needSwing)
+            slPrice = FindBuySlFromSwingLows(lowArr, ArraySize(lowArr), InpFractalBars, startIdx, InpMaxSwingSearch);
+      }
+      else
+      {
+         double highArr[];
+         ArraySetAsSeries(highArr, true);
+         if (CopyHigh(_Symbol, PERIOD_CURRENT, 0, needSwing, highArr) >= needSwing)
+            slPrice = FindSellSlFromSwingHighs(highArr, ArraySize(highArr), InpFractalBars, startIdx, InpMaxSwingSearch);
+      }
    }
 
    if (slPrice > 0 && InpSlBufferAtr > 0 && g_AtrHandle != INVALID_HANDLE)
@@ -856,7 +892,7 @@ int OnInit()
       Print("StochZoneEA: phát hiện lệnh đang mở khi khởi động lại EA - coi như TP1 đã xong, tiếp tục trailing nếu bật.");
    }
 
-   Print("StochZoneEA v1.04: OnInit THÀNH CÔNG -- EA bắt đầu chạy từ đây.");
+   Print("StochZoneEA v1.05: OnInit THÀNH CÔNG -- EA bắt đầu chạy từ đây.");
 
    CreateDashboard();
    return INIT_SUCCEEDED;
