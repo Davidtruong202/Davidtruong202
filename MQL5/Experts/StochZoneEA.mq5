@@ -75,9 +75,20 @@
 //|          InpSlBufferAtr mặc định 0.1 -> 0 (tắt) vì trên khung nhỏ   |
 //|          (M5) đệm theo ATR hay đẩy SL xa hơn cần thiết. 2 kiểu đệm  |
 //|          cộng dồn nếu cả 2 cùng bật.                                |
+//|   v1.07: Thêm CÁCH CHỐT LỜI THỨ 3 (InpTpMode = TP_MODE_FIXED_PRICE  |
+//|          _LEGS): TP1 đóng 1 phần khi giá đi được InpTp1DistanceUSD  |
+//|          (mặc định 10.0 ~ 100 pip), dời SL phần còn lại về hòa vốn, |
+//|          rồi trailing tới TP2 (đặt thật ở broker, InpTp2DistanceUSD |
+//|          mặc định 20.0 ~ 200 pip) -- cái nào chạm trước (trailing   |
+//|          SL hay TP2) thì đóng theo cái đó. InpUseFixedTpRR (bool)   |
+//|          cũ đổi thành InpTpMode (enum 3 lựa chọn: STOCH_LEVEL /     |
+//|          FIXED_RR / FIXED_PRICE_LEGS). InpUseRiskPercent đã mặc     |
+//|          định BẬT từ trước -- risk luôn tính theo % Balance của     |
+//|          tài khoản (kể cả tài khoản cent, vì ACCOUNT_BALANCE tự lấy |
+//|          đúng đơn vị tiền của tài khoản đang chạy).                 |
 //+------------------------------------------------------------------+
 #property copyright "Gold Hunter"
-#property version   "1.06"
+#property version   "1.07"
 
 #include <Trade\Trade.mqh>
 CTrade trade;
@@ -98,12 +109,21 @@ input double InpSellZoneHigh = 95.0; // Cạnh trên vùng SELL (quá mua)
 input double InpBuyZoneLow   = 5.0;  // Cạnh dưới vùng BUY (quá bán)
 input double InpBuyZoneHigh  = 8.0;  // Cạnh trên vùng BUY (quá bán)
 
-input group "=== 3. Chốt lời -- chọn 1 trong 2 cách ==="
-input bool   InpUseFixedTpRR    = false; // true: dùng TP CỐ ĐỊNH theo tỷ lệ R:R (mục 3a); false: dùng TP1 theo mức Stochastic (mục 3b, mặc định gốc)
-input double InpTpRRRatio       = 2.0;   // [3a] Chỉ dùng khi InpUseFixedTpRR=true -- TP đặt cách giá vào 1 khoảng = khoảng cách SL nhân tỷ lệ này (vd 2.0 = TP 2R), đặt thẳng vào lệnh, đóng gọn 1 lần khi chạm
-input double InpMinTpDistanceUSD = 1.0;  // [3a] Khoảng cách TP TỐI THIỂU ($ price distance) -- vd 1.0 ~ 100 pip (gold báo giá 2 chữ số thập phân, 1 pip=0.01$, chỉnh lại nếu broker bạn quy ước khác). TP thực tế = MAX(2R, giá trị này). 0 = tắt, chỉ dùng đúng 2R
-input double InpTp1StochLevel   = 50.0; // [3b] Chỉ dùng khi InpUseFixedTpRR=false -- Mức Stochastic để đóng TP1 (mặc định vùng giữa)
-input double InpTp1ClosePercent = 50.0; // [3b] Chỉ dùng khi InpUseFixedTpRR=false -- % khối lượng đóng ở TP1 (phần còn lại sẽ trailing)
+enum ENUM_TP_MODE
+{
+   TP_MODE_STOCH_LEVEL      = 0, // [Cách A] TP1 theo mức Stochastic (mặc định gốc)
+   TP_MODE_FIXED_RR         = 1, // [Cách B] TP cố định theo tỷ lệ R:R, đóng gọn 1 lần
+   TP_MODE_FIXED_PRICE_LEGS = 2  // [Cách C] TP1 + TP2 theo khoảng cách giá cố định (2 chân, có trailing SL)
+};
+
+input group "=== 3. Chốt lời -- chọn 1 trong 3 cách ==="
+input ENUM_TP_MODE InpTpMode    = TP_MODE_STOCH_LEVEL; // Chọn cách chốt lời (xem 3 mục input bên dưới, mỗi cách chỉ dùng đúng nhóm input của nó)
+input double InpTpRRRatio       = 2.0;   // [Cách B] TP đặt cách giá vào 1 khoảng = khoảng cách SL nhân tỷ lệ này (vd 2.0 = TP 2R), đặt thẳng vào lệnh, đóng gọn 1 lần khi chạm
+input double InpMinTpDistanceUSD = 1.0;  // [Cách B] Khoảng cách TP TỐI THIỂU ($ price distance) -- vd 1.0 ~ 100 pip (gold báo giá 2 chữ số thập phân, 1 pip=0.01$, chỉnh lại nếu broker bạn quy ước khác). TP thực tế = MAX(2R, giá trị này). 0 = tắt, chỉ dùng đúng 2R
+input double InpTp1StochLevel   = 50.0; // [Cách A] Mức Stochastic để đóng TP1 (mặc định vùng giữa)
+input double InpTp1ClosePercent = 50.0; // [Cách A + Cách C] % khối lượng đóng ở TP1 (phần còn lại sẽ trailing)
+input double InpTp1DistanceUSD  = 10.0; // [Cách C] TP1 cách giá vào lệnh bao nhiêu $ price distance -- vd 10.0 ~ 100 pip nếu 1 pip=0.1$ (chỉnh lại theo đúng quy ước broker bạn)
+input double InpTp2DistanceUSD  = 20.0; // [Cách C] TP2 (mục tiêu cuối cho phần lệnh còn lại sau TP1) cách giá vào lệnh bao nhiêu $ price distance -- vd 20.0 ~ 200 pip. Đặt thẳng làm TP thật ở broker cho phần còn lại, đồng thời vẫn trailing SL theo nhóm 8 -- cái nào chạm trước thì đóng theo cái đó
 
 input group "=== 4. Stop Loss -- chọn 1 trong 2 cách ==="
 input bool   InpUseRangeSl     = false; // true: SL = đỉnh/đáy của N cây nến gần nhất TRƯỚC nến vào lệnh (mục 4a); false: SL theo đáy/đỉnh tương đối fractal (mục 4b, mặc định gốc)
@@ -559,12 +579,19 @@ bool OpenPosition(ENUM_ORDER_TYPE type, double slPrice, bool isTest)
    double sl = NormalizeDouble(slPrice, digits);
 
    double tp = 0.0;
-   if (InpUseFixedTpRR && InpTpRRRatio > 0)
+   if (InpTpMode == TP_MODE_FIXED_RR && InpTpRRRatio > 0)
    {
       double tpDistance = slDistance * InpTpRRRatio;
       if (InpMinTpDistanceUSD > 0 && tpDistance < InpMinTpDistanceUSD)
          tpDistance = InpMinTpDistanceUSD; // TP thực tế = MAX(2R, mức tối thiểu) -- theo đúng yêu cầu "TP tối thiểu 100 pip hoặc 2R"
       tp = (type == ORDER_TYPE_BUY) ? (price + tpDistance) : (price - tpDistance);
+      tp = NormalizeDouble(tp, digits);
+   }
+   else if (InpTpMode == TP_MODE_FIXED_PRICE_LEGS && InpTp2DistanceUSD > 0)
+   {
+      // Đặt thẳng TP2 làm TP thật ở broker ngay từ đầu -- TP1 (đóng 1 phần) được quản lý
+      // bằng code trong ManageOpenPosition() vì cần giữ lại phần lệnh còn lại để trailing tới TP2.
+      tp = (type == ORDER_TYPE_BUY) ? (price + InpTp2DistanceUSD) : (price - InpTp2DistanceUSD);
       tp = NormalizeDouble(tp, digits);
    }
 
@@ -604,15 +631,20 @@ bool OpenPosition(ENUM_ORDER_TYPE type, double slPrice, bool isTest)
    g_Tp1Done = false;
    g_TrailingActive = false;
 
-   string tpLogTxt = (tp > 0) ? (" TP=" + DoubleToString(tp, digits)) : " (TP1 theo Stochastic, quản lý bằng code)";
+   string tpLogTxt = (tp > 0) ? (" TP=" + DoubleToString(tp, digits)) : " (TP1 quản lý bằng code)";
    Print("StochZoneEA: ", (isTest ? "[TEST] " : ""), "mở lệnh ", EnumToString(type),
          " lot=", DoubleToString(lotToUse, 2), " SL=", DoubleToString(sl, digits), tpLogTxt);
 
    string dirIcon = (type == ORDER_TYPE_BUY) ? "🟢" : "🔴";
    string testTag = isTest ? "🧪 [TEST] " : "";
    string lotModeTxt = InpUseRiskPercent ? StringFormat(" (risk %.1f%%)", InpRiskPercent) : "";
-   string tpMsgTxt = (tp > 0) ? StringFormat("🎯 TP: <b>%.2f</b> (%.1fR)", tp, InpTpRRRatio)
-                               : StringFormat("🎯 TP1: khi Stoch về mức %.0f (đóng %.0f%%), phần còn lại trailing", InpTp1StochLevel, InpTp1ClosePercent);
+   string tpMsgTxt;
+   if (InpTpMode == TP_MODE_FIXED_RR)
+      tpMsgTxt = StringFormat("🎯 TP: <b>%.2f</b> (%.1fR)", tp, InpTpRRRatio);
+   else if (InpTpMode == TP_MODE_FIXED_PRICE_LEGS)
+      tpMsgTxt = StringFormat("🎯 TP1: cách %.2f (đóng %.0f%%) — TP2: <b>%.2f</b> (%.2f), phần còn lại trailing", InpTp1DistanceUSD, InpTp1ClosePercent, tp, InpTp2DistanceUSD);
+   else
+      tpMsgTxt = StringFormat("🎯 TP1: khi Stoch về mức %.0f (đóng %.0f%%), phần còn lại trailing", InpTp1StochLevel, InpTp1ClosePercent);
    TelegramSendMessage(StringFormat("%s%s <b>MỞ LỆNH %s</b> — %s\n\n📍 Giá vào: <b>%.2f</b>\n🛑 SL: %.2f (đáy/đỉnh tương đối gần nhất)\n%s\n💰 Lot: %.2f%s",
                                       testTag, dirIcon, EnumToString(type), _Symbol, price, sl,
                                       tpMsgTxt, lotToUse, lotModeTxt));
@@ -685,14 +717,26 @@ void ManageOpenPosition(double stochNow)
       }
    }
 
-   // --- TP1: đóng 1 phần khi Stoch về mức giữa, rồi dời SL phần còn lại về hòa vốn ---
-   // (BỎ QUA hoàn toàn khối này khi đang dùng TP cố định theo R:R -- lúc đó lệnh đã có
-   // TP thật đặt sẵn ở broker (xem OpenPosition()), broker tự đóng khi chạm, không cần
-   // theo dõi bằng code nữa.)
-   if (!InpUseFixedTpRR && !g_Tp1Done)
+   // --- TP1: đóng 1 phần (theo mức Stochastic HOẶC theo khoảng cách giá, tùy InpTpMode),
+   // rồi dời SL phần còn lại về hòa vốn. (BỎ QUA hoàn toàn khối này ở Cách B (TP_MODE_FIXED_RR)
+   // -- lúc đó lệnh đã có TP thật đặt sẵn ở broker (xem OpenPosition()), broker tự đóng khi
+   // chạm, không cần theo dõi bằng code nữa.)
+   if (InpTpMode != TP_MODE_FIXED_RR && !g_Tp1Done)
    {
-      bool tp1Hit = (posType == POSITION_TYPE_SELL && stochNow <= InpTp1StochLevel) ||
-                    (posType == POSITION_TYPE_BUY  && stochNow >= InpTp1StochLevel);
+      bool tp1Hit = false;
+      if (InpTpMode == TP_MODE_STOCH_LEVEL)
+      {
+         tp1Hit = (posType == POSITION_TYPE_SELL && stochNow <= InpTp1StochLevel) ||
+                  (posType == POSITION_TYPE_BUY  && stochNow >= InpTp1StochLevel);
+      }
+      else if (InpTpMode == TP_MODE_FIXED_PRICE_LEGS)
+      {
+         double openP    = PositionGetDouble(POSITION_PRICE_OPEN);
+         double curPrice = (posType == POSITION_TYPE_BUY) ? CurrentBid() : CurrentAsk();
+         double favorableDist = (posType == POSITION_TYPE_BUY) ? (curPrice - openP) : (openP - curPrice);
+         tp1Hit = (favorableDist >= InpTp1DistanceUSD);
+      }
+
       if (tp1Hit)
       {
          double volume  = PositionGetDouble(POSITION_VOLUME);
@@ -789,7 +833,7 @@ void UpdateDashboard(double stochNow)
       double slP   = PositionGetDouble(POSITION_SL);
       double volP  = PositionGetDouble(POSITION_VOLUME);
       string tp1Txt;
-      if (InpUseFixedTpRR)
+      if (InpTpMode == TP_MODE_FIXED_RR)
       {
          double tpP = PositionGetDouble(POSITION_TP);
          tp1Txt = (tpP > 0) ? StringFormat("TP %.2f", tpP) : "TP: không có";
@@ -902,7 +946,7 @@ int OnInit()
       Print("StochZoneEA: phát hiện lệnh đang mở khi khởi động lại EA - coi như TP1 đã xong, tiếp tục trailing nếu bật.");
    }
 
-   Print("StochZoneEA v1.06: OnInit THÀNH CÔNG -- EA bắt đầu chạy từ đây.");
+   Print("StochZoneEA v1.07: OnInit THÀNH CÔNG -- EA bắt đầu chạy từ đây.");
 
    CreateDashboard();
    return INIT_SUCCEEDED;
