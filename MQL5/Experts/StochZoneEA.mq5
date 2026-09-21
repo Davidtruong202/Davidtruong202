@@ -86,9 +86,18 @@
 //|          định BẬT từ trước -- risk luôn tính theo % Balance của     |
 //|          tài khoản (kể cả tài khoản cent, vì ACCOUNT_BALANCE tự lấy |
 //|          đúng đơn vị tiền của tài khoản đang chạy).                 |
+//|   v1.08: Thêm CHỐNG WHIPSAW (nhóm input 12), xử lý đúng hiện tượng  |
+//|          giá dập dình ngay mép vùng khiến vào lệnh liên tục:         |
+//|          - InpZoneExitBuffer: thay vì chỉ cần rời khỏi biên vùng là  |
+//|            "nạp lại" tín hiệu (dễ bị dập dình quét đi quét lại),     |
+//|            giờ Stochastic phải rời XA vùng hơn giá trị này (mặc      |
+//|            định 5.0) thì lần chạm kế tiếp mới tính là tín hiệu mới.  |
+//|          - InpUseCooldownAfterLoss/InpCooldownMinutesAfterLoss: sau  |
+//|            khi 1 lệnh đóng LỖ, khóa vào lệnh mới (cả 2 hướng) trong   |
+//|            InpCooldownMinutesAfterLoss phút (mặc định 15).           |
 //+------------------------------------------------------------------+
 #property copyright "Gold Hunter"
-#property version   "1.07"
+#property version   "1.08"
 
 #include <Trade\Trade.mqh>
 CTrade trade;
@@ -167,16 +176,23 @@ input group "=== 11. Bảng trạng thái + nút Test trên chart ==="
 input bool InpShowDashboard   = true; // Hiện/ẩn bảng trạng thái (dashboard) ở góc trái chart
 input bool InpShowTestButtons = true; // Hiện/ẩn 3 nút Test (Test TG / Test BUY / Test SELL) trên chart
 
+input group "=== 12. Chống whipsaw (giá dập dình ngay mép vùng) ==="
+input double InpZoneExitBuffer          = 5.0;  // Stochastic phải rời XA vùng hơn giá trị này thì tín hiệu mới được "nạp lại" cho lần chạm kế tiếp -- vd Sell zone 92-95, buffer=5 nghĩa là Stoch phải rớt xuống dưới 87 (không phải chỉ dưới 92) mới tính là đã thật sự rời vùng. Tránh vào lệnh liên tục khi giá cứ dập dình ngay mép vùng
+input bool   InpUseCooldownAfterLoss    = true;  // Bật/tắt tạm khóa vào lệnh mới (cả 2 hướng) sau khi 1 lệnh vừa đóng LỖ
+input int    InpCooldownMinutesAfterLoss = 15;   // Số phút khóa vào lệnh mới sau khi vừa thua 1 lệnh (chỉ dùng khi InpUseCooldownAfterLoss=true)
+
 //====================================================================
 // Globals
 //====================================================================
 int    g_StochHandle = INVALID_HANDLE;
 int    g_AtrHandle   = INVALID_HANDLE;
-int    g_LastZoneState = 0;     // 0=ngoài 2 vùng, 1=đang trong vùng Sell, -1=đang trong vùng Buy -- dùng để phát hiện "vừa chạm" (cạnh vào)
+bool   g_SellArmed = true; // true = sẵn sàng bắn tín hiệu SELL ở lần chạm vùng tiếp theo (chống whipsaw, xem nhóm input 12)
+bool   g_BuyArmed  = true; // true = sẵn sàng bắn tín hiệu BUY ở lần chạm vùng tiếp theo
 bool   g_Tp1Done       = false; // Đã đóng TP1 cho lệnh đang mở hiện tại chưa
 bool   g_TrailingActive = false; // Đã hòa vốn và đang trailing phần lệnh còn lại
 
 datetime g_DailyLossAlertDay = 0;
+datetime g_CooldownUntil     = 0; // Khóa vào lệnh mới (cả 2 hướng) tới thời điểm này sau khi vừa thua 1 lệnh -- xem nhóm input 12
 string   g_lastSignalTxt  = "Chưa có tín hiệu nào";
 datetime g_lastSignalTime = 0;
 
@@ -806,6 +822,12 @@ void OnTradeTransaction(const MqlTradeTransaction &trans,
                                       resultIcon, origDir, _Symbol, reasonTxt, closePrice,
                                       (profit >= 0 ? "+" : ""), profit, AccountInfoString(ACCOUNT_CURRENCY)));
 
+   if (profit < 0 && InpUseCooldownAfterLoss && InpCooldownMinutesAfterLoss > 0)
+   {
+      g_CooldownUntil = TimeCurrent() + InpCooldownMinutesAfterLoss * 60;
+      Print("StochZoneEA: vừa thua 1 lệnh -- khóa vào lệnh mới tới ", TimeToString(g_CooldownUntil, TIME_DATE | TIME_MINUTES));
+   }
+
    g_Tp1Done = false;
    g_TrailingActive = false;
 }
@@ -855,8 +877,12 @@ void UpdateDashboard(double stochNow)
    SetLabel(DASH_PREFIX + "DayPL", StringFormat("Hôm nay: %s%.2f %s", (dayUSD >= 0 ? "+" : ""), dayUSD, AccountInfoString(ACCOUNT_CURRENCY)), plClr);
 
    bool paused = (InpUseDailyLossLimit && InpMaxDailyLossUSD > 0 && dayUSD <= -MathAbs(InpMaxDailyLossUSD));
-   SetLabel(DASH_PREFIX + "Status", paused ? "Trạng thái: TẠM DỪNG (lỗ quá ngưỡng ngày)" : "Trạng thái: Bình thường",
-             paused ? clrOrange : clrLimeGreen);
+   bool inCooldown = (InpUseCooldownAfterLoss && TimeCurrent() < g_CooldownUntil);
+   string statusTxt;
+   if (paused) statusTxt = "Trạng thái: TẠM DỪNG (lỗ quá ngưỡng ngày)";
+   else if (inCooldown) statusTxt = StringFormat("Trạng thái: Cooldown tới %s", TimeToString(g_CooldownUntil, TIME_MINUTES));
+   else statusTxt = "Trạng thái: Bình thường";
+   SetLabel(DASH_PREFIX + "Status", statusTxt, (paused || inCooldown) ? clrOrange : clrLimeGreen);
 }
 
 //====================================================================
@@ -878,28 +904,33 @@ void CheckStochSignal()
    if (stochNow >= InpSellZoneLow && stochNow <= InpSellZoneHigh) zoneNow = 1;
    else if (stochNow >= InpBuyZoneLow && stochNow <= InpBuyZoneHigh) zoneNow = -1;
 
+   // --- Chống whipsaw: chỉ "nạp lại" (arm) tín hiệu 1 hướng khi Stoch đã rời XA vùng đó,
+   // không phải chỉ vừa rớt ra khỏi biên -- xem nhóm input 12.
+   if (stochNow < InpSellZoneLow - InpZoneExitBuffer) g_SellArmed = true;
+   if (stochNow > InpBuyZoneHigh + InpZoneExitBuffer) g_BuyArmed = true;
+
    long posType = -1;
    ulong ticket = GetOpenPosition(posType);
 
-   if (ticket == 0) // Chưa có lệnh -- xét tín hiệu vào lệnh mới (chỉ khi VỪA CHẠM vào vùng)
+   bool inCooldown = (InpUseCooldownAfterLoss && TimeCurrent() < g_CooldownUntil);
+
+   if (ticket == 0 && !inCooldown) // Chưa có lệnh, không đang cooldown -- xét tín hiệu vào lệnh mới
    {
-      if (zoneNow == 1 && g_LastZoneState != 1)
+      if (zoneNow == 1 && g_SellArmed)
       {
          double slPrice = CalcSlForDirection(-1);
          g_lastSignalTxt = StringFormat("SELL @ Stoch=%.2f (chạm vùng %.0f-%.0f)", stochNow, InpSellZoneLow, InpSellZoneHigh);
          g_lastSignalTime = TimeCurrent();
-         if (OpenPosition(ORDER_TYPE_SELL, slPrice, false)) g_DbgSellOpened++;
+         if (OpenPosition(ORDER_TYPE_SELL, slPrice, false)) { g_DbgSellOpened++; g_SellArmed = false; }
       }
-      else if (zoneNow == -1 && g_LastZoneState != -1)
+      else if (zoneNow == -1 && g_BuyArmed)
       {
          double slPrice = CalcSlForDirection(1);
          g_lastSignalTxt = StringFormat("BUY @ Stoch=%.2f (chạm vùng %.0f-%.0f)", stochNow, InpBuyZoneLow, InpBuyZoneHigh);
          g_lastSignalTime = TimeCurrent();
-         if (OpenPosition(ORDER_TYPE_BUY, slPrice, false)) g_DbgBuyOpened++;
+         if (OpenPosition(ORDER_TYPE_BUY, slPrice, false)) { g_DbgBuyOpened++; g_BuyArmed = false; }
       }
    }
-
-   g_LastZoneState = zoneNow;
 }
 
 //====================================================================
@@ -932,7 +963,8 @@ int OnInit()
    if (g_AtrHandle == INVALID_HANDLE)
       Print("StochZoneEA: cảnh báo - không tạo được ATR handle, InpSlBufferAtr/trailing sẽ bị bỏ qua");
 
-   g_LastZoneState = 0;
+   g_SellArmed = true;
+   g_BuyArmed  = true;
 
    // Khôi phục trạng thái nếu EA khởi động lại khi đang có sẵn lệnh mở -- coi như TP1 đã
    // xong (an toàn hơn là đóng nhầm 1 phần lệnh lần 2), tiếp tục trailing nếu SL hiện tại
@@ -946,7 +978,7 @@ int OnInit()
       Print("StochZoneEA: phát hiện lệnh đang mở khi khởi động lại EA - coi như TP1 đã xong, tiếp tục trailing nếu bật.");
    }
 
-   Print("StochZoneEA v1.07: OnInit THÀNH CÔNG -- EA bắt đầu chạy từ đây.");
+   Print("StochZoneEA v1.08: OnInit THÀNH CÔNG -- EA bắt đầu chạy từ đây.");
 
    CreateDashboard();
    return INIT_SUCCEEDED;
