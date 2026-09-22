@@ -63,6 +63,9 @@ input double InpStopLossPercent = 0.25;
 input double InpTP1Multiplier   = 1.0;
 input double InpTP2Multiplier   = 2.0;
 
+input group "=== Bộ Lọc Giảm Nhiễu (bỏ tín hiệu khi ribbon EMA còn quá hẹp/đi ngang) ==="
+input double InpMinRibbonWidthATR = 0.3; // độ rộng tối thiểu giữa EMA1-EMA6, tính theo x lần ATR(14); 0 = tắt bộ lọc
+
 input group "=== Hiển Thị ==="
 input int    InpLineLength  = 1;    // số nến đường Entry/SL/TP kéo dài sang phải
 input bool   InpShowNumbers = true;
@@ -446,6 +449,10 @@ int OnCalculate(const int rates_total, const int prev_calculated, const datetime
       bool longSignal  = bull && !bullPrev;
       bool shortSignal = bear && !bearPrev;
       if(!longSignal && !shortSignal) continue;
+
+      // bỏ tín hiệu nếu ribbon EMA còn quá hẹp (giá đang đi ngang, dễ bị nhiễu/whipsaw)
+      if(InpMinRibbonWidthATR>0 && atrArr[i]>0 && MathAbs(e1[i]-e6[i]) < InpMinRibbonWidthATR*atrArr[i])
+         continue;
 
       double entry = close[i];
       double sl, tp1, tp2;

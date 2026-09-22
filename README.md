@@ -128,6 +128,14 @@ Toàn bộ giao diện (Inputs, dashboard, bảng, tin nhắn Telegram, log) đ�
     đầu tiên của nến mới, không có độ trễ nhân tạo.
   - SL = `InpStopLossPercent` % giá vào lệnh; **chỉ dùng TP1 và TP2**
     (= SL × `InpTP1Multiplier`/`InpTP2Multiplier`, mặc định 1x/2x).
+  - **Bộ lọc giảm nhiễu**: `InpMinRibbonWidthATR` (mặc định 0.3) — bỏ qua
+    tín hiệu nếu độ rộng ribbon (khoảng cách giữa EMA1 và EMA6) tại nến xác
+    nhận nhỏ hơn `InpMinRibbonWidthATR` × ATR(14). Mục đích là lọc bớt tín
+    hiệu sinh ra khi 6 EMA vừa mới tách nhau rất mảnh lúc giá đi ngang (dễ
+    quay đầu ngay sau đó/whipsaw), chỉ vào lệnh khi xu hướng đã thật sự rõ
+    ràng. Đặt về `0` để tắt hẳn bộ lọc (dùng lại đúng hành vi gốc). Bộ lọc
+    này áp dụng **giống hệt trên cả indicator lẫn EA** để tín hiệu hiển thị
+    trên chart và tín hiệu EA thực sự trade luôn khớp nhau.
   - Mỗi tín hiệu mở **2 lệnh riêng biệt, khối lượng chia đều làm đôi**: 1 lệnh
     chốt tại TP1, 1 lệnh chốt tại TP2 (cùng SL ban đầu) — thay vì 1 lệnh rồi
     tự đóng từng phần, để sàn tự khớp TP cho từng lệnh, ổn định hơn khi mất

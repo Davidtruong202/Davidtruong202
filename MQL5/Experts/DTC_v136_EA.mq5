@@ -34,6 +34,9 @@ input double InpTP1Multiplier   = 1.0;
 input double InpTP2Multiplier   = 2.0;
 input double InpRiskPercent     = 0.75;  // % rủi ro tài khoản trên khoảng cách SL mỗi lệnh, chia đều cho TP1+TP2
 
+input group "=== Bộ Lọc Giảm Nhiễu (bỏ tín hiệu khi ribbon EMA còn quá hẹp/đi ngang) ==="
+input double InpMinRibbonWidthATR = 0.3; // độ rộng tối thiểu giữa EMA1-EMA6, tính theo x lần ATR(14); 0 = tắt bộ lọc
+
 input group "=== Quản Lý Vị Thế ==="
 input bool   InpBreakevenAfterTP1 = true; // dời SL của lệnh TP2 về giá vào lệnh khi giá chạm TP1
 input ulong  InpMagicNumber       = 20260921;
@@ -56,7 +59,7 @@ input int    InpPnLFontSize  = 9;
 //====================================================================
 // Globals
 //====================================================================
-int handleEma1, handleEma2, handleEma3, handleEma4, handleEma5, handleEma6;
+int handleEma1, handleEma2, handleEma3, handleEma4, handleEma5, handleEma6, handleAtr;
 datetime g_lastBarTime = 0;
 
 // The currently open pair of orders (TP1 leg + TP2 leg), or 0 when flat.
@@ -189,11 +192,13 @@ int OnInit()
    handleEma4 = iMA(_Symbol, PERIOD_CURRENT, InpLen4, 0, MODE_EMA, PRICE_CLOSE);
    handleEma5 = iMA(_Symbol, PERIOD_CURRENT, InpLen5, 0, MODE_EMA, PRICE_CLOSE);
    handleEma6 = iMA(_Symbol, PERIOD_CURRENT, InpLen6, 0, MODE_EMA, PRICE_CLOSE);
+   handleAtr  = iATR(_Symbol, PERIOD_CURRENT, 14);
 
    if(handleEma1==INVALID_HANDLE || handleEma2==INVALID_HANDLE || handleEma3==INVALID_HANDLE ||
-      handleEma4==INVALID_HANDLE || handleEma5==INVALID_HANDLE || handleEma6==INVALID_HANDLE)
+      handleEma4==INVALID_HANDLE || handleEma5==INVALID_HANDLE || handleEma6==INVALID_HANDLE ||
+      handleAtr==INVALID_HANDLE)
    {
-      Print("[DTC-EA] Không thể tạo handle EMA");
+      Print("[DTC-EA] Không thể tạo handle EMA/ATR");
       return INIT_FAILED;
    }
 
@@ -215,6 +220,7 @@ void OnDeinit(const int reason)
    EventKillTimer();
    IndicatorRelease(handleEma1); IndicatorRelease(handleEma2); IndicatorRelease(handleEma3);
    IndicatorRelease(handleEma4); IndicatorRelease(handleEma5); IndicatorRelease(handleEma6);
+   IndicatorRelease(handleAtr);
    ObjectsDeleteAll(0, OBJ_PREFIX);
 }
 
@@ -241,6 +247,17 @@ bool TrendAligned(int shift, bool bullish)
 
    if(bullish) return (e1>e2 && e2>e3 && e3>e4 && e4>e5 && e5>e6);
    return (e1<e2 && e2<e3 && e3<e4 && e4<e5 && e5<e6);
+}
+
+// Bỏ tín hiệu khi ribbon EMA1-EMA6 còn quá hẹp so với ATR (giá đang đi ngang/nhiễu).
+bool RibbonWideEnough(int shift)
+{
+   if(InpMinRibbonWidthATR<=0) return true;
+   double e1, e6, atr;
+   if(!GetEmaShift(handleEma1, shift, e1) || !GetEmaShift(handleEma6, shift, e6) || !GetEmaShift(handleAtr, shift, atr))
+      return false;
+   if(atr<=0) return true;
+   return MathAbs(e1-e6) >= InpMinRibbonWidthATR*atr;
 }
 
 double CalculateLotSize(double slDistancePrice)
@@ -420,6 +437,7 @@ void OnTick()
    bool longSignal  = bullNow && !bullPrev;
    bool shortSignal = bearNow && !bearPrev;
    if(!longSignal && !shortSignal) return; // evaluated and acted on the same tick the bar closes - no artificial delay
+   if(!RibbonWideEnough(1)) return; // ribbon còn quá hẹp: bỏ qua tín hiệu này, coi như đang đi ngang/nhiễu
 
    int dir;
    bool hasPos = GroupOpen(dir);
