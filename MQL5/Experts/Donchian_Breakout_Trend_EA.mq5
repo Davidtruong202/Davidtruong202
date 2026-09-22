@@ -1,66 +1,97 @@
 //+------------------------------------------------------------------+
 //|                                Donchian_Breakout_Trend_EA.mq5     |
-//|  Trend-following breakout system (own design, not from a         |
-//|  supplied document): EMA trend filter + Donchian channel         |
-//|  breakout + ATR volatility-expansion confirmation for entries;   |
-//|  ATR chandelier trailing stop + partial take-profit + pyramiding |
-//|  for exits/scaling. Built for aggressive risk (2-3%/trade,       |
-//|  accepts deeper drawdown for growth) on any symbol/timeframe.    |
-//|  See README.md for design rationale and simplifications.         |
+//|  He thong trend-following breakout (tu thiet ke): loc xu huong   |
+//|  bang EMA + dot pha kenh Donchian + xac nhan bien dong mo rong    |
+//|  (ATR) de vao lenh; trailing stop Chandelier (ATR) + chot loi mot |
+//|  phan + cong lenh (pyramiding) de quan ly lenh. Ve San Entry/SL/  |
+//|  TP va bang thong ke ngay tren chart. Xem README.md de biet ly do |
+//|  thiet ke va cac don gian hoa.                                   |
 //+------------------------------------------------------------------+
 #property copyright "Custom EA"
-#property version   "1.00"
+#property version   "1.10"
+#property strict
 
 #include <Trade\Trade.mqh>
 CTrade trade;
 
 //====================================================================
-// Inputs
+// Input - Khung thời gian
 //====================================================================
-input group "=== Timeframe ==="
-input ENUM_TIMEFRAMES InpTimeframe = PERIOD_CURRENT; // works on whatever chart/timeframe the EA is attached to
+input group "=== Khung thời gian ==="
+input ENUM_TIMEFRAMES InpTimeframe = PERIOD_CURRENT; // Chạy theo khung của chart đang gắn EA (để nguyên = khung hiện tại)
 
-input group "=== Trend filter (EMA) ==="
-input int InpEMAFast = 50;
-input int InpEMASlow = 200;
+//====================================================================
+// Input - Bộ lọc xu hướng (EMA)
+//====================================================================
+input group "=== Bộ lọc xu hướng (EMA) ==="
+input int InpEMAFast = 50;  // Chu kỳ đường EMA nhanh
+input int InpEMASlow = 200; // Chu kỳ đường EMA chậm
 
-input group "=== Breakout / Donchian channel ==="
-input int InpDonchianPeriod = 20; // channel lookback, excludes the signal bar itself (classic Turtle-style breakout)
+//====================================================================
+// Input - Đột phá / Kênh Donchian
+//====================================================================
+input group "=== Đột phá / Kênh Donchian ==="
+input int InpDonchianPeriod = 20; // Số nến nhìn lại để tính kênh (không tính nến tín hiệu, kiểu Turtle Trading)
 
-input group "=== Volatility expansion filter ==="
-input int    InpATRPeriod          = 14;
-input int    InpATRAvgPeriod       = 50;  // rolling average window for ATR
-input double InpATRExpansionFactor = 1.1; // require current ATR > average ATR * this factor
+//====================================================================
+// Input - Bộ lọc biến động mở rộng
+//====================================================================
+input group "=== Bộ lọc biến động mở rộng (ATR) ==="
+input int    InpATRPeriod          = 14; // Số nến tính ATR
+input int    InpATRAvgPeriod       = 50; // Số nến tính ATR trung bình (đường nền so sánh)
+input double InpATRExpansionFactor = 1.1; // Chỉ vào lệnh khi ATR hiện tại > ATR trung bình × hệ số này
 
-input group "=== Stops / Exits ==="
-input double InpInitialSLATR    = 2.0; // initial protective stop, in ATR, from entry
-input double InpChandelierATR   = 3.0; // trailing stop distance in ATR from the highest/lowest price since entry
-input double InpPartialTPR      = 2.0; // take partial profit at this multiple of initial risk (R)
-input double InpPartialClosePct = 30;  // % of current volume closed at the partial TP
+//====================================================================
+// Input - Điểm dừng / Thoát lệnh
+//====================================================================
+input group "=== Điểm dừng / Thoát lệnh ==="
+input double InpInitialSLATR    = 2.0; // Khoảng cách SL ban đầu = số ATR tính từ giá vào lệnh
+input double InpChandelierATR   = 3.0; // Khoảng cách trailing stop (Chandelier Exit) = số ATR từ giá cao/thấp nhất kể từ lúc vào
+input double InpPartialTPR      = 2.0; // Chốt lời một phần khi lãi đạt X lần rủi ro ban đầu (R)
+input double InpPartialClosePct = 30;  // % khối lượng đóng khi chốt lời một phần
 
-input group "=== Pyramiding (adds to winners) ==="
-input bool   InpEnablePyramid    = true;
-input double InpPyramidStepATR   = 1.0; // add one more unit every N ATR of favorable movement from first entry
-input int    InpMaxPyramidUnits  = 2;   // max add-on units beyond the first entry (was 3 - cut to reduce drawdown)
+//====================================================================
+// Input - Cộng thêm lệnh khi đang thắng (Pyramiding)
+//====================================================================
+input group "=== Cộng thêm lệnh khi đang thắng (Pyramiding) ==="
+input bool   InpEnablePyramid    = true; // Cho phép cộng thêm lệnh khi giá đi đúng hướng
+input double InpPyramidStepATR   = 1.0;  // Cộng thêm 1 đơn vị mỗi X lần ATR giá đi đúng hướng kể từ lệnh đầu
+input int    InpMaxPyramidUnits  = 2;    // Số đơn vị cộng thêm tối đa (ngoài lệnh đầu tiên)
 
-input group "=== Risk Management ==="
-input double InpRiskPercent         = 1.5; // tuned down from 2.5% to bring backtest equity DD toward ~30%
-input double InpMaxDailyLossPercent = 4.0; // scaled down with InpRiskPercent
-input int    InpMaxConsecLosses     = 4;
-input int    InpPauseMinutes        = 120;
+//====================================================================
+// Input - Quản lý rủi ro
+//====================================================================
+input group "=== Quản lý rủi ro ==="
+input double InpRiskPercent         = 1.5; // Rủi ro mỗi đơn vị lệnh (% số dư tài khoản)
+input double InpMaxDailyLossPercent = 4.0; // Giới hạn lỗ tối đa trong ngày (%), chạm mức này sẽ dừng vào lệnh
+input int    InpMaxConsecLosses     = 4;   // Số lệnh thua liên tiếp tối đa trước khi tạm dừng
+input int    InpPauseMinutes        = 120; // Số phút tạm dừng sau khi chạm giới hạn thua liên tiếp
 
-input group "=== Optional news filter (off by default) ==="
-input bool   InpEnableNewsFilter = false; // breakout systems often want to ride news-driven moves, so default off
-input bool   InpBrokerFixedNYOffset  = true;
-input double InpServerToNY_Hours     = 7.0;
-input double InpServerGMTOffsetHours = 0.0;
-input double InpNewsHour             = 8.5;
-input double InpNewsBlackoutBefore   = 15;
-input double InpNewsBlackoutAfter    = 15;
+//====================================================================
+// Input - Bộ lọc tin tức (tuỳ chọn, mặc định tắt)
+//====================================================================
+input group "=== Bộ lọc tin tức (tuỳ chọn, mặc định tắt) ==="
+input bool   InpEnableNewsFilter     = false; // Bật/tắt lọc tin tức (breakout thường ăn theo biến động do tin, nên mặc định tắt)
+input bool   InpBrokerFixedNYOffset  = true;  // true: server luôn lệch múi giờ NY một số giờ cố định (InpServerToNY_Hours)
+input double InpServerToNY_Hours     = 7.0;   // Số giờ server đi trước giờ New York (dùng khi InpBrokerFixedNYOffset = true)
+input double InpServerGMTOffsetHours = 0.0;   // Múi giờ GMT cố định của broker (dùng khi InpBrokerFixedNYOffset = false)
+input double InpNewsHour             = 8.5;   // Giờ NY (thập phân) của mốc tin tức cần tránh, ví dụ 8.5 = 08:30
+input double InpNewsBlackoutBefore   = 15;    // Số phút chặn lệnh TRƯỚC mốc tin
+input double InpNewsBlackoutAfter    = 15;    // Số phút chặn lệnh SAU mốc tin
 
-input group "=== Trade ==="
-input int InpMagicNumber = 20260923;
-input int InpSlippage    = 30;
+//====================================================================
+// Input - Giao dịch
+//====================================================================
+input group "=== Giao dịch ==="
+input int InpMagicNumber = 20260923; // Mã Magic để EA nhận diện đúng lệnh của mình
+input int InpSlippage    = 30;       // Trượt giá tối đa cho phép (points)
+
+//====================================================================
+// Input - Hiển thị trên chart
+//====================================================================
+input group "=== Hiển thị trên chart ==="
+input bool InpShowChartLevels = true; // Vẽ đường Entry (vàng) / SL (đỏ) / TP (xanh) của lệnh đang mở lên chart
+input bool InpShowStatsPanel  = true; // Hiện bảng thống kê (số lệnh, tỉ lệ thắng, drawdown...) ở góc trên chart
 
 //====================================================================
 // Globals
@@ -82,10 +113,11 @@ bool     g_atrAvgReady=false;
 
 double   g_dayStartBalance = 0;
 datetime g_currentDay = 0;
-int      g_consecLosses = 0;
+int      g_consecLosses = 0; // dùng để khoá tạm dừng, đồng thời hiển thị "thua liên tiếp"
+int      g_consecWins   = 0; // chỉ dùng để hiển thị "thắng liên tiếp"
 datetime g_pausedUntil = 0;
 
-// Open-trade tracking (first-entry anchor drives R-multiples & pyramid steps)
+// Theo dõi lệnh đang mở (mốc lệnh đầu tiên quyết định R-multiple & bước pyramid)
 double   g_entryPriceFirst=0, g_priceRiskPerUnit=0;
 double   g_highestSinceEntry=0, g_lowestSinceEntry=0;
 int      g_pyramidUnitsAdded=0;
@@ -93,8 +125,13 @@ bool     g_partialTPDone=false;
 
 long g_cntBarsEvaluated=0, g_cntTrades=0, g_cntPyramidAdds=0;
 
+// Thống kê hiệu suất cho bảng hiển thị trên chart
+long   g_cntWins=0, g_cntLosses=0;
+double g_grossProfit=0, g_grossLoss=0;
+double g_peakEquity=0, g_maxDDPercent=0, g_curDDPercent=0;
+
 //====================================================================
-// Timezone / news filter helpers (optional, off by default)
+// Múi giờ / bộ lọc tin tức (tuỳ chọn, mặc định tắt)
 //====================================================================
 datetime NthSundayOfMonth(int year, int month, int n)
 {
@@ -143,7 +180,7 @@ bool InBlackout(double h, double center, double before, double after)
 }
 
 //====================================================================
-// Rolling ATR average (volatility-expansion filter)
+// Trung bình ATR trượt (bộ lọc biến động mở rộng)
 //====================================================================
 void PushATRHistory(double v)
 {
@@ -167,7 +204,7 @@ void PushATRHistory(double v)
 }
 
 //====================================================================
-// Donchian channel (excludes the just-closed signal bar itself)
+// Kênh Donchian (không tính nến tín hiệu vừa đóng cửa)
 //====================================================================
 void UpdateDonchian()
 {
@@ -184,7 +221,7 @@ void UpdateDonchian()
 }
 
 //====================================================================
-// Risk sizing
+// Tính khối lượng lệnh theo rủi ro
 //====================================================================
 double CalculateLotSize(double slDistancePrice)
 {
@@ -209,7 +246,7 @@ double CalculateLotSize(double slDistancePrice)
 }
 
 //====================================================================
-// Trading gates
+// Điều kiện chung để giao dịch
 //====================================================================
 bool HasOpenPosition()
 {
@@ -222,7 +259,7 @@ bool CanTradeNow()
    if(TimeCurrent() < g_pausedUntil) return false;
    double maxLossMoney = g_dayStartBalance*InpMaxDailyLossPercent/100.0;
    if(AccountInfoDouble(ACCOUNT_EQUITY) <= g_dayStartBalance-maxLossMoney) return false;
-   if(!g_atrAvgReady) return false; // not enough history yet to judge volatility expansion
+   if(!g_atrAvgReady) return false; // chưa đủ dữ liệu để đánh giá biến động mở rộng
 
    if(InpEnableNewsFilter)
    {
@@ -233,17 +270,140 @@ bool CanTradeNow()
 }
 
 //====================================================================
-// Reset per-trade tracking (called when the position is fully flat)
+// Vẽ / xoá đường Entry - SL - TP trên chart
+//====================================================================
+#define LVL_ENTRY_NAME "DonchianEA_Entry"
+#define LVL_SL_NAME    "DonchianEA_SL"
+#define LVL_TP_NAME    "DonchianEA_TP"
+
+void DrawOrUpdateLine(string name, double price, color col, string text)
+{
+   if(ObjectFind(0, name) < 0)
+   {
+      ObjectCreate(0, name, OBJ_HLINE, 0, 0, price);
+      ObjectSetInteger(0, name, OBJPROP_STYLE, STYLE_DASH);
+      ObjectSetInteger(0, name, OBJPROP_WIDTH, 2);
+      ObjectSetInteger(0, name, OBJPROP_SELECTABLE, false);
+      ObjectSetInteger(0, name, OBJPROP_BACK, true);
+   }
+   ObjectSetInteger(0, name, OBJPROP_COLOR, col);
+   ObjectMove(0, name, 0, 0, price);
+   ObjectSetString(0, name, OBJPROP_TEXT, text);
+}
+
+void DeleteLine(string name)
+{
+   if(ObjectFind(0, name) >= 0) ObjectDelete(0, name);
+}
+
+void DeleteTradeLevels()
+{
+   DeleteLine(LVL_ENTRY_NAME);
+   DeleteLine(LVL_SL_NAME);
+   DeleteLine(LVL_TP_NAME);
+}
+
+// Vẽ lại 3 đường theo trạng thái lệnh hiện tại - gọi sau khi vào lệnh và
+// mỗi khi ManageOpenPosition cập nhật SL/trạng thái chốt lời một phần.
+void UpdateTradeLevelsOnChart()
+{
+   if(!InpShowChartLevels) { DeleteTradeLevels(); return; }
+   if(!HasOpenPosition())  { DeleteTradeLevels(); return; }
+
+   bool   isBuy = (PositionGetInteger(POSITION_TYPE)==POSITION_TYPE_BUY);
+   double sl    = PositionGetDouble(POSITION_SL);
+   int    dig   = (int)SymbolInfoInteger(_Symbol, SYMBOL_DIGITS);
+
+   DrawOrUpdateLine(LVL_ENTRY_NAME, g_entryPriceFirst, clrYellow,
+                     "Vào lệnh " + DoubleToString(g_entryPriceFirst, dig));
+
+   if(sl > 0)
+      DrawOrUpdateLine(LVL_SL_NAME, sl, clrRed, "Cắt lỗ " + DoubleToString(sl, dig));
+   else
+      DeleteLine(LVL_SL_NAME);
+
+   if(!g_partialTPDone && g_priceRiskPerUnit > 0)
+   {
+      double tp = isBuy ? g_entryPriceFirst + g_priceRiskPerUnit*InpPartialTPR
+                         : g_entryPriceFirst - g_priceRiskPerUnit*InpPartialTPR;
+      DrawOrUpdateLine(LVL_TP_NAME, tp, clrLime, "Chốt lời " + DoubleToString(tp, dig));
+   }
+   else
+      DeleteLine(LVL_TP_NAME); // đã chốt lời một phần, không còn mốc TP cố định - phần còn lại chạy theo trailing
+}
+
+//====================================================================
+// Bảng thống kê hiển thị góc trên chart (Comment)
+//====================================================================
+void UpdateStatsPanel()
+{
+   if(!InpShowStatsPanel) { Comment(""); return; }
+
+   int    totalTrades = (int)(g_cntWins + g_cntLosses);
+   double winRate      = totalTrades>0 ? (double)g_cntWins/totalTrades*100.0 : 0;
+   double netProfit    = g_grossProfit + g_grossLoss;
+   double profitFactor = (g_grossLoss<0) ? g_grossProfit/MathAbs(g_grossLoss) : 0;
+
+   string posLine;
+   if(HasOpenPosition())
+   {
+      bool   isBuy = (PositionGetInteger(POSITION_TYPE)==POSITION_TYPE_BUY);
+      double sl    = PositionGetDouble(POSITION_SL);
+      string tpText = "đã chốt";
+      if(!g_partialTPDone && g_priceRiskPerUnit>0)
+      {
+         double tp = isBuy ? g_entryPriceFirst + g_priceRiskPerUnit*InpPartialTPR
+                            : g_entryPriceFirst - g_priceRiskPerUnit*InpPartialTPR;
+         tpText = DoubleToString(tp, (int)SymbolInfoInteger(_Symbol, SYMBOL_DIGITS));
+      }
+      posLine = StringFormat("Vị thế: %s | Vào: %s | SL: %s | TP: %s | Đã cộng thêm: %d/%d",
+                              isBuy ? "MUA" : "BÁN",
+                              DoubleToString(g_entryPriceFirst, (int)SymbolInfoInteger(_Symbol, SYMBOL_DIGITS)),
+                              DoubleToString(sl, (int)SymbolInfoInteger(_Symbol, SYMBOL_DIGITS)),
+                              tpText, g_pyramidUnitsAdded, InpMaxPyramidUnits);
+   }
+   else
+      posLine = "Vị thế: không có lệnh mở";
+
+   string panel = StringFormat(
+      "=== THỐNG KÊ EA DONCHIAN BREAKOUT ===\n" +
+      "Tổng lệnh: %d | Thắng: %d (%.1f%%) | Thua: %d\n" +
+      "Lãi gộp: %.2f | Lỗ gộp: %.2f | Lãi ròng: %.2f\n" +
+      "Profit Factor: %.2f\n" +
+      "Drawdown hiện tại: %.1f%% | Drawdown tối đa: %.1f%%\n" +
+      "Thắng liên tiếp: %d | Thua liên tiếp: %d\n" +
+      "%s",
+      totalTrades, (int)g_cntWins, winRate, (int)g_cntLosses,
+      g_grossProfit, g_grossLoss, netProfit,
+      profitFactor,
+      g_curDDPercent, g_maxDDPercent,
+      g_consecWins, g_consecLosses,
+      posLine);
+
+   Comment(panel);
+}
+
+void UpdateDrawdownStats()
+{
+   double eq = AccountInfoDouble(ACCOUNT_EQUITY);
+   if(eq > g_peakEquity) g_peakEquity = eq;
+   if(g_peakEquity > 0) g_curDDPercent = (g_peakEquity-eq)/g_peakEquity*100.0;
+   if(g_curDDPercent > g_maxDDPercent) g_maxDDPercent = g_curDDPercent;
+}
+
+//====================================================================
+// Đặt lại trạng thái theo dõi lệnh (gọi khi không còn lệnh mở)
 //====================================================================
 void ResetTradeTracking()
 {
    g_entryPriceFirst=0; g_priceRiskPerUnit=0;
    g_highestSinceEntry=0; g_lowestSinceEntry=0;
    g_pyramidUnitsAdded=0; g_partialTPDone=false;
+   DeleteTradeLevels();
 }
 
 //====================================================================
-// First entry
+// Vào lệnh đầu tiên
 //====================================================================
 void OpenNewTrade(bool bullish)
 {
@@ -263,7 +423,8 @@ void OpenNewTrade(bool bullish)
       g_highestSinceEntry=entry; g_lowestSinceEntry=entry;
       g_pyramidUnitsAdded=0; g_partialTPDone=false;
       g_cntTrades++;
-      PrintFormat("[ENTRY] dir=%s entry=%.5f sl=%.5f risk=%.5f", bullish?"BUY":"SELL", entry, sl, risk);
+      PrintFormat("[VÀO LỆNH] hướng=%s giá=%.5f SL=%.5f rủi ro=%.5f", bullish?"MUA":"BÁN", entry, sl, risk);
+      UpdateTradeLevelsOnChart();
    }
 }
 
@@ -281,8 +442,8 @@ void CheckEntry()
 }
 
 //====================================================================
-// Position management: EMA-flip exit, chandelier trail, partial TP,
-// pyramiding adds.
+// Quản lý lệnh đang mở: thoát khi đổi chiều EMA, trailing Chandelier,
+// chốt lời một phần, cộng thêm lệnh (pyramiding).
 //====================================================================
 void ManageOpenPosition()
 {
@@ -296,7 +457,7 @@ void ManageOpenPosition()
    if(isBuy) g_highestSinceEntry = MathMax(g_highestSinceEntry, g_bar1High);
    else      g_lowestSinceEntry  = MathMin(g_lowestSinceEntry,  g_bar1Low);
 
-   // Regime flip: the trend that justified this trade no longer holds.
+   // Đổi chiều cấu trúc: xu hướng biện minh cho lệnh này không còn đúng nữa.
    bool trendBull = g_emaFast1 > g_emaSlow1;
    bool trendBear = g_emaFast1 < g_emaSlow1;
    if((isBuy && trendBear) || (!isBuy && trendBull))
@@ -306,7 +467,7 @@ void ManageOpenPosition()
       return;
    }
 
-   // Chandelier trailing stop - only ever tightens toward price.
+   // Trailing stop Chandelier - chỉ siết chặt lại, không bao giờ nới ra.
    if(isBuy)
    {
       double candidate = g_highestSinceEntry - InpChandelierATR*g_atr1;
@@ -330,7 +491,7 @@ void ManageOpenPosition()
    double lotStep = SymbolInfoDouble(_Symbol, SYMBOL_VOLUME_STEP);
    if(lotStep<=0) lotStep=0.01;
 
-   // Partial take-profit at InpPartialTPR multiples of the first unit's risk.
+   // Chốt lời một phần tại X lần (InpPartialTPR) rủi ro của đơn vị đầu tiên.
    if(!g_partialTPDone && g_priceRiskPerUnit>0)
    {
       double tp1 = isBuy ? g_entryPriceFirst + g_priceRiskPerUnit*InpPartialTPR
@@ -346,7 +507,7 @@ void ManageOpenPosition()
       }
    }
 
-   // Pyramiding: add a unit every InpPyramidStepATR of favorable movement.
+   // Cộng thêm lệnh: thêm 1 đơn vị mỗi InpPyramidStepATR giá đi đúng hướng.
    if(InpEnablePyramid && g_pyramidUnitsAdded<InpMaxPyramidUnits && g_priceRiskPerUnit>0)
    {
       double threshold = isBuy ? g_entryPriceFirst + (g_pyramidUnitsAdded+1)*InpPyramidStepATR*g_atr1
@@ -359,23 +520,25 @@ void ManageOpenPosition()
          double addLots    = CalculateLotSize(MathAbs(addEntry-addSL));
          if(addLots>0)
          {
-            // Protect the add-on leg with the current trailed stop too, so a
-            // hedging account's separate ticket is never left unprotected.
+            // Bảo vệ đơn vị cộng thêm bằng SL trailing hiện tại, để tài khoản
+            // hedging (mỗi đơn vị 1 ticket riêng) không bị hở bảo hiểm.
             bool ok = isBuy ? trade.Buy(addLots, _Symbol, addEntry, curSL, 0, "DonchianPyramid")
                              : trade.Sell(addLots, _Symbol, addEntry, curSL, 0, "DonchianPyramid");
             if(ok)
             {
                g_pyramidUnitsAdded++;
                g_cntPyramidAdds++;
-               PrintFormat("[PYRAMID] unit=%d dir=%s entry=%.5f", g_pyramidUnitsAdded, isBuy?"BUY":"SELL", addEntry);
+               PrintFormat("[CỘNG LỆNH] đơn vị=%d hướng=%s giá=%.5f", g_pyramidUnitsAdded, isBuy?"MUA":"BÁN", addEntry);
             }
          }
       }
    }
+
+   UpdateTradeLevelsOnChart();
 }
 
 //====================================================================
-// Bar caching / indicator refresh
+// Lưu nến / cập nhật chỉ báo
 //====================================================================
 bool CacheBar1IfNew()
 {
@@ -405,7 +568,7 @@ bool UpdateIndicators()
 }
 
 //====================================================================
-// Standard EA handlers
+// Các hàm chuẩn của EA
 //====================================================================
 int OnInit()
 {
@@ -414,7 +577,7 @@ int OnInit()
    atrHandle     = iATR(_Symbol, InpTimeframe, InpATRPeriod);
    if(emaFastHandle==INVALID_HANDLE || emaSlowHandle==INVALID_HANDLE || atrHandle==INVALID_HANDLE)
    {
-      Print("Failed to create EMA/ATR handle");
+      Print("Không tạo được handle EMA/ATR");
       return(INIT_FAILED);
    }
 
@@ -427,6 +590,7 @@ int OnInit()
 
    g_dayStartBalance = AccountInfoDouble(ACCOUNT_BALANCE);
    g_currentDay = TimeCurrent() - (TimeCurrent()%86400);
+   g_peakEquity = AccountInfoDouble(ACCOUNT_EQUITY);
 
    ResetTradeTracking();
 
@@ -435,15 +599,20 @@ int OnInit()
 
 void OnDeinit(const int reason)
 {
-   PrintFormat("[Donchian-EA Summary] bars=%d trades=%d pyramidAdds=%d",
+   PrintFormat("[Tổng kết EA Donchian] số nến=%d số lệnh=%d số lần cộng lệnh=%d",
                (int)g_cntBarsEvaluated, (int)g_cntTrades, (int)g_cntPyramidAdds);
    IndicatorRelease(emaFastHandle);
    IndicatorRelease(emaSlowHandle);
    IndicatorRelease(atrHandle);
+   Comment("");
+   DeleteTradeLevels();
 }
 
 void OnTick()
 {
+   UpdateDrawdownStats();
+   UpdateStatsPanel();
+
    if(!CacheBar1IfNew()) return;
    if(!UpdateIndicators()) return;
 
@@ -479,12 +648,22 @@ void OnTradeTransaction(const MqlTradeTransaction &trans,
                  + HistoryDealGetDouble(trans.deal, DEAL_SWAP)
                  + HistoryDealGetDouble(trans.deal, DEAL_COMMISSION);
 
-   if(profit < 0) g_consecLosses++; else g_consecLosses=0;
+   if(profit < 0)
+   {
+      g_consecLosses++; g_consecWins=0;
+      g_cntLosses++; g_grossLoss += profit;
+   }
+   else
+   {
+      g_consecLosses=0; g_consecWins++;
+      g_cntWins++; g_grossProfit += profit;
+   }
+
    if(g_consecLosses >= InpMaxConsecLosses)
    {
       g_pausedUntil = TimeCurrent() + InpPauseMinutes*60;
       g_consecLosses = 0;
-      Print("Max consecutive losses reached. Pausing until ", TimeToString(g_pausedUntil));
+      Print("Đã chạm số lệnh thua liên tiếp tối đa. Tạm dừng đến ", TimeToString(g_pausedUntil));
    }
 
    if(!HasOpenPosition())

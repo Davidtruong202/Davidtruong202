@@ -282,6 +282,26 @@ XAUUSDm) với file mới để xem drawdown thực tế có về đúng ~30% ch
 còn cao hơn mong muốn, báo lại số Equity Drawdown Maximal mới, mình sẽ
 tinh chỉnh tiếp.
 
+## Toàn bộ input đã dịch sang tiếng Việt có dấu + hiển thị trực quan trên chart
+
+- **Tất cả input** (tên nhóm và mô tả từng dòng trong tab Inputs của EA)
+  đã được viết lại bằng tiếng Việt có dấu, dễ đọc trực tiếp trong
+  MetaTrader mà không cần đối chiếu code.
+- **Bảng thống kê trên chart** (`InpShowStatsPanel`, mặc định bật): góc
+  trên bên trái chart hiện tổng số lệnh, số thắng/thua và tỉ lệ thắng,
+  lãi gộp/lỗ gộp/lãi ròng, Profit Factor, drawdown hiện tại & tối đa (%),
+  số lệnh thắng/thua liên tiếp, và thông tin lệnh đang mở (hướng, giá
+  vào, SL, TP, đã cộng thêm bao nhiêu đơn vị) — cập nhật theo từng tick,
+  chạy được cả khi backtest (Overview/Graph của Strategy Tester) và khi
+  chạy live/demo.
+- **Vẽ đường Entry/SL/TP trên chart** (`InpShowChartLevels`, mặc định
+  bật): khi có lệnh mở, EA vẽ 3 đường ngang — vàng (giá vào), đỏ (SL,
+  tự di chuyển theo trailing Chandelier), xanh lá (mốc chốt lời một phần
+  — biến mất sau khi đã chốt, vì từ đó phần lệnh còn lại chạy theo
+  trailing không còn mốc TP cố định). Cả 2 tính năng này chỉ hiển thị,
+  không ảnh hưởng logic vào/thoát lệnh — tắt được qua input nếu không
+  cần.
+
 ## Những đơn giản hoá / rủi ro cần biết
 
 1. Đây là chiến lược tự thiết kế dựa trên các nguyên lý trend-following
