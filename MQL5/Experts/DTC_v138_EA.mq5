@@ -165,22 +165,13 @@ void UpdatePnLDashboard()
    clrs[1] = todayPnL>=0 ? clrLime : clrRed;
    clrs[2] = monthPnL>=0 ? clrLime : clrRed;
 
+   int rowH = InpPnLFontSize+7;
+   int panelW = 150;
+   int baseX=10, baseY=10;
+
+   DrawTableRect(OBJ_PREFIX+"pnl_bg", InpPnLCorner, baseX, baseY, panelW, rowH*3, C'20,20,20', clrSilver);
    for(int r=0; r<3; r++)
-   {
-      string name = OBJ_PREFIX+"pnl_row"+IntegerToString(r);
-      if(ObjectFind(0, name) < 0)
-      {
-         ObjectCreate(0, name, OBJ_LABEL, 0, 0, 0);
-         ObjectSetInteger(0, name, OBJPROP_CORNER, InpPnLCorner);
-         ObjectSetInteger(0, name, OBJPROP_XDISTANCE, 10);
-         ObjectSetInteger(0, name, OBJPROP_YDISTANCE, 10 + r*(InpPnLFontSize+6));
-         ObjectSetString(0, name, OBJPROP_FONT, "Consolas");
-         ObjectSetInteger(0, name, OBJPROP_FONTSIZE, InpPnLFontSize);
-         ObjectSetInteger(0, name, OBJPROP_SELECTABLE, false);
-      }
-      ObjectSetString(0, name, OBJPROP_TEXT, rows[r]);
-      ObjectSetInteger(0, name, OBJPROP_COLOR, clrs[r]);
-   }
+      DrawTableText(OBJ_PREFIX+"pnl_row"+IntegerToString(r), InpPnLCorner, baseX+6, baseY+4+r*rowH, rows[r], clrs[r], InpPnLFontSize);
 }
 
 #define TRADE_LOG_MAX_ROWS 15

@@ -224,6 +224,44 @@ void DrawSignalLabel(string name, datetime t, double price, bool isBuy)
    ObjectSetString(0, name, OBJPROP_TOOLTIP, isBuy?"MUA":"BÁN");
 }
 
+// Khung nền đặc + viền cho các bảng (dashboard, thống kê...) để chữ không nổi trần lên nến,
+// tránh rối mắt/đè chữ lên nhau khi có nhiều bảng cùng vị trí.
+void DrawTableRect(string name, ENUM_BASE_CORNER corner, int x, int y, int w, int h, color bg, color border)
+{
+   if(ObjectFind(0, name) < 0)
+   {
+      ObjectCreate(0, name, OBJ_RECTANGLE_LABEL, 0, 0, 0);
+      ObjectSetInteger(0, name, OBJPROP_CORNER, corner);
+      ObjectSetInteger(0, name, OBJPROP_SELECTABLE, false);
+      ObjectSetInteger(0, name, OBJPROP_BACK, false);
+      ObjectSetInteger(0, name, OBJPROP_BORDER_TYPE, BORDER_FLAT);
+      ObjectSetInteger(0, name, OBJPROP_STYLE, STYLE_SOLID);
+      ObjectSetInteger(0, name, OBJPROP_WIDTH, 1);
+   }
+   ObjectSetInteger(0, name, OBJPROP_XDISTANCE, x);
+   ObjectSetInteger(0, name, OBJPROP_YDISTANCE, y);
+   ObjectSetInteger(0, name, OBJPROP_XSIZE, w);
+   ObjectSetInteger(0, name, OBJPROP_YSIZE, h);
+   ObjectSetInteger(0, name, OBJPROP_BGCOLOR, bg);
+   ObjectSetInteger(0, name, OBJPROP_COLOR, border);
+}
+
+void DrawTableText(string name, ENUM_BASE_CORNER corner, int x, int y, string text, color clr, int fontSize)
+{
+   if(ObjectFind(0, name) < 0)
+   {
+      ObjectCreate(0, name, OBJ_LABEL, 0, 0, 0);
+      ObjectSetInteger(0, name, OBJPROP_CORNER, corner);
+      ObjectSetInteger(0, name, OBJPROP_SELECTABLE, false);
+      ObjectSetString(0, name, OBJPROP_FONT, "Consolas");
+   }
+   ObjectSetInteger(0, name, OBJPROP_XDISTANCE, x);
+   ObjectSetInteger(0, name, OBJPROP_YDISTANCE, y);
+   ObjectSetInteger(0, name, OBJPROP_FONTSIZE, fontSize);
+   ObjectSetString(0, name, OBJPROP_TEXT, text);
+   ObjectSetInteger(0, name, OBJPROP_COLOR, clr);
+}
+
 void SendTelegramAlert(string signalType, double entry, double sl, double t1, double t2)
 {
    if(!InpTelegramEnabled || InpTelegramBotToken=="" || InpTelegramChatId=="") return;
@@ -346,22 +384,13 @@ void UpdateStatsTable(int rowOffset)
    rows[3] = "SL   " + DoubleToString(slPct,1) + "%  (" + IntegerToString((int)g_statSL) + ")";
    clrs[3] = clrRed;
 
+   int rowH = InpDashboardFontSize+6;
+   int panelW = 150;
+   int baseX=10, baseY=10+rowOffset*rowH+4; // +4 để có khoảng cách nhỏ với bảng MTF phía trên
+
+   DrawTableRect(OBJ_PREFIX+"dash_stat_bg", InpDashboardCorner, baseX, baseY, panelW, rowH*4, C'20,20,20', clrSilver);
    for(int r=0; r<4; r++)
-   {
-      string name = OBJ_PREFIX+"dash_stat_row"+IntegerToString(r);
-      if(ObjectFind(0, name) < 0)
-      {
-         ObjectCreate(0, name, OBJ_LABEL, 0, 0, 0);
-         ObjectSetInteger(0, name, OBJPROP_CORNER, InpDashboardCorner);
-         ObjectSetInteger(0, name, OBJPROP_XDISTANCE, 10);
-         ObjectSetInteger(0, name, OBJPROP_YDISTANCE, 10 + (rowOffset+r)*(InpDashboardFontSize+6));
-         ObjectSetString(0, name, OBJPROP_FONT, "Consolas");
-         ObjectSetInteger(0, name, OBJPROP_FONTSIZE, InpDashboardFontSize);
-         ObjectSetInteger(0, name, OBJPROP_SELECTABLE, false);
-      }
-      ObjectSetString(0, name, OBJPROP_TEXT, rows[r]);
-      ObjectSetInteger(0, name, OBJPROP_COLOR, clrs[r]);
-   }
+      DrawTableText(OBJ_PREFIX+"dash_stat_row"+IntegerToString(r), InpDashboardCorner, baseX+6, baseY+4+r*rowH, rows[r], clrs[r], InpDashboardFontSize);
 }
 
 void UpdateDashboard()
@@ -385,22 +414,13 @@ void UpdateDashboard()
    bool bull[6];
    bull[0]=true; bull[1]=(f1[0]>s1[0]); bull[2]=(f2[0]>s2[0]); bull[3]=(f3[0]>s3[0]); bull[4]=(f4[0]>s4[0]); bull[5]=(f5[0]>s5[0]);
 
+   int rowH = InpDashboardFontSize+6;
+   int panelW = 150;
+   int baseX=10, baseY=10;
+
+   DrawTableRect(OBJ_PREFIX+"dash_bg", InpDashboardCorner, baseX, baseY, panelW, rowH*6, C'20,20,20', clrSilver);
    for(int r=0; r<6; r++)
-   {
-      string name = OBJ_PREFIX+"dash_row"+IntegerToString(r);
-      if(ObjectFind(0, name) < 0)
-      {
-         ObjectCreate(0, name, OBJ_LABEL, 0, 0, 0);
-         ObjectSetInteger(0, name, OBJPROP_CORNER, InpDashboardCorner);
-         ObjectSetInteger(0, name, OBJPROP_XDISTANCE, 10);
-         ObjectSetInteger(0, name, OBJPROP_YDISTANCE, 10 + r*(InpDashboardFontSize+6));
-         ObjectSetString(0, name, OBJPROP_FONT, "Consolas");
-         ObjectSetInteger(0, name, OBJPROP_FONTSIZE, InpDashboardFontSize);
-         ObjectSetInteger(0, name, OBJPROP_SELECTABLE, false);
-      }
-      ObjectSetString(0, name, OBJPROP_TEXT, rows[r]);
-      ObjectSetInteger(0, name, OBJPROP_COLOR, r==0 ? clrWhite : (bull[r]?clrLime:clrRed));
-   }
+      DrawTableText(OBJ_PREFIX+"dash_row"+IntegerToString(r), InpDashboardCorner, baseX+6, baseY+4+r*rowH, rows[r], r==0?clrWhite:(bull[r]?clrLime:clrRed), InpDashboardFontSize);
 
    UpdateStatsTable(6);
 }

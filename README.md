@@ -246,6 +246,16 @@ ra và gắn lại bằng file `v138` mới; các object/đường kẻ của c�
 `DTCEA137_`) sẽ tự động được dọn sạch khi bản `v138` khởi động lần đầu
 trên chart đó.
 
+**Lưu ý quan trọng nếu chart bị rối/chữ đè lên nhau**: dấu hiệu là 2 con số
+khác nhau hiện chồng lên đúng 1 chỗ (ví dụ "Hôm nay" hiện cả `-165 USC` lẫn
+`+0 USC` cùng lúc) — đó là do đang có **≥2 bản EA/indicator gắn cùng lúc
+trên cùng 1 chart** (thường là quên gỡ bản cũ trước khi gắn bản mới, hoặc
+gắn cùng EA lên 2 chart `M3` khác nhau đang chồng cửa sổ lên nhau). Cách
+sửa: vào từng tab chart, mở danh sách Expert/Indicator đang gắn (icon nhỏ
+góc trên bên phải chart), gỡ hết bản cũ, chỉ giữ đúng 1 bản `v138` duy
+nhất. Từ bản này, mọi bảng (dashboard, thống kê, P&L, lịch sử lệnh) đều có
+khung nền riêng để không bị "nổi chữ" đè lên nến hay đè lên bảng khác.
+
 ## Cài đặt
 
 1. Copy `DTC_v138.mq5` vào `MQL5/Indicators/` và/hoặc `DTC_v138_EA.mq5` vào
