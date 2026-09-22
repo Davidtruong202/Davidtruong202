@@ -50,7 +50,7 @@ input bool   InpTelegramEnabled          = false;
 input string InpTelegramBotToken         = ""; // lấy từ @BotFather
 input string InpTelegramChatId           = "";
 input bool   InpTelegramDayMonthSummary  = true; // cũng gửi tổng kết lời/lỗ khi ngày/tháng kết thúc
-input bool   InpTestTelegramOnStart      = false; // gửi ngay 1 tin MUA + 1 tin BÁN giả khi gắn EA, để test kênh Telegram
+input bool   InpTestTelegramOnStart      = false; // gửi ngay 1 tin MUA + 1 tin BÁN giả khi gắn EA, để thử kênh Telegram
 
 input group "=== Bảng Lợi Nhuận (chỉ lệnh của EA này, theo magic number) ==="
 input bool   InpShowPnLTable = true;
@@ -353,9 +353,9 @@ int OnInit()
    {
       double px = SymbolInfoDouble(_Symbol, SYMBOL_BID);
       if(px<=0) px = 1.0;
-      SendTelegramAlert("MUA [TEST]", px, px*0.998, px*1.002, px*1.004);
-      SendTelegramAlert("BÁN [TEST]", px, px*1.002, px*0.998, px*0.996);
-      Print("[DTC-EA] Đã gửi 2 tin nhắn test (MUA + BÁN) tới Telegram để kiểm tra kênh báo.");
+      SendTelegramAlert("MUA [THỬ]", px, px*0.998, px*1.002, px*1.004);
+      SendTelegramAlert("BÁN [THỬ]", px, px*1.002, px*0.998, px*0.996);
+      Print("[DTC-EA] Đã gửi 2 tin nhắn thử (MUA + BÁN) tới Telegram để kiểm tra kênh báo.");
    }
 
    return INIT_SUCCEEDED;
