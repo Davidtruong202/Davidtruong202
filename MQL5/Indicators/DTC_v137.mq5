@@ -79,7 +79,7 @@ input int    InpDashboardFontSize = 9;
 input group "=== Cảnh Báo Telegram ==="
 input bool   InpTelegramEnabled  = false;
 input string InpTelegramBotToken = ""; // lấy từ @BotFather
-input string InpTelegramChatId   = "";
+input string InpTelegramChatId   = ""; // 1 hoặc nhiều Chat ID cách nhau bởi dấu phẩy, vd: 111111,-100222222,-100333333 (gửi cùng lúc vào nhiều nhóm/kênh)
 
 input group "=== Bảng Thống Kê Tỷ Lệ Thắng ==="
 input bool   InpShowStatsTable = true; // % lịch sử tín hiệu đã chạm TP1/TP2 so với chạm SL trước
@@ -232,15 +232,25 @@ void SendTelegramAlert(string signalType, double entry, double sl, double t1, do
       "\nTP1: " + DoubleToString(t1, _Digits) +
       "\nTP2: " + DoubleToString(t2, _Digits);
 
-   string url = "https://api.telegram.org/bot" + InpTelegramBotToken + "/sendMessage";
-   string json = "{\"chat_id\":\"" + InpTelegramChatId + "\",\"text\":\"" + msg + "\"}";
+   // InpTelegramChatId có thể chứa nhiều Chat ID cách nhau bởi dấu phẩy -> gửi vào từng nhóm/kênh
+   string ids[];
+   int idCount = StringSplit(InpTelegramChatId, ',', ids);
+   for(int k=0; k<idCount; k++)
+   {
+      string id = ids[k];
+      StringTrimLeft(id); StringTrimRight(id);
+      if(id=="") continue;
 
-   char post[], result[];
-   string headers = "Content-Type: application/json\r\n", resultHeaders;
-   StringToCharArray(json, post, 0, StringLen(json));
-   int res = WebRequest("POST", url, headers, 5000, post, result, resultHeaders);
-   if(res==-1)
-      PrintFormat("[DTC-Ind] Gửi Telegram thất bại, lỗi=%d. Thêm %s vào Tools>Options>Expert Advisors>Allow WebRequest.", GetLastError(), url);
+      string url = "https://api.telegram.org/bot" + InpTelegramBotToken + "/sendMessage";
+      string json = "{\"chat_id\":\"" + id + "\",\"text\":\"" + msg + "\"}";
+
+      char post[], result[];
+      string headers = "Content-Type: application/json\r\n", resultHeaders;
+      StringToCharArray(json, post, 0, StringLen(json));
+      int res = WebRequest("POST", url, headers, 5000, post, result, resultHeaders);
+      if(res==-1)
+         PrintFormat("[DTC-Ind] Gửi Telegram tới Chat ID %s thất bại, lỗi=%d. Thêm %s vào Tools>Options>Expert Advisors>Allow WebRequest.", id, GetLastError(), url);
+   }
 }
 
 void QueueSignalForStats(bool bullish, double entry, double sl, double tp1, double tp2, int barIndex)

@@ -48,7 +48,7 @@ input int    InpMaxSpreadPoints  = 0;  // bỏ qua vào lệnh nếu spread hi�
 input group "=== Cảnh Báo Telegram (tuỳ chọn, gọi thẳng Bot API) ==="
 input bool   InpTelegramEnabled          = false;
 input string InpTelegramBotToken         = ""; // lấy từ @BotFather
-input string InpTelegramChatId           = "";
+input string InpTelegramChatId           = ""; // 1 hoặc nhiều Chat ID cách nhau bởi dấu phẩy, vd: 111111,-100222222,-100333333 (gửi cùng lúc vào nhiều nhóm/kênh)
 input bool   InpTelegramDayMonthSummary  = true; // cũng gửi tổng kết lời/lỗ khi ngày/tháng kết thúc
 input bool   InpTestTelegramOnStart      = false; // gửi ngay 1 tin MUA + 1 tin BÁN giả khi gắn EA, để thử kênh Telegram
 
@@ -86,16 +86,26 @@ void TelegramSend(string msg)
 {
    if(!InpTelegramEnabled || InpTelegramBotToken=="" || InpTelegramChatId=="") return;
 
-   string url = "https://api.telegram.org/bot" + InpTelegramBotToken + "/sendMessage";
-   string json = "{\"chat_id\":\"" + InpTelegramChatId + "\",\"text\":\"" + msg + "\"}";
+   // InpTelegramChatId có thể chứa nhiều Chat ID cách nhau bởi dấu phẩy -> gửi vào từng nhóm/kênh
+   string ids[];
+   int idCount = StringSplit(InpTelegramChatId, ',', ids);
+   for(int k=0; k<idCount; k++)
+   {
+      string id = ids[k];
+      StringTrimLeft(id); StringTrimRight(id);
+      if(id=="") continue;
 
-   char post[], result[];
-   string headers = "Content-Type: application/json\r\n";
-   StringToCharArray(json, post, 0, StringLen(json));
-   string resultHeaders;
-   int res = WebRequest("POST", url, headers, 5000, post, result, resultHeaders);
-   if(res==-1)
-      PrintFormat("[DTC-EA] Gửi Telegram thất bại, lỗi=%d. Thêm %s vào Tools>Options>Expert Advisors>Allow WebRequest.", GetLastError(), url);
+      string url = "https://api.telegram.org/bot" + InpTelegramBotToken + "/sendMessage";
+      string json = "{\"chat_id\":\"" + id + "\",\"text\":\"" + msg + "\"}";
+
+      char post[], result[];
+      string headers = "Content-Type: application/json\r\n";
+      StringToCharArray(json, post, 0, StringLen(json));
+      string resultHeaders;
+      int res = WebRequest("POST", url, headers, 5000, post, result, resultHeaders);
+      if(res==-1)
+         PrintFormat("[DTC-EA] Gửi Telegram tới Chat ID %s thất bại, lỗi=%d. Thêm %s vào Tools>Options>Expert Advisors>Allow WebRequest.", id, GetLastError(), url);
+   }
 }
 
 datetime StartOfDay(datetime t)
