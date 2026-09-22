@@ -1,5 +1,5 @@
 //+------------------------------------------------------------------+
-//|                                            DTC_v136_EA.mq5       |
+//|                                            DTC_v137_EA.mq5       |
 //|  Auto-trading port of the "DTC - v1.35" Pine Script indicator    |
 //|  (6-EMA trend-alignment system). Entry/exit logic mirrors the    |
 //|  indicator's bullish_trend/bearish_trend edge detection exactly; |
@@ -12,7 +12,7 @@
 //|  reverse. See README.md for details.                             |
 //+------------------------------------------------------------------+
 #property copyright "Custom EA"
-#property version   "1.36"
+#property version   "1.37"
 
 #include <Trade\Trade.mqh>
 CTrade trade;
@@ -77,7 +77,7 @@ bool   g_beApplied = false;
 
 datetime g_curDayStart = 0, g_curMonthStart = 0;
 
-#define OBJ_PREFIX "DTCEA136_"
+#define OBJ_PREFIX "DTCEA137_"
 
 //====================================================================
 // P&L reporting (this EA's own trades only, filtered by InpMagicNumber)
@@ -341,7 +341,8 @@ int OnInit()
    trade.SetExpertMagicNumber(InpMagicNumber);
    trade.SetDeviationInPoints(InpSlippagePoints);
 
-   ObjectsDeleteAll(0, "DTCEA135_"); // dọn object của bản cũ nếu có
+   ObjectsDeleteAll(0, "DTCEA135_"); // dọn object của các bản cũ nếu có
+   ObjectsDeleteAll(0, "DTCEA136_");
 
    g_curDayStart   = StartOfDay(TimeCurrent());
    g_curMonthStart = StartOfMonth(TimeCurrent());
