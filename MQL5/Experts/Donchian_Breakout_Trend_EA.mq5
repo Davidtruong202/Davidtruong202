@@ -41,11 +41,11 @@ input double InpPartialClosePct = 30;  // % of current volume closed at the part
 input group "=== Pyramiding (adds to winners) ==="
 input bool   InpEnablePyramid    = true;
 input double InpPyramidStepATR   = 1.0; // add one more unit every N ATR of favorable movement from first entry
-input int    InpMaxPyramidUnits  = 3;   // max add-on units beyond the first entry
+input int    InpMaxPyramidUnits  = 2;   // max add-on units beyond the first entry (was 3 - cut to reduce drawdown)
 
 input group "=== Risk Management ==="
-input double InpRiskPercent         = 2.5; // 2-3% per unit (aggressive growth profile)
-input double InpMaxDailyLossPercent = 6.0; // wider than a conservative EA, matches aggressive profile
+input double InpRiskPercent         = 1.5; // tuned down from 2.5% to bring backtest equity DD toward ~30%
+input double InpMaxDailyLossPercent = 4.0; // scaled down with InpRiskPercent
 input int    InpMaxConsecLosses     = 4;
 input int    InpPauseMinutes        = 120;
 

@@ -239,10 +239,10 @@ symbol/khung giờ — gắn vào chart nào, khung nào cũng chạy được
   lệnh đang giữ, đóng toàn bộ lệnh ngay (bảo vệ trước khi giá chạy tới
   điểm chandelier).
 
-## Quản lý vốn, chốt lời & pyramiding (tối ưu cho hồ sơ rủi ro chủ động)
+## Quản lý vốn, chốt lời & pyramiding
 
-- Rủi ro mỗi đơn vị lệnh: `InpRiskPercent` (mặc định 2.5%, trong khoảng
-  2-3% bạn đã chọn).
+- Rủi ro mỗi đơn vị lệnh: `InpRiskPercent` (mặc định **1.5%**, đã hạ từ
+  2.5% — xem phần "Đã tinh chỉnh để hạ drawdown" dưới đây).
 - **Stop Loss ban đầu**: `InpInitialSLATR × ATR` (mặc định 2.0 ATR) từ giá
   vào.
 - **Chandelier Exit**: SL được kéo theo mức cao/thấp nhất kể từ lúc vào
@@ -253,16 +253,34 @@ symbol/khung giờ — gắn vào chart nào, khung nào cũng chạy được
   phần lợi nhuận, phần còn lại tiếp tục chạy theo chandelier trail.
 - **Pyramiding**: cứ mỗi `InpPyramidStepATR × ATR` (mặc định 1.0 ATR) giá
   đi thêm đúng hướng, EA vào thêm 1 đơn vị mới (tối đa
-  `InpMaxPyramidUnits`, mặc định 3 đơn vị cộng thêm) — đúng tinh thần
-  "chấp nhận drawdown lớn hơn để tăng trưởng": dồn vốn vào lệnh đang thắng
-  thay vì chỉ giữ 1 lệnh cố định.
-- Giới hạn lỗ ngày `InpMaxDailyLossPercent` (mặc định 6%, cao hơn các EA
-  thận trọng trước vì đây là hồ sơ rủi ro chủ động) và khoá sau
-  `InpMaxConsecLosses` lệnh thua liên tiếp (`InpPauseMinutes` phút).
+  `InpMaxPyramidUnits`, mặc định **2** đơn vị cộng thêm, đã giảm từ 3) —
+  dồn vốn vào lệnh đang thắng thay vì chỉ giữ 1 lệnh cố định, nhưng giới
+  hạn thấp hơn để bớt tập trung rủi ro vào 1 hướng.
+- Giới hạn lỗ ngày `InpMaxDailyLossPercent` (mặc định **4%**, đã hạ từ
+  6% cùng tỉ lệ với `InpRiskPercent`) và khoá sau `InpMaxConsecLosses`
+  lệnh thua liên tiếp (`InpPauseMinutes` phút).
 - Bộ lọc tin tức có sẵn nhưng **mặc định tắt** (`InpEnableNewsFilter =
   false`) — breakout thường ăn theo chính các cú sốc tin tức, nên không
   chặn cứng như các EA pullback trước; bật lên nếu bạn muốn tránh spike
   đầu tin.
+
+## Đã tinh chỉnh để hạ drawdown xuống ~30%
+
+Backtest thực tế (Every tick, symbol XAUUSDm, deposit 1,000) ở mức mặc
+định ban đầu (`InpRiskPercent=2.5%`, `InpMaxPyramidUnits=3`) cho Equity
+Drawdown **44% (khung M15)** và **55.6% (khung M10)** — quá cao so với
+deposit nhỏ. Mình đã hạ `InpRiskPercent` xuống **1.5%** và
+`InpMaxPyramidUnits` xuống **2** (cùng hạ `InpMaxDailyLossPercent` xuống
+4% cho đồng bộ), dựa trên tỉ lệ ước tính từ 2 kết quả backtest trên để
+nhắm drawdown về khoảng **30%**.
+
+**Đây là ước tính theo tỉ lệ (risk% và số đơn vị pyramid quyết định phần
+lớn độ lớn drawdown trong hệ thống này), không phải số đã chạy lại và xác
+nhận** — mình không có MetaTrader ở đây để backtest kiểm chứng. Bạn cần tự
+chạy lại Strategy Tester (Every tick based on real ticks, cùng symbol
+XAUUSDm) với file mới để xem drawdown thực tế có về đúng ~30% chưa; nếu
+còn cao hơn mong muốn, báo lại số Equity Drawdown Maximal mới, mình sẽ
+tinh chỉnh tiếp.
 
 ## Những đơn giản hoá / rủi ro cần biết
 
@@ -270,10 +288,10 @@ symbol/khung giờ — gắn vào chart nào, khung nào cũng chạy được
    kinh điển (Donchian/Turtle, chandelier exit), không phải bản dịch từ
    tài liệu cụ thể nào — cần backtest kỹ trên symbol/khung bạn định chạy
    trước khi tin tưởng số liệu.
-2. Pyramiding làm tăng rủi ro tổng khi thị trường đảo chiều đột ngột sau
-   khi đã cộng nhiều đơn vị — đúng như đánh đổi "drawdown lớn hơn để tăng
-   trưởng" bạn đã chọn, không phù hợp nếu muốn giảm rủi ro, nên giảm
-   `InpMaxPyramidUnits`/`InpRiskPercent` nếu muốn thận trọng hơn.
+2. Pyramiding vẫn làm tăng rủi ro tổng khi thị trường đảo chiều đột ngột
+   sau khi đã cộng thêm đơn vị, dù đã giảm tối đa còn 2 đơn vị — nếu muốn
+   thận trọng hơn nữa, giảm tiếp `InpMaxPyramidUnits`/`InpRiskPercent`
+   hoặc tắt hẳn `InpEnablePyramid`.
 3. Trên tài khoản netting, các đơn vị pyramid gộp vào một vị thế duy nhất
    (một mức SL/TP chung theo chandelier trail); trên tài khoản hedging,
    mỗi đơn vị là một ticket riêng — EA đã gán SL hiện tại cho ticket mới
