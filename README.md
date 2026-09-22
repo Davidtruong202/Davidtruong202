@@ -195,3 +195,107 @@ cũng được, chọn khung làm việc qua input `InpTimeframe` (mặc định
 
 EA không đảm bảo lợi nhuận; luôn kiểm thử kỹ trên demo và chỉ giao dịch
 với số vốn bạn chấp nhận rủi ro mất.
+
+---
+
+# Donchian Breakout Trend EA (MT5, mọi symbol/timeframe)
+
+Khác với 3 EA trên (đều tự động hoá theo tài liệu/hình ảnh bạn gửi), EA
+này là **chiến lược tự thiết kế** theo yêu cầu "tận dụng sự thông minh để
+phát triển một EA giao dịch thuận lợi" — không bám theo pullback/reversal
+như các EA trước, mà theo trường phái **trend-following breakout** (kiểu
+Turtle Trading cải tiến), phù hợp với mức rủi ro chủ động bạn đã chọn
+(2-3%/lệnh, chấp nhận drawdown lớn hơn để tăng trưởng — để thắng nhờ vài
+lệnh thắng lớn bù cho nhiều lệnh thua nhỏ, không phải nhờ tỉ lệ thắng cao).
+File EA: `MQL5/Experts/Donchian_Breakout_Trend_EA.mq5`. Không cố định
+symbol/khung giờ — gắn vào chart nào, khung nào cũng chạy được
+(`InpTimeframe` mặc định = khung của chart).
+
+## Vì sao chọn breakout thay vì pullback/mean-reversion
+
+- 3 EA trước trong repo đều là biến thể "mua/bán khi giá hồi về vùng đẹp"
+  (pullback/reversal) — nếu thị trường không hồi đúng như kỳ vọng, các EA
+  đó bỏ lỡ những xu hướng đi thẳng mạnh (không hồi).
+- Breakout + xác nhận biến động (ATR expansion) + trailing theo ATR
+  (chandelier exit) là hệ thống có kỳ vọng dương đã được kiểm chứng nhiều
+  thập kỷ (Turtle Trading, Donchian channel) — thắng ít lần nhưng thắng
+  lớn, cắt lỗ nhanh, không cần dự đoán đỉnh/đáy. Đây là lựa chọn hợp lý
+  nhất để "giao dịch thuận lợi" theo đúng xu hướng thị trường thay vì
+  đoán điểm đảo chiều.
+
+## Logic chính
+
+- **Lọc xu hướng**: EMA nhanh (`InpEMAFast`, mặc định 50) so với EMA chậm
+  (`InpEMASlow`, mặc định 200) — chỉ mua khi EMA nhanh > EMA chậm, chỉ bán
+  khi EMA nhanh < EMA chậm.
+- **Tín hiệu vào lệnh — Donchian breakout**: giá đóng cửa phá vượt đỉnh
+  cao nhất (`InpDonchianPeriod` nến gần nhất, không tính nến tín hiệu) khi
+  đang trong xu hướng tăng → BUY; phá đáy thấp nhất khi đang trong xu
+  hướng giảm → SELL.
+- **Xác nhận biến động mở rộng**: chỉ vào lệnh khi ATR hiện tại lớn hơn
+  ATR trung bình `InpATRAvgPeriod` nến gần nhất × `InpATRExpansionFactor`
+  — tránh breakout giả trong thị trường biến động thấp/đi ngang.
+- **Thoát khi đổi chiều cấu trúc**: nếu EMA nhanh/chậm cắt ngược hướng
+  lệnh đang giữ, đóng toàn bộ lệnh ngay (bảo vệ trước khi giá chạy tới
+  điểm chandelier).
+
+## Quản lý vốn, chốt lời & pyramiding (tối ưu cho hồ sơ rủi ro chủ động)
+
+- Rủi ro mỗi đơn vị lệnh: `InpRiskPercent` (mặc định 2.5%, trong khoảng
+  2-3% bạn đã chọn).
+- **Stop Loss ban đầu**: `InpInitialSLATR × ATR` (mặc định 2.0 ATR) từ giá
+  vào.
+- **Chandelier Exit**: SL được kéo theo mức cao/thấp nhất kể từ lúc vào
+  lệnh trừ/cộng `InpChandelierATR × ATR` (mặc định 3.0), chỉ siết chặt
+  không bao giờ nới ra — để lệnh thắng chạy dài theo xu hướng.
+- **Chốt lời một phần**: đóng `InpPartialClosePct`% (mặc định 30%) khi
+  lãi đạt `InpPartialTPR` lần rủi ro ban đầu (mặc định 2R) — khoá một
+  phần lợi nhuận, phần còn lại tiếp tục chạy theo chandelier trail.
+- **Pyramiding**: cứ mỗi `InpPyramidStepATR × ATR` (mặc định 1.0 ATR) giá
+  đi thêm đúng hướng, EA vào thêm 1 đơn vị mới (tối đa
+  `InpMaxPyramidUnits`, mặc định 3 đơn vị cộng thêm) — đúng tinh thần
+  "chấp nhận drawdown lớn hơn để tăng trưởng": dồn vốn vào lệnh đang thắng
+  thay vì chỉ giữ 1 lệnh cố định.
+- Giới hạn lỗ ngày `InpMaxDailyLossPercent` (mặc định 6%, cao hơn các EA
+  thận trọng trước vì đây là hồ sơ rủi ro chủ động) và khoá sau
+  `InpMaxConsecLosses` lệnh thua liên tiếp (`InpPauseMinutes` phút).
+- Bộ lọc tin tức có sẵn nhưng **mặc định tắt** (`InpEnableNewsFilter =
+  false`) — breakout thường ăn theo chính các cú sốc tin tức, nên không
+  chặn cứng như các EA pullback trước; bật lên nếu bạn muốn tránh spike
+  đầu tin.
+
+## Những đơn giản hoá / rủi ro cần biết
+
+1. Đây là chiến lược tự thiết kế dựa trên các nguyên lý trend-following
+   kinh điển (Donchian/Turtle, chandelier exit), không phải bản dịch từ
+   tài liệu cụ thể nào — cần backtest kỹ trên symbol/khung bạn định chạy
+   trước khi tin tưởng số liệu.
+2. Pyramiding làm tăng rủi ro tổng khi thị trường đảo chiều đột ngột sau
+   khi đã cộng nhiều đơn vị — đúng như đánh đổi "drawdown lớn hơn để tăng
+   trưởng" bạn đã chọn, không phù hợp nếu muốn giảm rủi ro, nên giảm
+   `InpMaxPyramidUnits`/`InpRiskPercent` nếu muốn thận trọng hơn.
+3. Trên tài khoản netting, các đơn vị pyramid gộp vào một vị thế duy nhất
+   (một mức SL/TP chung theo chandelier trail); trên tài khoản hedging,
+   mỗi đơn vị là một ticket riêng — EA đã gán SL hiện tại cho ticket mới
+   để không bị hở bảo hiểm, nhưng vẫn nên test kỹ trên loại tài khoản bạn
+   dùng.
+4. Không có bộ lọc phiên/killzone như các EA trước — breakout được thiết
+   kế để chạy được ở mọi phiên miễn đủ biến động; nếu muốn giới hạn theo
+   phiên, có thể tự thêm điều kiện giờ giao dịch.
+
+## Cài đặt & bắt buộc backtest trước khi chạy thật
+
+1. Copy file vào `MQL5/Experts/`, mở MetaEditor, biên dịch (F7). Môi
+   trường này không có MetaTrader để compile/test — tự sửa nếu trình
+   biên dịch báo lỗi cú pháp.
+2. Gắn EA vào chart/khung bạn muốn giao dịch trend-following (khung H1-H4
+   trên forex majors hoặc Gold thường phù hợp hệ thống breakout hơn
+   khung quá nhỏ do nhiễu cao).
+3. Backtest **Every tick based on real ticks** qua nhiều chu kỳ thị
+   trường (có xu hướng và đi ngang) để thấy rõ đặc tính "thắng ít, thắng
+   lớn" của hệ thống trước khi demo/live.
+
+## Cảnh báo rủi ro
+
+EA không đảm bảo lợi nhuận; luôn kiểm thử kỹ trên demo và chỉ giao dịch
+với số vốn bạn chấp nhận rủi ro mất.
