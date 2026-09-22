@@ -100,3 +100,86 @@ EA tự vào lệnh sẵn). Để tự động hoá, mình đã lược bỏ/đ�
 indicator ICT Full Suite gốc — có nhiều điểm đã đơn giản hoá như liệt kê
 ở trên. EA không đảm bảo lợi nhuận; luôn kiểm thử kỹ trên demo và chỉ
 giao dịch với số vốn bạn chấp nhận rủi ro mất.
+
+---
+
+# Fibonacci + Bollinger Bands Swing EA (MT5, mọi symbol/timeframe)
+
+EA tự động hoá chiến lược "Vào lệnh BUY/SELL kết hợp Fibonacci + Bollinger
+Bands" theo đúng 5 bước trong tài liệu bạn gửi (xu hướng → giá hồi về vùng
+Fib 50%–61.8% → chạm Band trên/dưới → nến xác nhận đảo chiều → vào lệnh).
+File EA: `MQL5/Experts/FiboBB_Swing_EA.mq5`.
+
+Không giới hạn theo một symbol/khung giờ cố định — gắn EA vào chart nào
+cũng được, chọn khung làm việc qua input `InpTimeframe` (mặc định M15).
+
+## Logic chính
+
+- **Xu hướng**: xác định qua cấu trúc swing high/low (break of structure) —
+  tăng khi giá đóng cửa phá swing high gần nhất chưa bị phá, giảm khi phá
+  swing low gần nhất.
+- **Leg Fibonacci**: lấy cặp swing gần nhất theo đúng chiều xu hướng (tăng:
+  swing low → swing high gần nhất; giảm: swing high → swing low gần nhất)
+  làm gốc 0%–100% để tính các mức 38.2/50/61.8/78.6% giống hệt cách vẽ
+  trong tài liệu (0% tại đỉnh leg, 100% tại đáy leg).
+- **Vùng hồi đẹp**: `InpFiboZoneNear` (0.5) – `InpFiboZoneFar` (0.618).
+  Nến xác nhận phải có đuôi chạm vào vùng này (và chạm/xuyên Band
+  trên/dưới) rồi đóng cửa trở lại phía trong/ngoài vùng theo đúng hướng
+  xu hướng.
+- **Nến xác nhận đảo chiều**: Pin Bar, Engulfing, Morning/Evening Star
+  (bật/tắt riêng từng loại qua input). Chỉ vào lệnh khi nến đóng cửa.
+- **Bộ lọc đi ngang**: bỏ qua tín hiệu khi độ rộng Band
+  `(upper-lower)/middle*100` dưới `InpMinBandWidthPct`, hoặc leg Fibonacci
+  quá ngắn so với ATR (`InpMinLegATR`) — tránh vào lệnh khi thị trường
+  chưa có xu hướng rõ ràng.
+- **Lọc tin tức**: hai khung giờ chặn theo giờ NY (mặc định quanh 08:30 NY
+  cho NFP/CPI và 14:00 NY cho FOMC), có thể tắt/chỉnh qua input.
+
+## Quản lý vốn & rủi ro
+
+- Rủi ro mỗi lệnh: `InpRiskPercent` (mặc định 0.75%).
+- **Entry**: market tại giá hiện tại khi nến xác nhận vừa đóng cửa.
+- **Stop Loss**: dưới đáy leg/Band dưới (BUY) hoặc trên đỉnh leg/Band trên
+  (SELL), cộng thêm đệm `InpSLBufferATR × ATR` — đúng như tài liệu "đặt SL
+  phía trên/dưới đỉnh/đáy gần nhất hoặc trên/dưới Band".
+- **Take Profit 3 tầng** (đúng bảng TP trong tài liệu):
+  - TP1 = đỉnh/đáy gần nhất của leg — đóng `InpTP1ClosePct`% khối lượng
+    gốc, dời SL về hoà vốn.
+  - TP2 = Fibonacci Extension 127.2% — đóng thêm `InpTP2ClosePct`%, dời SL
+    lên/xuống TP1.
+  - TP3 = Fibonacci Extension 161.8% — phần khối lượng còn lại chạy tới
+    đây (đặt sẵn làm TP của lệnh khi vào).
+- Thoát sớm toàn bộ nếu xuất hiện nến xác nhận ngược hướng trước khi đạt
+  TP1 (tránh giữ lệnh khi tín hiệu đã bị vô hiệu).
+- Giới hạn lỗ ngày `InpMaxDailyLossPercent` (3%) và khoá sau
+  `InpMaxConsecLosses` lệnh thua liên tiếp (`InpPauseMinutes` phút).
+
+## Những đơn giản hoá so với tài liệu gốc
+
+1. Tài liệu là một hướng dẫn thao tác tay (đọc chart, kẻ Fibonacci bằng
+   tay); EA tự động kẻ Fibonacci dựa trên cặp swing high/low gần nhất
+   theo đúng xu hướng — có thể lệch nhịp so với cách bạn tự kẻ bằng mắt
+   trong vài tình huống cấu trúc phức tạp.
+2. "Không vào lệnh khi thị trường đi ngang" được xử lý bằng bộ lọc độ
+   rộng Band + độ dài leg tối thiểu, không phải nhận diện hình dạng
+   sideway trực quan.
+3. Lọc tin tức là khung giờ cố định thủ công (không phải lịch kinh tế
+   trực tiếp) — cần tự chỉnh ngày/giờ theo lịch tin thực tế.
+4. Mỗi thời điểm chỉ giữ tối đa 1 lệnh (theo `InpMagicNumber`) để đơn giản
+   hoá quản lý TP1/TP2/TP3 theo % khối lượng gốc.
+
+## Cài đặt & bắt buộc backtest trước khi chạy thật
+
+1. Copy file vào `MQL5/Experts/`, mở MetaEditor, biên dịch (F7). Môi
+   trường này không có MetaTrader để compile/test — tự sửa nếu trình
+   biên dịch báo lỗi cú pháp.
+2. Gắn EA vào chart symbol/khung bạn muốn giao dịch, chỉnh `InpTimeframe`
+   nếu khung chart khác khung muốn phân tích.
+3. Backtest trong Strategy Tester với **Every tick based on real ticks**
+   trước khi demo/live, tinh chỉnh lại `InpPivLen`, vùng Fibonacci,
+   `InpMinBandWidthPct`, `InpMinLegATR` theo đặc tính symbol bạn chạy.
+
+## Cảnh báo rủi ro
+
+EA không đảm bảo lợi nhuận; luôn kiểm thử kỹ trên demo và chỉ giao dịch
+với số vốn bạn chấp nhận rủi ro mất.
