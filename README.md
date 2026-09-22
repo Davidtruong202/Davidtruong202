@@ -103,7 +103,7 @@ giao dịch với số vốn bạn chấp nhận rủi ro mất.
 
 ---
 
-# DTC - v1.38 (port từ Pine Script "DTC - v1.35" sang MT5)
+# DTC - v1.39 (port từ Pine Script "DTC - v1.35" sang MT5)
 
 Bản chuyển đổi indicator TradingView **"DTC - v1.35"** (hệ thống 6 đường
 EMA 30/35/40/45/50/60 xác định xu hướng, đổi màu theo trend, dashboard đa
@@ -111,7 +111,7 @@ khung thời gian, vẽ Entry/SL/TP, và cảnh báo Telegram) sang MetaTrader 5
 Toàn bộ giao diện (Inputs, dashboard, bảng, tin nhắn Telegram, log) đã
 được Việt hoá có dấu. Có 2 file, dùng độc lập với bộ EA ICT/SMC ở trên:
 
-- `MQL5/Indicators/DTC_v138.mq5` — **Custom Indicator**, bám sát bản Pine
+- `MQL5/Indicators/DTC_v139.mq5` — **Custom Indicator**, bám sát bản Pine
   Script gốc nhất có thể: 6 đường EMA đổi màu xanh/đỏ/xám theo trend, nhãn
   mũi tên MUA/BÁN tại mọi điểm tín hiệu lịch sử, đường + nhãn "VÀO LỆNH"/
   SL/TP1/TP2 cho tín hiệu gần nhất, dashboard 15M/30M/1H/4H/D ở góc
@@ -119,7 +119,7 @@ Toàn bộ giao diện (Inputs, dashboard, bảng, tin nhắn Telegram, log) đ�
   `WebRequest`, không cần `alert()` + webhook như trên TradingView), cùng
   bảng **Thống Kê Tỷ Lệ Thắng** (xem mục riêng bên dưới). **Không tự vào
   lệnh.**
-- `MQL5/Experts/DTC_v138_EA.mq5` — **Expert Advisor** tự động giao dịch dựa
+- `MQL5/Experts/DTC_v139_EA.mq5` — **Expert Advisor** tự động giao dịch dựa
   trên đúng tín hiệu cắt/thẳng hàng EMA của indicator trên. Vì bản Pine Script
   gốc chỉ vẽ chart chứ không tự quản lý lệnh, EA bổ sung phần quản lý vị thế:
   - Vào lệnh Mua/Bán khi 6 EMA vừa thẳng hàng (giống hệt điều kiện
@@ -191,7 +191,7 @@ Toàn bộ giao diện (Inputs, dashboard, bảng, tin nhắn Telegram, log) đ�
 
 ## Bảng Thống Kê Tỷ Lệ Thắng (indicator)
 
-`DTC_v138.mq5` hiển thị thêm một bảng nhỏ ngay dưới dashboard MTF (bật/tắt
+`DTC_v139.mq5` hiển thị thêm một bảng nhỏ ngay dưới dashboard MTF (bật/tắt
 bằng `InpShowStatsTable`), liệt kê % tín hiệu lịch sử đã chạm từng mốc —
 **chỉ TP1/TP2, khớp đúng với những gì EA thực sự giao dịch**:
 
@@ -235,16 +235,16 @@ tick trong lịch sử OHLC).
    thông báo Telegram tổng kết — toàn bộ phần này hoàn toàn mới so với bản
    Pine Script (theo yêu cầu khi tạo EA).
 
-## Đổi tên file: DTC_v135 → DTC_v136 → DTC_v137 → DTC_v138
+## Đổi tên file: DTC_v135 → v136 → v137 → v138 → v139
 
-File hiện tại (mới nhất) là `DTC_v138.mq5`/`DTC_v138_EA.mq5`. Mỗi lần đổi
-tên là để MT5 chắc chắn nạp đúng bản mới (tránh tình trạng file `.ex5` cũ
-vẫn được cache lại dưới tên cũ, khiến chart vẫn hiện hành vi cũ dù source
-đã sửa). Nếu chart của bạn đang gắn bản `v135`/`v136`/`v137` cũ, hãy gỡ nó
-ra và gắn lại bằng file `v138` mới; các object/đường kẻ của các bản cũ
-(tiền tố `DTC135_`/`DTC136_`/`DTC137_`, `DTCEA135_`/`DTCEA136_`/
-`DTCEA137_`) sẽ tự động được dọn sạch khi bản `v138` khởi động lần đầu
-trên chart đó.
+File hiện tại (mới nhất) là `DTC_v139.mq5`/`DTC_v139_EA.mq5`. **Từ nay, mỗi
+khi có bản sửa mới, tên file sẽ luôn được tăng version** (v139 → v140 →
+...), không cần bạn nhắc — để MT5 chắc chắn nạp đúng bản mới mỗi lần (tránh
+tình trạng file `.ex5` cũ vẫn được cache lại dưới tên cũ, khiến chart vẫn
+hiện hành vi cũ dù source đã sửa). Nếu chart của bạn đang gắn bản cũ hơn,
+hãy gỡ nó ra và gắn lại bằng file mới nhất; các object/đường kẻ của mọi bản
+cũ trước đó sẽ tự động được dọn sạch khi bản mới khởi động lần đầu trên
+chart đó.
 
 **Lưu ý quan trọng nếu chart bị rối/chữ đè lên nhau**: dấu hiệu là 2 con số
 khác nhau hiện chồng lên đúng 1 chỗ (ví dụ "Hôm nay" hiện cả `-165 USC` lẫn
@@ -252,9 +252,11 @@ khác nhau hiện chồng lên đúng 1 chỗ (ví dụ "Hôm nay" hiện cả `
 trên cùng 1 chart** (thường là quên gỡ bản cũ trước khi gắn bản mới, hoặc
 gắn cùng EA lên 2 chart `M3` khác nhau đang chồng cửa sổ lên nhau). Cách
 sửa: vào từng tab chart, mở danh sách Expert/Indicator đang gắn (icon nhỏ
-góc trên bên phải chart), gỡ hết bản cũ, chỉ giữ đúng 1 bản `v138` duy
-nhất. Từ bản này, mọi bảng (dashboard, thống kê, P&L, lịch sử lệnh) đều có
-khung nền riêng để không bị "nổi chữ" đè lên nến hay đè lên bảng khác.
+góc trên bên phải chart), gỡ hết bản cũ, chỉ giữ đúng 1 bản mới nhất duy
+nhất. Từ bản `v138` trở đi, mọi bảng (dashboard, thống kê, P&L, lịch sử
+lệnh) đều có khung nền riêng để không bị "nổi chữ" đè lên nến hay đè lên
+bảng khác, và **kéo thả được bằng chuột** tới vị trí bạn muốn (xem mục bên
+dưới).
 
 ## Kéo thả bảng + chữ không bao giờ lọt ra ngoài khung
 
@@ -274,7 +276,7 @@ ngoài dù số tiền lời/lỗ dài hay ngắn.
 
 ## Cài đặt
 
-1. Copy `DTC_v138.mq5` vào `MQL5/Indicators/` và/hoặc `DTC_v138_EA.mq5` vào
+1. Copy `DTC_v139.mq5` vào `MQL5/Indicators/` và/hoặc `DTC_v139_EA.mq5` vào
    `MQL5/Experts/`, mở MetaEditor, biên dịch (F7). Môi trường này không có
    MetaTrader để compile/test — kiểm tra kỹ lỗi cú pháp trước khi chạy thật.
    Nếu chữ tiếng Việt hiển thị lỗi font trong MetaEditor, vào **File → Save

@@ -1,16 +1,16 @@
 //+------------------------------------------------------------------+
-//|                                              DTC_v138.mq5        |
+//|                                              DTC_v139.mq5        |
 //|  1:1 visual port of the "DTC - v1.35" Pine Script indicator:     |
 //|  6-EMA trend-alignment system with trend-colored EMA lines,      |
 //|  BUY/SELL signal labels, Entry/SL/TP1/TP2 lines+labels for the   |
 //|  latest signal (matches the EA, which only trades TP1/TP2), a    |
 //|  15M/30M/1H/4H/D trend dashboard, and an optional Telegram       |
 //|  alert on each new confirmed signal. This is a                   |
-//|  display-only indicator (no auto-trading) - see DTC_v138_EA.mq5  |
+//|  display-only indicator (no auto-trading) - see DTC_v139_EA.mq5  |
 //|  in MQL5/Experts for the auto-trading version. See README.md.    |
 //+------------------------------------------------------------------+
 #property copyright "Custom Indicator"
-#property version   "1.38"
+#property version   "1.39"
 #property indicator_chart_window
 #property indicator_buffers 12
 #property indicator_plots   6
@@ -111,7 +111,7 @@ bool   g_firstCalc = true;
 // (kéo bằng chuột ngay trên chart) để đổi chỗ, vị trí mới sẽ được giữ nguyên.
 int g_dashX = 10, g_dashY = 10;
 
-#define OBJ_PREFIX "DTC138_"
+#define OBJ_PREFIX "DTC139_"
 
 //====================================================================
 // Win-rate stats: forward-simulate each historical signal (SL moves to
@@ -177,8 +177,9 @@ int OnInit()
    ObjectsDeleteAll(0, "DTC135_");
    ObjectsDeleteAll(0, "DTC136_");
    ObjectsDeleteAll(0, "DTC137_");
+   ObjectsDeleteAll(0, "DTC138_");
 
-   IndicatorSetString(INDICATOR_SHORTNAME, "DTC - v1.38");
+   IndicatorSetString(INDICATOR_SHORTNAME, "DTC - v1.39");
    return INIT_SUCCEEDED;
 }
 
@@ -424,7 +425,7 @@ void UpdateDashboard()
    if(CopyBuffer(handleHtf5Fast,0,0,1,f5)<=0 || CopyBuffer(handleHtf5Slow,0,0,1,s5)<=0) return;
 
    string rows[6];
-   rows[0] = "DTC V - 1.38";
+   rows[0] = "DTC V - 1.39";
    rows[1] = "15   " + (f1[0]>s1[0] ? "Tăng" : "Giảm");
    rows[2] = "30   " + (f2[0]>s2[0] ? "Tăng" : "Giảm");
    rows[3] = "60   " + (f3[0]>s3[0] ? "Tăng" : "Giảm");
