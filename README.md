@@ -145,6 +145,16 @@ Có 2 file, dùng độc lập với bộ EA ICT/SMC ở trên:
     không dùng làm bộ lọc vào lệnh — EA giữ đúng hành vi này (đúng theo yêu
     cầu "giống chỉ báo gốc nhất có thể"), không bắt buộc các khung MTF phải
     đồng thuận mới vào lệnh.
+  - **Bảng lợi nhuận (P&L) trên chart**: góc dưới-trái (`InpPnLCorner`) hiện
+    lợi nhuận **hôm nay** và **tháng này** (tính từ deal history thật của
+    tài khoản, chỉ lọc theo `InpMagicNumber` của EA này — không tính lệnh
+    của EA/indicator khác trên cùng tài khoản), tự cập nhật mỗi 20 giây.
+    Tắt bằng `InpShowPnLTable`.
+  - **Thông báo Telegram theo ngày/tháng**: khi `InpTelegramDayMonthSummary`
+    bật (mặc định bật, cần `InpTelegramEnabled` + Bot Token/Chat ID đã cấu
+    hình), ngay khi một ngày/tháng vừa kết thúc, EA tự gửi 1 tin nhắn tổng
+    kết lời/lỗ **của đúng ngày/tháng vừa qua** — độc lập với thông báo mỗi
+    lần vào lệnh.
 
 ## Bảng thống kê Win Rate (indicator)
 

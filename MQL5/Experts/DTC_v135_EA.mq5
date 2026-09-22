@@ -43,9 +43,15 @@ input int    InpSlippagePoints   = 20; // max price deviation tolerated when fil
 input int    InpMaxSpreadPoints  = 0;  // skip entry if current spread exceeds this many points (0 = no limit)
 
 input group "=== Telegram Alert (optional, direct Bot API call) ==="
-input bool   InpTelegramEnabled  = false;
-input string InpTelegramBotToken = ""; // from @BotFather
-input string InpTelegramChatId   = "";
+input bool   InpTelegramEnabled          = false;
+input string InpTelegramBotToken         = ""; // from @BotFather
+input string InpTelegramChatId           = "";
+input bool   InpTelegramDayMonthSummary  = true; // also send a P&L summary when a day/month ends
+
+input group "=== P&L Dashboard (this EA's trades only, by magic number) ==="
+input bool   InpShowPnLTable = true;
+input ENUM_BASE_CORNER InpPnLCorner = CORNER_LEFT_LOWER;
+input int    InpPnLFontSize  = 9;
 
 //====================================================================
 // Globals
@@ -58,6 +64,119 @@ ulong  g_ticket1 = 0, g_ticket2 = 0;
 double g_entry = 0, g_sl = 0, g_tp1 = 0, g_tp2 = 0;
 bool   g_bullish = false;
 bool   g_beApplied = false;
+
+datetime g_curDayStart = 0, g_curMonthStart = 0;
+
+#define OBJ_PREFIX "DTCEA135_"
+
+//====================================================================
+// P&L reporting (this EA's own trades only, filtered by InpMagicNumber)
+//====================================================================
+void TelegramSend(string msg)
+{
+   if(!InpTelegramEnabled || InpTelegramBotToken=="" || InpTelegramChatId=="") return;
+
+   string url = "https://api.telegram.org/bot" + InpTelegramBotToken + "/sendMessage";
+   string json = "{\"chat_id\":\"" + InpTelegramChatId + "\",\"text\":\"" + msg + "\"}";
+
+   char post[], result[];
+   string headers = "Content-Type: application/json\r\n";
+   StringToCharArray(json, post, 0, StringLen(json));
+   string resultHeaders;
+   int res = WebRequest("POST", url, headers, 5000, post, result, resultHeaders);
+   if(res==-1)
+      PrintFormat("[DTC-EA] Telegram WebRequest failed, error=%d. Add %s to Tools>Options>Expert Advisors>Allow WebRequest.", GetLastError(), url);
+}
+
+datetime StartOfDay(datetime t)
+{
+   MqlDateTime dt; TimeToStruct(t, dt);
+   dt.hour=0; dt.min=0; dt.sec=0;
+   return StructToTime(dt);
+}
+
+datetime StartOfMonth(datetime t)
+{
+   MqlDateTime dt; TimeToStruct(t, dt);
+   dt.day=1; dt.hour=0; dt.min=0; dt.sec=0;
+   return StructToTime(dt);
+}
+
+double ComputeProfitBetween(datetime fromTime, datetime toTime)
+{
+   double sum = 0;
+   if(!HistorySelect(fromTime, toTime)) return 0;
+   int total = HistoryDealsTotal();
+   for(int i=0; i<total; i++)
+   {
+      ulong ticket = HistoryDealGetTicket(i);
+      if(ticket==0) continue;
+      if((ulong)HistoryDealGetInteger(ticket, DEAL_MAGIC) != InpMagicNumber) continue;
+      sum += HistoryDealGetDouble(ticket, DEAL_PROFIT) + HistoryDealGetDouble(ticket, DEAL_SWAP) + HistoryDealGetDouble(ticket, DEAL_COMMISSION);
+   }
+   return sum;
+}
+
+string FormatMoney(double v)
+{
+   return (v>=0 ? "+" : "") + DoubleToString(v, 2) + " " + AccountInfoString(ACCOUNT_CURRENCY);
+}
+
+void UpdatePnLDashboard()
+{
+   if(!InpShowPnLTable) { ObjectsDeleteAll(0, OBJ_PREFIX+"pnl_"); return; }
+
+   double todayPnL = ComputeProfitBetween(g_curDayStart, TimeCurrent());
+   double monthPnL = ComputeProfitBetween(g_curMonthStart, TimeCurrent());
+
+   string rows[3];
+   rows[0] = "DTC P&L";
+   rows[1] = "Today  " + FormatMoney(todayPnL);
+   rows[2] = "Month  " + FormatMoney(monthPnL);
+   color clrs[3];
+   clrs[0] = clrWhite;
+   clrs[1] = todayPnL>=0 ? clrLime : clrRed;
+   clrs[2] = monthPnL>=0 ? clrLime : clrRed;
+
+   for(int r=0; r<3; r++)
+   {
+      string name = OBJ_PREFIX+"pnl_row"+IntegerToString(r);
+      if(ObjectFind(0, name) < 0)
+      {
+         ObjectCreate(0, name, OBJ_LABEL, 0, 0, 0);
+         ObjectSetInteger(0, name, OBJPROP_CORNER, InpPnLCorner);
+         ObjectSetInteger(0, name, OBJPROP_XDISTANCE, 10);
+         ObjectSetInteger(0, name, OBJPROP_YDISTANCE, 10 + r*(InpPnLFontSize+6));
+         ObjectSetString(0, name, OBJPROP_FONT, "Consolas");
+         ObjectSetInteger(0, name, OBJPROP_FONTSIZE, InpPnLFontSize);
+         ObjectSetInteger(0, name, OBJPROP_SELECTABLE, false);
+      }
+      ObjectSetString(0, name, OBJPROP_TEXT, rows[r]);
+      ObjectSetInteger(0, name, OBJPROP_COLOR, clrs[r]);
+   }
+}
+
+// Fires once right after a day/month actually ends, summarizing that day/month's P&L via Telegram.
+void CheckDayMonthRollover()
+{
+   datetime nowDayStart = StartOfDay(TimeCurrent());
+   if(nowDayStart != g_curDayStart)
+   {
+      double pnl = ComputeProfitBetween(g_curDayStart, nowDayStart);
+      if(InpTelegramDayMonthSummary)
+         TelegramSend("DTC Daily P&L - " + _Symbol + "\n" + TimeToString(g_curDayStart, TIME_DATE) + ": " + FormatMoney(pnl));
+      g_curDayStart = nowDayStart;
+   }
+
+   datetime nowMonthStart = StartOfMonth(TimeCurrent());
+   if(nowMonthStart != g_curMonthStart)
+   {
+      double pnl = ComputeProfitBetween(g_curMonthStart, nowMonthStart);
+      if(InpTelegramDayMonthSummary)
+         TelegramSend("DTC Monthly P&L - " + _Symbol + "\n" + TimeToString(g_curMonthStart, TIME_DATE) + ": " + FormatMoney(pnl));
+      g_curMonthStart = nowMonthStart;
+   }
+}
 
 //====================================================================
 // Init / Deinit
@@ -80,13 +199,21 @@ int OnInit()
 
    trade.SetExpertMagicNumber(InpMagicNumber);
    trade.SetDeviationInPoints(InpSlippagePoints);
+
+   g_curDayStart   = StartOfDay(TimeCurrent());
+   g_curMonthStart = StartOfMonth(TimeCurrent());
+   EventSetTimer(20); // periodic P&L table refresh + day/month rollover check
+   UpdatePnLDashboard();
+
    return INIT_SUCCEEDED;
 }
 
 void OnDeinit(const int reason)
 {
+   EventKillTimer();
    IndicatorRelease(handleEma1); IndicatorRelease(handleEma2); IndicatorRelease(handleEma3);
    IndicatorRelease(handleEma4); IndicatorRelease(handleEma5); IndicatorRelease(handleEma6);
+   ObjectsDeleteAll(0, OBJ_PREFIX);
 }
 
 //====================================================================
@@ -154,24 +281,12 @@ void SplitVolume(double totalLots, double &lot1, double &lot2)
 
 void SendTelegramAlert(string signalType, double entry, double sl, double t1, double t2)
 {
-   if(!InpTelegramEnabled || InpTelegramBotToken=="" || InpTelegramChatId=="") return;
-
    string msg = signalType + " Signal - " + _Symbol + " (" + EnumToString((ENUM_TIMEFRAMES)Period()) + ")" +
       "\nEntry: " + DoubleToString(entry, _Digits) +
       "\nSL: " + DoubleToString(sl, _Digits) +
       "\nTP1: " + DoubleToString(t1, _Digits) +
       "\nTP2: " + DoubleToString(t2, _Digits);
-
-   string url = "https://api.telegram.org/bot" + InpTelegramBotToken + "/sendMessage";
-   string json = "{\"chat_id\":\"" + InpTelegramChatId + "\",\"text\":\"" + msg + "\"}";
-
-   char post[], result[];
-   string headers = "Content-Type: application/json\r\n";
-   StringToCharArray(json, post, 0, StringLen(json));
-   string resultHeaders;
-   int res = WebRequest("POST", url, headers, 5000, post, result, resultHeaders);
-   if(res==-1)
-      PrintFormat("[DTC-EA] Telegram WebRequest failed, error=%d. Add %s to Tools>Options>Expert Advisors>Allow WebRequest.", GetLastError(), url);
+   TelegramSend(msg);
 }
 
 //====================================================================
@@ -274,6 +389,12 @@ void ManageGroup()
       trade.PositionModify(g_ticket2, g_entry, tp);
    }
    g_beApplied = true;
+}
+
+void OnTimer()
+{
+   CheckDayMonthRollover();
+   UpdatePnLDashboard();
 }
 
 //====================================================================
