@@ -178,6 +178,16 @@ Toàn bộ giao diện (Inputs, dashboard, bảng, tin nhắn Telegram, log) đ�
     Navigator) thay vì chỉ chữ chạy dài như bảng P&L. Vì mỗi tín hiệu mở 2
     lệnh (TP1 + TP2) nên mỗi tín hiệu sẽ chiếm 2 dòng trong bảng khi cả 2
     đã đóng. Tắt bằng `InpShowTradeLog`.
+  - **Bảng trạng thái + nút bấm test**: góc trên-phải (`InpButtonCorner`),
+    hiện tên EA/symbol, P&L hôm nay, lệnh đang giữ (nếu có), trạng thái
+    "Đang chạy", và **3 nút bấm** giống kiểu `EMACrossCloneEA`: **Test TG**
+    (bấm là gửi ngay 2 tin MUA+BÁN thử vào Telegram — không cần đợi tín
+    hiệu thật hay khởi động lại EA), **Test BUY** / **Test SELL**. Mặc định
+    2 nút BUY/SELL chỉ gửi tin Telegram thử (an toàn, không đụng tiền
+    thật); bật `InpAllowTestButtonRealOrder = true` nếu muốn bấm nút là mở
+    **lệnh thật** ngay lập tức theo đúng risk/SL/TP1/TP2 đang cấu hình, để
+    kiểm tra trọn vẹn luồng vào lệnh mà không cần chờ tín hiệu EMA thật.
+    Tắt cả bảng này bằng `InpShowTestButtons`.
 
 ## Bảng Thống Kê Tỷ Lệ Thắng (indicator)
 

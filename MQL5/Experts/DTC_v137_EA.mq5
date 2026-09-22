@@ -64,6 +64,11 @@ input int    InpTradeLogRows = 8;   // số dòng gần nhất hiển thị (t�
 input ENUM_BASE_CORNER InpTradeLogCorner = CORNER_RIGHT_LOWER;
 input int    InpTradeLogFontSize = 9;
 
+input group "=== Bảng Trạng Thái + Nút Test Trên Chart ==="
+input bool   InpShowTestButtons = true;
+input ENUM_BASE_CORNER InpButtonCorner = CORNER_RIGHT_UPPER;
+input bool   InpAllowTestButtonRealOrder = false; // true: nút Test BUY/SELL mở LỆNH THẬT (dùng risk/lot như bình thường); false: chỉ gửi tin Telegram thử, không mở lệnh
+
 //====================================================================
 // Globals
 //====================================================================
@@ -307,6 +312,122 @@ void UpdateTradeLogTable()
    }
 }
 
+void CreateButton(string name, ENUM_BASE_CORNER corner, int x, int y, int w, int h, string text, color bg, color txtClr)
+{
+   if(ObjectFind(0, name) < 0)
+   {
+      ObjectCreate(0, name, OBJ_BUTTON, 0, 0, 0);
+      ObjectSetInteger(0, name, OBJPROP_CORNER, corner);
+      ObjectSetInteger(0, name, OBJPROP_BORDER_TYPE, BORDER_FLAT);
+      ObjectSetInteger(0, name, OBJPROP_SELECTABLE, false);
+      ObjectSetString(0, name, OBJPROP_FONT, "Consolas");
+   }
+   ObjectSetInteger(0, name, OBJPROP_XDISTANCE, x);
+   ObjectSetInteger(0, name, OBJPROP_YDISTANCE, y);
+   ObjectSetInteger(0, name, OBJPROP_XSIZE, w);
+   ObjectSetInteger(0, name, OBJPROP_YSIZE, h);
+   ObjectSetString(0, name, OBJPROP_TEXT, text);
+   ObjectSetInteger(0, name, OBJPROP_BGCOLOR, bg);
+   ObjectSetInteger(0, name, OBJPROP_COLOR, txtClr);
+   ObjectSetInteger(0, name, OBJPROP_FONTSIZE, 8);
+   ObjectSetInteger(0, name, OBJPROP_STATE, false);
+}
+
+// Bảng nhỏ (trạng thái EA + lệnh đang giữ + P&L hôm nay) và 3 nút bấm để thử nhanh
+// kênh Telegram / thử luồng vào lệnh MUA-BÁN mà không phải đợi tín hiệu thật.
+void UpdateStatusPanel()
+{
+   if(!InpShowTestButtons) { ObjectsDeleteAll(0, OBJ_PREFIX+"panel_"); ObjectsDeleteAll(0, OBJ_PREFIX+"btn_"); return; }
+
+   int fontSize = 9;
+   int rowH = fontSize+7;
+   int panelW = 210;
+   int baseX=10, baseY=10;
+
+   int dir;
+   bool hasPos = GroupOpen(dir);
+   double todayPnL = ComputeProfitBetween(g_curDayStart, TimeCurrent());
+
+   string rows[4];
+   color clrs[4];
+   rows[0] = "DTC EA (" + _Symbol + ")"; clrs[0] = clrWhite;
+   rows[1] = "Hôm nay: " + FormatMoney(todayPnL); clrs[1] = todayPnL>=0 ? clrLime : clrRed;
+   rows[2] = "Lệnh: " + (hasPos ? ("Đang giữ " + (dir==1?"MUA":"BÁN")) : "Không có"); clrs[2] = hasPos ? clrAqua : clrSilver;
+   rows[3] = "Trạng thái: Đang chạy"; clrs[3] = clrLime;
+
+   DrawTableRect(OBJ_PREFIX+"panel_bg", InpButtonCorner, baseX, baseY, panelW, rowH*4, C'20,20,20', clrSilver);
+   for(int r=0; r<4; r++)
+      DrawTableText(OBJ_PREFIX+"panel_row"+IntegerToString(r), InpButtonCorner, baseX+6, baseY+4+r*rowH, rows[r], clrs[r], fontSize);
+
+   int btnY = baseY + rowH*4 + 6;
+   int btnW = 66, btnH = 22, gap=4;
+   CreateButton(OBJ_PREFIX+"btn_testtg",   InpButtonCorner, baseX,              btnY, btnW, btnH, "Test TG",   C'20,80,20',  clrWhite);
+   CreateButton(OBJ_PREFIX+"btn_testbuy",  InpButtonCorner, baseX+btnW+gap,     btnY, btnW, btnH, "Test BUY",  C'20,120,20', clrWhite);
+   CreateButton(OBJ_PREFIX+"btn_testsell", InpButtonCorner, baseX+2*(btnW+gap),btnY, btnW, btnH, "Test SELL", C'140,20,20', clrWhite);
+}
+
+// Gửi 1 tin MUA [THỬ] + 1 tin BÁN [THỬ] (giá giả, không phải lệnh thật) để kiểm tra kênh Telegram.
+void SendTestTelegramMessages()
+{
+   double px = SymbolInfoDouble(_Symbol, SYMBOL_BID);
+   if(px<=0) px = 1.0;
+   SendTelegramAlert("MUA [THỬ]", px, px*0.998, px*1.002, px*1.004);
+   SendTelegramAlert("BÁN [THỬ]", px, px*1.002, px*0.998, px*0.996);
+   Print("[DTC-EA] Đã gửi 2 tin nhắn thử (MUA + BÁN) tới Telegram để kiểm tra kênh báo.");
+}
+
+// Xử lý khi bấm nút Test BUY/SELL: nếu InpAllowTestButtonRealOrder=false thì chỉ gửi tin
+// Telegram thử (an toàn, không đụng tới tiền thật); nếu =true thì mở LỆNH THẬT theo đúng
+// luồng OpenPositionGroup() bình thường (risk/lot/SL/TP1/TP2 y như tín hiệu thật).
+void HandleTestButtonClick(bool bullish)
+{
+   if(!InpAllowTestButtonRealOrder)
+   {
+      double px = SymbolInfoDouble(_Symbol, SYMBOL_BID);
+      if(px<=0) px = 1.0;
+      if(bullish) SendTelegramAlert("MUA [THỬ NÚT]", px, px*0.998, px*1.002, px*1.004);
+      else        SendTelegramAlert("BÁN [THỬ NÚT]", px, px*1.002, px*0.998, px*0.996);
+      Print("[DTC-EA] Đã bấm nút Test " + (bullish?"BUY":"SELL") + " - chỉ gửi tin Telegram thử, KHÔNG mở lệnh thật (bật InpAllowTestButtonRealOrder để mở lệnh thật).");
+      return;
+   }
+
+   int dir;
+   bool hasPos = GroupOpen(dir);
+   if(hasPos && dir==(bullish?1:-1))
+   {
+      Print("[DTC-EA] Đang giữ đúng chiều rồi, bỏ qua nút Test " + (bullish?"BUY":"SELL") + ".");
+      return;
+   }
+   if(hasPos) CloseGroup();
+   bool ok = OpenPositionGroup(bullish);
+   Print(ok ? ("[DTC-EA] Nút Test " + (bullish?"BUY":"SELL") + " đã mở LỆNH THẬT.")
+            : ("[DTC-EA] Nút Test " + (bullish?"BUY":"SELL") + " mở lệnh thất bại, xem log phía trên."));
+}
+
+void OnChartEvent(const int id, const long &lparam, const double &dparam, const string &sparam)
+{
+   if(id != CHARTEVENT_OBJECT_CLICK) return;
+
+   if(sparam == OBJ_PREFIX+"btn_testtg")
+   {
+      ObjectSetInteger(0, sparam, OBJPROP_STATE, false);
+      SendTestTelegramMessages();
+      ChartRedraw();
+   }
+   else if(sparam == OBJ_PREFIX+"btn_testbuy")
+   {
+      ObjectSetInteger(0, sparam, OBJPROP_STATE, false);
+      HandleTestButtonClick(true);
+      ChartRedraw();
+   }
+   else if(sparam == OBJ_PREFIX+"btn_testsell")
+   {
+      ObjectSetInteger(0, sparam, OBJPROP_STATE, false);
+      HandleTestButtonClick(false);
+      ChartRedraw();
+   }
+}
+
 // Fires once right after a day/month actually ends, summarizing that day/month's P&L via Telegram.
 void CheckDayMonthRollover()
 {
@@ -361,15 +482,10 @@ int OnInit()
    EventSetTimer(20); // periodic P&L table refresh + day/month rollover check
    UpdatePnLDashboard();
    UpdateTradeLogTable();
+   UpdateStatusPanel();
 
    if(InpTestTelegramOnStart)
-   {
-      double px = SymbolInfoDouble(_Symbol, SYMBOL_BID);
-      if(px<=0) px = 1.0;
-      SendTelegramAlert("MUA [THỬ]", px, px*0.998, px*1.002, px*1.004);
-      SendTelegramAlert("BÁN [THỬ]", px, px*1.002, px*0.998, px*0.996);
-      Print("[DTC-EA] Đã gửi 2 tin nhắn thử (MUA + BÁN) tới Telegram để kiểm tra kênh báo.");
-   }
+      SendTestTelegramMessages();
 
    return INIT_SUCCEEDED;
 }
@@ -574,6 +690,7 @@ void OnTimer()
    CheckDayMonthRollover();
    UpdatePnLDashboard();
    UpdateTradeLogTable();
+   UpdateStatusPanel();
 }
 
 //====================================================================
