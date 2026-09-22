@@ -100,3 +100,74 @@ EA tự vào lệnh sẵn). Để tự động hoá, mình đã lược bỏ/đ�
 indicator ICT Full Suite gốc — có nhiều điểm đã đơn giản hoá như liệt kê
 ở trên. EA không đảm bảo lợi nhuận; luôn kiểm thử kỹ trên demo và chỉ
 giao dịch với số vốn bạn chấp nhận rủi ro mất.
+
+---
+
+# XAUUSD TA Confluence EA (MT5, khung M5)
+
+EA thứ hai, độc lập với EA ICT ở trên. File:
+`MQL5/Experts/XAUUSD_TA_Confluence_M5.mq5`.
+
+Dựa theo đúng bộ chỉ báo hiển thị trong bảng "TECHNICALS" trên chart bạn
+gửi: **RSI(14), MACD(12,26,9), ADX(14) (dùng +DI/-DI để lấy hướng), Stoch
+%K, CCI(20), ROC(9)**.
+
+**Lưu ý quan trọng:** "AI Forecast" và "TCX Indicator Pro" trong ảnh là
+chỉ báo độc quyền của ứng dụng/nhà cung cấp, không có công thức công khai
+nên **không thể sao chép chính xác**. EA này thay thế bằng một điểm số
+đồng thuận (confluence score) từ 6 chỉ báo chuẩn ở trên — đóng vai trò
+tương đương nhưng không phải bản sao.
+
+## Logic tín hiệu
+
+- Mỗi chỉ báo "bầu" tăng hoặc giảm mỗi khi nến M5 đóng cửa (RSI>50, MACD
+  main>signal, +DI>-DI, Stoch %K>50, CCI>0, ROC>0 → tăng; ngược lại →
+  giảm).
+- Vào lệnh khi số phiếu đồng thuận ≥ `InpMinScore` (mặc định 5/6) **và**
+  ADX ≥ `InpADXMinTrend` (mặc định 20, tránh thị trường sideway) **và**
+  hướng ADX (+DI/-DI) khớp chiều lệnh.
+- Lọc khối lượng: bỏ qua tín hiệu khi volume nến hiện tại thấp hơn
+  `InpMinVolRatio` × MA(volume) — tương ứng cảnh báo "Volume: Low" trên
+  chart.
+- Lọc spread: bỏ qua khi spread hiện tại > `InpMaxSpreadPoints`.
+
+## Target Point 1/2/3 & SL (theo vùng hỗ trợ/kháng cự)
+
+- Xác định đỉnh/đáy swing bằng fractal (`InpPivLen` nến xác nhận mỗi
+  bên), giống layout Target 1/2/3 + SL trong ảnh.
+- **TP1/TP2/TP3** = 3 swing high (lệnh mua) hoặc swing low (lệnh bán) gần
+  nhất phía trước giá vào lệnh.
+- **SL** = swing low/high đối diện gần nhất phía sau giá vào lệnh, cộng
+  thêm đệm `InpSLBufferATR` × ATR.
+- Nếu chưa có đủ dữ liệu swing (ví dụ mới chạy EA), fallback sang bội số
+  ATR (`InpFallbackATRmult`) để không bị kẹt không giao dịch được.
+- Lệnh bị huỷ nếu R:R tới TP1 dưới `InpMinRR_TP1`.
+
+## Quản lý lệnh
+
+- Chốt 1/3 khối lượng tại TP1, dời SL về hoà vốn.
+- Chốt thêm 1/2 khối lượng còn lại tại TP2, dời SL lên TP1 (khoá lời).
+- Phần còn lại chạy tới TP3 (đặt làm TP cuối cùng của lệnh).
+- Thoát sớm nếu điểm số đồng thuận đảo chiều mạnh (≥ `InpMinScore` theo
+  hướng ngược lại) trước khi chạm TP1.
+- Giới hạn lỗ ngày `InpMaxDailyLossPercent` và khoá sau
+  `InpMaxConsecLosses` lệnh thua liên tiếp (`InpPauseMinutes` phút) —
+  giống cơ chế của EA ICT.
+
+## Đơn giản hoá / giới hạn
+
+1. Không có "AI Forecast" thật — thay bằng confluence score 6 chỉ báo
+   chuẩn như đã nêu.
+2. Không có logic riêng của "TCX Indicator Pro" (không rõ công thức từ
+   ảnh) — không đưa vào EA.
+3. Không lọc theo phiên/killzone hay tin tức như EA ICT; EA này giao dịch
+   bất cứ khi nào tín hiệu đủ điều kiện, cả ngày.
+4. Toàn bộ tín hiệu đánh giá khi nến M5 đóng cửa (không repaint,
+   deterministic).
+
+## Cài đặt & backtest
+
+Cùng quy trình với EA ICT ở trên: copy vào `MQL5/Experts/`, biên dịch
+trong MetaEditor (F7 — môi trường này không có MetaTrader để tự compile),
+gắn vào chart XAUUSD khung M5, backtest kỹ (Every tick based on real
+ticks) trước khi cân nhắc chạy thật. Không đảm bảo lợi nhuận.
