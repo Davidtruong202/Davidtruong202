@@ -122,16 +122,25 @@ Có 2 file, dùng độc lập với bộ EA ICT/SMC ở trên:
   gốc chỉ vẽ chart chứ không tự quản lý lệnh, EA bổ sung phần quản lý vị thế:
   - Vào lệnh Buy/Sell khi 6 EMA vừa thẳng hàng (giống hệt điều kiện
     `bullish_trend`/`bearish_trend` trong Pine Script), tính trên nến vừa
-    đóng cửa (không dùng nến đang chạy, tránh repaint).
-  - SL = `InpStopLossPercent` % giá vào lệnh; TP1-4 = SL × các hệ số
-    `InpTP1..4Multiplier` (mặc định 1/2/3/4x), y hệt công thức trong script.
-  - Chốt 25% khối lượng gốc tại mỗi TP1/TP2/TP3, dời SL về hoà vốn sau TP1,
-    25% còn lại chạy tới TP4.
-  - Khi có tín hiệu ngược chiều, EA đóng lệnh đang giữ và đảo chiều
-    (`InpReverseOnOpposite`, mặc định bật) — có thể tắt để chỉ đóng lệnh khi
-    chạm SL/TP.
+    đóng cửa (không dùng nến đang chạy, tránh repaint) — vào lệnh ngay tick
+    đầu tiên của nến mới, không có độ trễ nhân tạo.
+  - SL = `InpStopLossPercent` % giá vào lệnh; **chỉ dùng TP1 và TP2**
+    (= SL × `InpTP1Multiplier`/`InpTP2Multiplier`, mặc định 1x/2x).
+  - Mỗi tín hiệu mở **2 lệnh riêng biệt, khối lượng chia đều làm đôi**: 1 lệnh
+    chốt tại TP1, 1 lệnh chốt tại TP2 (cùng SL ban đầu) — thay vì 1 lệnh rồi
+    tự đóng từng phần, để sàn tự khớp TP cho từng lệnh, ổn định hơn khi mất
+    kết nối/khởi động lại EA. Ngay khi giá chạm TP1, EA dời SL của lệnh TP2
+    về giá vào lệnh (hoà vốn) — bật/tắt qua `InpBreakevenAfterTP1`.
+  - Khi có tín hiệu ngược chiều, EA **luôn** đóng toàn bộ lệnh đang giữ và
+    đảo chiều ngay trong cùng tick (không có tuỳ chọn tắt).
   - Khối lượng lệnh tính theo `InpRiskPercent` % số dư tài khoản trên
-    khoảng cách SL, chuẩn hoá theo bước khối lượng của sàn.
+    khoảng cách SL (tính trên tổng 2 lệnh), chuẩn hoá theo bước khối lượng
+    của sàn.
+  - **Buffer vào lệnh**: `InpSlippagePoints` (mặc định 20 điểm) là độ trượt
+    giá tối đa EA chấp nhận khi khớp lệnh thị trường, để lệnh không bị từ
+    chối (invalid price) khi giá chạy nhanh đúng lúc EA đặt lệnh.
+    `InpMaxSpreadPoints` (mặc định 0 = không giới hạn) cho phép bỏ qua tín
+    hiệu nếu spread hiện tại quá rộng, tránh vào lệnh với giá xấu.
   - Dashboard đa khung thời gian trong script gốc **chỉ mang tính hiển thị**,
     không dùng làm bộ lọc vào lệnh — EA giữ đúng hành vi này (đúng theo yêu
     cầu "giống chỉ báo gốc nhất có thể"), không bắt buộc các khung MTF phải
@@ -153,12 +162,15 @@ SL   28.6%  (12)
 
 Cách tính: với mỗi tín hiệu Long/Short trong lịch sử, indicator tự mô
 phỏng tiến về sau trên đúng dữ liệu giá của chart (dùng high/low từng nến)
-để xem giá chạm SL hay TP1 trước; nếu chạm TP1 trước, SL được dời về hoà
-vốn (giống hệt cách EA quản lý lệnh) rồi tiếp tục xét TP2, v.v. Một tín
-hiệu được tính là **thắng ở mức TPx** nếu giá từng chạm tới đó, bất kể sau
-đó lệnh dừng ở hoà vốn hay đi tiếp; **SL** chỉ tính khi giá chạm SL gốc
-*trước khi* từng chạm TP1 (thua toàn bộ). Tín hiệu quá mới, giá chưa kịp đi
-đến đâu, sẽ tạm không được tính vào `n` cho tới khi có đủ nến để phân định
+để xem giá chạm SL hay TP1 trước; nếu chạm TP1 trước, SL giả định được dời
+về hoà vốn rồi tiếp tục xét TP2, v.v. Một tín hiệu được tính là **thắng ở
+mức TPx** nếu giá từng chạm tới đó, bất kể sau đó lệnh dừng ở hoà vốn hay đi
+tiếp; **SL** chỉ tính khi giá chạm SL gốc *trước khi* từng chạm TP1 (thua
+toàn bộ). Bảng này vẫn thống kê đủ TP1-TP4 để bám sát 4 mốc mà bản Pine
+Script gốc vẽ ra — bản EA (bên dưới) chỉ thực sự giao dịch TP1/TP2 nên số
+liệu TP3/TP4 ở đây mang tính tham khảo xu hướng đi xa của giá, không phản
+ánh lệnh thật của EA. Tín hiệu quá mới, giá chưa kịp đi đến đâu, sẽ tạm
+không được tính vào `n` cho tới khi có đủ nến để phân định
 kết quả. Đây là thống kê dựa trên đúng lịch sử giá của chart đang mở —
 không phải kết quả backtest chính thức của Strategy Tester, và nếu SL/TP
 chạm cùng một nến thì mặc định coi SL chạm trước (giả định an toàn/thận
@@ -174,9 +186,12 @@ trọng vì không có dữ liệu tick trong lịch sử OHLC).
    Bot Token) do người dùng dán vào ô Alert; MT5 không có khái niệm này nên
    indicator/EA gọi thẳng Telegram Bot API bằng `WebRequest`, cần thêm input
    **Bot Token** (lấy từ @BotFather) chứ không chỉ Chat ID.
-3. Script gốc chỉ vẽ Entry/SL/TP — không tự đóng/chốt lệnh. EA thêm logic
-   chốt lời từng phần tại TP1/TP2/TP3 + chạy TP4 (đã thống nhất khi tạo EA),
-   đây là phần hoàn toàn mới so với bản Pine Script.
+3. Script gốc chỉ vẽ Entry/SL/TP1-4 — không tự đóng/chốt lệnh, không đảo
+   chiều. EA chỉ giao dịch **TP1 và TP2** (bỏ TP3/TP4), mở 2 lệnh riêng biệt
+   khối lượng chia đều thay vì 1 lệnh rồi tự chốt từng phần, tự dời SL về
+   hoà vốn sau TP1, và luôn đảo chiều khi có tín hiệu ngược — toàn bộ phần
+   quản lý vị thế này hoàn toàn mới so với bản Pine Script (theo yêu cầu khi
+   tạo EA).
 
 ## Cài đặt
 
