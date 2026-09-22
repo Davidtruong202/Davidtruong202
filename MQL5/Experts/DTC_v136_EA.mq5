@@ -50,11 +50,18 @@ input bool   InpTelegramEnabled          = false;
 input string InpTelegramBotToken         = ""; // lấy từ @BotFather
 input string InpTelegramChatId           = "";
 input bool   InpTelegramDayMonthSummary  = true; // cũng gửi tổng kết lời/lỗ khi ngày/tháng kết thúc
+input bool   InpTestTelegramOnStart      = false; // gửi ngay 1 tin MUA + 1 tin BÁN giả khi gắn EA, để test kênh Telegram
 
 input group "=== Bảng Lợi Nhuận (chỉ lệnh của EA này, theo magic number) ==="
 input bool   InpShowPnLTable = true;
 input ENUM_BASE_CORNER InpPnLCorner = CORNER_LEFT_LOWER;
 input int    InpPnLFontSize  = 9;
+
+input group "=== Bảng Lịch Sử Vào/Ra Lệnh (lệnh thật, theo magic number) ==="
+input bool   InpShowTradeLog = true;
+input int    InpTradeLogRows = 8;   // số dòng gần nhất hiển thị (tối đa 15)
+input ENUM_BASE_CORNER InpTradeLogCorner = CORNER_RIGHT_LOWER;
+input int    InpTradeLogFontSize = 9;
 
 //====================================================================
 // Globals
@@ -159,6 +166,135 @@ void UpdatePnLDashboard()
    }
 }
 
+#define TRADE_LOG_MAX_ROWS 15
+
+struct TradeLogRow
+{
+   datetime t;
+   bool     bullish;
+   string   result;
+   double   profit;
+};
+
+void DrawTableRect(string name, ENUM_BASE_CORNER corner, int x, int y, int w, int h, color bg, color border)
+{
+   if(ObjectFind(0, name) < 0)
+   {
+      ObjectCreate(0, name, OBJ_RECTANGLE_LABEL, 0, 0, 0);
+      ObjectSetInteger(0, name, OBJPROP_CORNER, corner);
+      ObjectSetInteger(0, name, OBJPROP_SELECTABLE, false);
+      ObjectSetInteger(0, name, OBJPROP_BACK, false);
+      ObjectSetInteger(0, name, OBJPROP_BORDER_TYPE, BORDER_FLAT);
+      ObjectSetInteger(0, name, OBJPROP_STYLE, STYLE_SOLID);
+      ObjectSetInteger(0, name, OBJPROP_WIDTH, 1);
+   }
+   ObjectSetInteger(0, name, OBJPROP_XDISTANCE, x);
+   ObjectSetInteger(0, name, OBJPROP_YDISTANCE, y);
+   ObjectSetInteger(0, name, OBJPROP_XSIZE, w);
+   ObjectSetInteger(0, name, OBJPROP_YSIZE, h);
+   ObjectSetInteger(0, name, OBJPROP_BGCOLOR, bg);
+   ObjectSetInteger(0, name, OBJPROP_COLOR, border);
+}
+
+void DrawTableText(string name, ENUM_BASE_CORNER corner, int x, int y, string text, color clr, int fontSize)
+{
+   if(ObjectFind(0, name) < 0)
+   {
+      ObjectCreate(0, name, OBJ_LABEL, 0, 0, 0);
+      ObjectSetInteger(0, name, OBJPROP_CORNER, corner);
+      ObjectSetInteger(0, name, OBJPROP_SELECTABLE, false);
+      ObjectSetString(0, name, OBJPROP_FONT, "Consolas");
+   }
+   ObjectSetInteger(0, name, OBJPROP_XDISTANCE, x);
+   ObjectSetInteger(0, name, OBJPROP_YDISTANCE, y);
+   ObjectSetInteger(0, name, OBJPROP_FONTSIZE, fontSize);
+   ObjectSetString(0, name, OBJPROP_TEXT, text);
+   ObjectSetInteger(0, name, OBJPROP_COLOR, clr);
+}
+
+// Bảng lịch sử N lệnh gần nhất đã đóng của đúng EA này (lọc theo InpMagicNumber, lấy từ
+// deal history thật của tài khoản - không phải mô phỏng). Mỗi tín hiệu tạo 2 dòng (lệnh TP1
+// + lệnh TP2) vì đó là 2 lệnh riêng biệt. Kết quả (TP1/TP2/SL/Đóng tay) đọc từ comment của
+// lệnh khi có, hoặc suy ra từ DEAL_REASON do broker trả về khi đóng.
+void UpdateTradeLogTable()
+{
+   if(!InpShowTradeLog) { ObjectsDeleteAll(0, OBJ_PREFIX+"log_"); return; }
+
+   int wantRows = (int)MathMin(InpTradeLogRows, TRADE_LOG_MAX_ROWS);
+   TradeLogRow rows[];
+
+   if(HistorySelect(TimeCurrent()-30*86400, TimeCurrent()))
+   {
+      int total = HistoryDealsTotal();
+      for(int i=total-1; i>=0 && ArraySize(rows)<wantRows; i--)
+      {
+         ulong ticket = HistoryDealGetTicket(i);
+         if(ticket==0) continue;
+         if((ulong)HistoryDealGetInteger(ticket, DEAL_MAGIC) != InpMagicNumber) continue;
+         if((ENUM_DEAL_ENTRY)HistoryDealGetInteger(ticket, DEAL_ENTRY) != DEAL_ENTRY_OUT) continue;
+
+         int idx = ArraySize(rows);
+         ArrayResize(rows, idx+1);
+         rows[idx].t = (datetime)HistoryDealGetInteger(ticket, DEAL_TIME);
+         rows[idx].bullish = ((ENUM_DEAL_TYPE)HistoryDealGetInteger(ticket, DEAL_TYPE) == DEAL_TYPE_SELL); // đóng bằng lệnh SELL nghĩa là vị thế gốc là MUA
+         rows[idx].profit = HistoryDealGetDouble(ticket, DEAL_PROFIT) + HistoryDealGetDouble(ticket, DEAL_SWAP) + HistoryDealGetDouble(ticket, DEAL_COMMISSION);
+
+         string cmt = HistoryDealGetString(ticket, DEAL_COMMENT);
+         if(StringFind(cmt,"TP1")>=0) rows[idx].result = "TP1";
+         else if(StringFind(cmt,"TP2")>=0) rows[idx].result = "TP2";
+         else
+         {
+            ENUM_DEAL_REASON reason = (ENUM_DEAL_REASON)HistoryDealGetInteger(ticket, DEAL_REASON);
+            if(reason==DEAL_REASON_SL) rows[idx].result = "SL";
+            else if(reason==DEAL_REASON_TP) rows[idx].result = "TP";
+            else rows[idx].result = "Đóng tay";
+         }
+      }
+   }
+
+   int fontSize = InpTradeLogFontSize;
+   int rowH = fontSize+7;
+   int colGio=52, colLoai=42, colKq=58, colPL=82;
+   int tableW = colGio+colLoai+colKq+colPL;
+   int baseX=10, baseY=10;
+
+   DrawTableRect(OBJ_PREFIX+"log_hdr_bg", InpTradeLogCorner, baseX, baseY, tableW, rowH, C'40,40,40', clrSilver);
+   DrawTableText(OBJ_PREFIX+"log_hdr_0", InpTradeLogCorner, baseX+4, baseY+3, "Giờ", clrWhite, fontSize);
+   DrawTableText(OBJ_PREFIX+"log_hdr_1", InpTradeLogCorner, baseX+colGio+2, baseY+3, "Loại", clrWhite, fontSize);
+   DrawTableText(OBJ_PREFIX+"log_hdr_2", InpTradeLogCorner, baseX+colGio+colLoai+2, baseY+3, "Kết quả", clrWhite, fontSize);
+   DrawTableText(OBJ_PREFIX+"log_hdr_3", InpTradeLogCorner, baseX+colGio+colLoai+colKq+2, baseY+3, "Lãi/Lỗ", clrWhite, fontSize);
+
+   int n = ArraySize(rows);
+   for(int r=0; r<TRADE_LOG_MAX_ROWS; r++)
+   {
+      string rectName = OBJ_PREFIX+"log_row_bg"+IntegerToString(r);
+      string c0 = OBJ_PREFIX+"log_row"+IntegerToString(r)+"_c0";
+      string c1 = OBJ_PREFIX+"log_row"+IntegerToString(r)+"_c1";
+      string c2 = OBJ_PREFIX+"log_row"+IntegerToString(r)+"_c2";
+      string c3 = OBJ_PREFIX+"log_row"+IntegerToString(r)+"_c3";
+
+      if(r>=wantRows || r>=n)
+      {
+         ObjectDelete(0, rectName);
+         ObjectDelete(0, c0); ObjectDelete(0, c1); ObjectDelete(0, c2); ObjectDelete(0, c3);
+         continue;
+      }
+
+      int y = baseY + (r+1)*rowH;
+      color rowBg = (r%2==0) ? C'25,25,25' : C'15,15,15';
+      DrawTableRect(rectName, InpTradeLogCorner, baseX, y, tableW, rowH, rowBg, clrSilver);
+
+      color typeClr = rows[r].bullish ? clrLime : clrRed;
+      color resClr  = (rows[r].result=="SL") ? clrRed : ((rows[r].result=="Đóng tay") ? clrSilver : clrLime);
+      color plClr   = rows[r].profit>=0 ? clrLime : clrRed;
+
+      DrawTableText(c0, InpTradeLogCorner, baseX+4, y+3, TimeToString(rows[r].t, TIME_MINUTES), clrWhite, fontSize);
+      DrawTableText(c1, InpTradeLogCorner, baseX+colGio+2, y+3, rows[r].bullish?"MUA":"BÁN", typeClr, fontSize);
+      DrawTableText(c2, InpTradeLogCorner, baseX+colGio+colLoai+2, y+3, rows[r].result, resClr, fontSize);
+      DrawTableText(c3, InpTradeLogCorner, baseX+colGio+colLoai+colKq+2, y+3, FormatMoney(rows[r].profit), plClr, fontSize);
+   }
+}
+
 // Fires once right after a day/month actually ends, summarizing that day/month's P&L via Telegram.
 void CheckDayMonthRollover()
 {
@@ -211,6 +347,16 @@ int OnInit()
    g_curMonthStart = StartOfMonth(TimeCurrent());
    EventSetTimer(20); // periodic P&L table refresh + day/month rollover check
    UpdatePnLDashboard();
+   UpdateTradeLogTable();
+
+   if(InpTestTelegramOnStart)
+   {
+      double px = SymbolInfoDouble(_Symbol, SYMBOL_BID);
+      if(px<=0) px = 1.0;
+      SendTelegramAlert("MUA [TEST]", px, px*0.998, px*1.002, px*1.004);
+      SendTelegramAlert("BÁN [TEST]", px, px*1.002, px*0.998, px*0.996);
+      Print("[DTC-EA] Đã gửi 2 tin nhắn test (MUA + BÁN) tới Telegram để kiểm tra kênh báo.");
+   }
 
    return INIT_SUCCEEDED;
 }
@@ -414,6 +560,7 @@ void OnTimer()
 {
    CheckDayMonthRollover();
    UpdatePnLDashboard();
+   UpdateTradeLogTable();
 }
 
 //====================================================================

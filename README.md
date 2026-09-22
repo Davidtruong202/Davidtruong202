@@ -165,6 +165,19 @@ Toàn bộ giao diện (Inputs, dashboard, bảng, tin nhắn Telegram, log) đ�
     hình), ngay khi một ngày/tháng vừa kết thúc, EA tự gửi 1 tin nhắn tổng
     kết lời/lỗ **của đúng ngày/tháng vừa qua** — độc lập với thông báo mỗi
     lần vào lệnh.
+  - **Test kênh Telegram**: bật `InpTestTelegramOnStart` rồi gắn lại EA —
+    nó gửi ngay 1 tin MUA [TEST] + 1 tin BÁN [TEST] (giá giả, không phải
+    lệnh thật) để bạn kiểm tra Bot Token/Chat ID đã đúng chưa, khỏi phải
+    đợi tín hiệu thật xuất hiện.
+  - **Bảng lịch sử vào/ra lệnh**: góc dưới-phải (`InpTradeLogCorner`), hiện
+    tối đa `InpTradeLogRows` dòng gần nhất (mặc định 8, tối đa 15) — mỗi
+    dòng là 1 lệnh thật đã đóng của đúng EA này (lọc theo `InpMagicNumber`,
+    lấy từ deal history thật), gồm **Giờ / Loại (MUA-BÁN) / Kết quả
+    (TP1-TP2-SL-Đóng tay) / Lãi-Lỗ**, vẽ dạng bảng có khung nền xen kẽ màu
+    (giống kiểu bảng của các indicator MIK/EMACrossClone khác trong
+    Navigator) thay vì chỉ chữ chạy dài như bảng P&L. Vì mỗi tín hiệu mở 2
+    lệnh (TP1 + TP2) nên mỗi tín hiệu sẽ chiếm 2 dòng trong bảng khi cả 2
+    đã đóng. Tắt bằng `InpShowTradeLog`.
 
 ## Bảng Thống Kê Tỷ Lệ Thắng (indicator)
 
