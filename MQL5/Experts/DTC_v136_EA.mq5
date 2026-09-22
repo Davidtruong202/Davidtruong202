@@ -1,5 +1,5 @@
 //+------------------------------------------------------------------+
-//|                                            DTC_v135_EA.mq5       |
+//|                                            DTC_v136_EA.mq5       |
 //|  Auto-trading port of the "DTC - v1.35" Pine Script indicator    |
 //|  (6-EMA trend-alignment system). Entry/exit logic mirrors the    |
 //|  indicator's bullish_trend/bearish_trend edge detection exactly; |
@@ -12,7 +12,7 @@
 //|  reverse. See README.md for details.                             |
 //+------------------------------------------------------------------+
 #property copyright "Custom EA"
-#property version   "1.00"
+#property version   "1.36"
 
 #include <Trade\Trade.mqh>
 CTrade trade;
@@ -20,7 +20,7 @@ CTrade trade;
 //====================================================================
 // Inputs
 //====================================================================
-input group "=== EMA Settings (matches indicator lengths) ==="
+input group "=== Cài Đặt EMA (khớp độ dài của indicator) ==="
 input int    InpLen1 = 30;
 input int    InpLen2 = 35;
 input int    InpLen3 = 40;
@@ -28,27 +28,27 @@ input int    InpLen4 = 45;
 input int    InpLen5 = 50;
 input int    InpLen6 = 60;
 
-input group "=== Risk Management ==="
-input double InpStopLossPercent = 0.25;  // Stop Loss % of entry price
+input group "=== Quản Lý Rủi Ro ==="
+input double InpStopLossPercent = 0.25;  // % Dừng lỗ theo giá vào lệnh
 input double InpTP1Multiplier   = 1.0;
 input double InpTP2Multiplier   = 2.0;
-input double InpRiskPercent     = 0.75;  // account risk % spent on SL distance per trade, split across TP1+TP2
+input double InpRiskPercent     = 0.75;  // % rủi ro tài khoản trên khoảng cách SL mỗi lệnh, chia đều cho TP1+TP2
 
-input group "=== Position Management ==="
-input bool   InpBreakevenAfterTP1 = true; // move the TP2 leg's SL to entry once price reaches TP1
+input group "=== Quản Lý Vị Thế ==="
+input bool   InpBreakevenAfterTP1 = true; // dời SL của lệnh TP2 về giá vào lệnh khi giá chạm TP1
 input ulong  InpMagicNumber       = 20260921;
 
-input group "=== Execution (entry buffer) ==="
-input int    InpSlippagePoints   = 20; // max price deviation tolerated when filling market orders
-input int    InpMaxSpreadPoints  = 0;  // skip entry if current spread exceeds this many points (0 = no limit)
+input group "=== Thực Thi Lệnh (buffer vào lệnh) ==="
+input int    InpSlippagePoints   = 20; // độ trượt giá tối đa cho phép khi khớp lệnh thị trường
+input int    InpMaxSpreadPoints  = 0;  // bỏ qua vào lệnh nếu spread hiện tại vượt quá số điểm này (0 = không giới hạn)
 
-input group "=== Telegram Alert (optional, direct Bot API call) ==="
+input group "=== Cảnh Báo Telegram (tuỳ chọn, gọi thẳng Bot API) ==="
 input bool   InpTelegramEnabled          = false;
-input string InpTelegramBotToken         = ""; // from @BotFather
+input string InpTelegramBotToken         = ""; // lấy từ @BotFather
 input string InpTelegramChatId           = "";
-input bool   InpTelegramDayMonthSummary  = true; // also send a P&L summary when a day/month ends
+input bool   InpTelegramDayMonthSummary  = true; // cũng gửi tổng kết lời/lỗ khi ngày/tháng kết thúc
 
-input group "=== P&L Dashboard (this EA's trades only, by magic number) ==="
+input group "=== Bảng Lợi Nhuận (chỉ lệnh của EA này, theo magic number) ==="
 input bool   InpShowPnLTable = true;
 input ENUM_BASE_CORNER InpPnLCorner = CORNER_LEFT_LOWER;
 input int    InpPnLFontSize  = 9;
@@ -67,7 +67,7 @@ bool   g_beApplied = false;
 
 datetime g_curDayStart = 0, g_curMonthStart = 0;
 
-#define OBJ_PREFIX "DTCEA135_"
+#define OBJ_PREFIX "DTCEA136_"
 
 //====================================================================
 // P&L reporting (this EA's own trades only, filtered by InpMagicNumber)
@@ -85,7 +85,7 @@ void TelegramSend(string msg)
    string resultHeaders;
    int res = WebRequest("POST", url, headers, 5000, post, result, resultHeaders);
    if(res==-1)
-      PrintFormat("[DTC-EA] Telegram WebRequest failed, error=%d. Add %s to Tools>Options>Expert Advisors>Allow WebRequest.", GetLastError(), url);
+      PrintFormat("[DTC-EA] Gửi Telegram thất bại, lỗi=%d. Thêm %s vào Tools>Options>Expert Advisors>Allow WebRequest.", GetLastError(), url);
 }
 
 datetime StartOfDay(datetime t)
@@ -130,9 +130,9 @@ void UpdatePnLDashboard()
    double monthPnL = ComputeProfitBetween(g_curMonthStart, TimeCurrent());
 
    string rows[3];
-   rows[0] = "DTC P&L";
-   rows[1] = "Today  " + FormatMoney(todayPnL);
-   rows[2] = "Month  " + FormatMoney(monthPnL);
+   rows[0] = "DTC Lợi Nhuận";
+   rows[1] = "Hôm nay   " + FormatMoney(todayPnL);
+   rows[2] = "Tháng này " + FormatMoney(monthPnL);
    color clrs[3];
    clrs[0] = clrWhite;
    clrs[1] = todayPnL>=0 ? clrLime : clrRed;
@@ -164,7 +164,7 @@ void CheckDayMonthRollover()
    {
       double pnl = ComputeProfitBetween(g_curDayStart, nowDayStart);
       if(InpTelegramDayMonthSummary)
-         TelegramSend("DTC Daily P&L - " + _Symbol + "\n" + TimeToString(g_curDayStart, TIME_DATE) + ": " + FormatMoney(pnl));
+         TelegramSend("DTC Lợi Nhuận Ngày - " + _Symbol + "\n" + TimeToString(g_curDayStart, TIME_DATE) + ": " + FormatMoney(pnl));
       g_curDayStart = nowDayStart;
    }
 
@@ -173,7 +173,7 @@ void CheckDayMonthRollover()
    {
       double pnl = ComputeProfitBetween(g_curMonthStart, nowMonthStart);
       if(InpTelegramDayMonthSummary)
-         TelegramSend("DTC Monthly P&L - " + _Symbol + "\n" + TimeToString(g_curMonthStart, TIME_DATE) + ": " + FormatMoney(pnl));
+         TelegramSend("DTC Lợi Nhuận Tháng - " + _Symbol + "\n" + TimeToString(g_curMonthStart, TIME_DATE) + ": " + FormatMoney(pnl));
       g_curMonthStart = nowMonthStart;
    }
 }
@@ -193,12 +193,14 @@ int OnInit()
    if(handleEma1==INVALID_HANDLE || handleEma2==INVALID_HANDLE || handleEma3==INVALID_HANDLE ||
       handleEma4==INVALID_HANDLE || handleEma5==INVALID_HANDLE || handleEma6==INVALID_HANDLE)
    {
-      Print("[DTC-EA] Failed to create EMA handles");
+      Print("[DTC-EA] Không thể tạo handle EMA");
       return INIT_FAILED;
    }
 
    trade.SetExpertMagicNumber(InpMagicNumber);
    trade.SetDeviationInPoints(InpSlippagePoints);
+
+   ObjectsDeleteAll(0, "DTCEA135_"); // dọn object của bản cũ nếu có
 
    g_curDayStart   = StartOfDay(TimeCurrent());
    g_curMonthStart = StartOfMonth(TimeCurrent());
@@ -281,8 +283,8 @@ void SplitVolume(double totalLots, double &lot1, double &lot2)
 
 void SendTelegramAlert(string signalType, double entry, double sl, double t1, double t2)
 {
-   string msg = signalType + " Signal - " + _Symbol + " (" + EnumToString((ENUM_TIMEFRAMES)Period()) + ")" +
-      "\nEntry: " + DoubleToString(entry, _Digits) +
+   string msg = "Tín hiệu " + signalType + " - " + _Symbol + " (" + EnumToString((ENUM_TIMEFRAMES)Period()) + ")" +
+      "\nVào lệnh: " + DoubleToString(entry, _Digits) +
       "\nSL: " + DoubleToString(sl, _Digits) +
       "\nTP1: " + DoubleToString(t1, _Digits) +
       "\nTP2: " + DoubleToString(t2, _Digits);
@@ -320,7 +322,7 @@ bool OpenPositionGroup(bool bullish)
    double spreadPoints = (ask-bid) / _Point;
    if(InpMaxSpreadPoints>0 && spreadPoints>InpMaxSpreadPoints)
    {
-      PrintFormat("[DTC-EA] Spread too wide (%.1f pts > %d), skipping entry", spreadPoints, InpMaxSpreadPoints);
+      PrintFormat("[DTC-EA] Spread quá rộng (%.1f điểm > %d), bỏ qua vào lệnh", spreadPoints, InpMaxSpreadPoints);
       return false;
    }
 
@@ -333,7 +335,7 @@ bool OpenPositionGroup(bool bullish)
    double totalLots = CalculateLotSize(slDistance);
    if(totalLots<=0)
    {
-      Print("[DTC-EA] Lot size computed as 0, skipping entry");
+      Print("[DTC-EA] Khối lượng lệnh tính ra bằng 0, bỏ qua vào lệnh");
       return false;
    }
 
@@ -341,7 +343,7 @@ bool OpenPositionGroup(bool bullish)
    SplitVolume(totalLots, lot1, lot2);
    if(lot1<=0 || lot2<=0)
    {
-      Print("[DTC-EA] Account/volume too small to split across TP1+TP2, skipping entry");
+      Print("[DTC-EA] Tài khoản/khối lượng quá nhỏ để chia đều TP1+TP2, bỏ qua vào lệnh");
       return false;
    }
 
@@ -356,7 +358,7 @@ bool OpenPositionGroup(bool bullish)
 
    if(!ok1 && !ok2)
    {
-      PrintFormat("[DTC-EA] Both entry orders failed, retcode=%d", trade.ResultRetcode());
+      PrintFormat("[DTC-EA] Cả 2 lệnh vào đều thất bại, retcode=%d", trade.ResultRetcode());
       return false;
    }
 
@@ -364,8 +366,8 @@ bool OpenPositionGroup(bool bullish)
    g_bullish=bullish; g_beApplied=false;
 
    PrintFormat("[DTC-EA] %s entry=%.5f sl=%.5f tp1=%.5f tp2=%.5f lot1=%.2f lot2=%.2f",
-      bullish?"BUY":"SELL", entry, sl, tp1, tp2, lot1, lot2);
-   SendTelegramAlert(bullish?"BUY":"SELL", entry, sl, tp1, tp2);
+      bullish?"MUA":"BÁN", entry, sl, tp1, tp2, lot1, lot2);
+   SendTelegramAlert(bullish?"MUA":"BÁN", entry, sl, tp1, tp2);
    return true;
 }
 

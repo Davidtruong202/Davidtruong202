@@ -1,16 +1,16 @@
 //+------------------------------------------------------------------+
-//|                                              DTC_v135.mq5        |
+//|                                              DTC_v136.mq5        |
 //|  1:1 visual port of the "DTC - v1.35" Pine Script indicator:     |
 //|  6-EMA trend-alignment system with trend-colored EMA lines,      |
 //|  BUY/SELL signal labels, Entry/SL/TP1/TP2 lines+labels for the   |
 //|  latest signal (matches the EA, which only trades TP1/TP2), a    |
 //|  15M/30M/1H/4H/D trend dashboard, and an optional Telegram       |
 //|  alert on each new confirmed signal. This is a                   |
-//|  display-only indicator (no auto-trading) - see DTC_v135_EA.mq5  |
+//|  display-only indicator (no auto-trading) - see DTC_v136_EA.mq5  |
 //|  in MQL5/Experts for the auto-trading version. See README.md.    |
 //+------------------------------------------------------------------+
 #property copyright "Custom Indicator"
-#property version   "1.00"
+#property version   "1.36"
 #property indicator_chart_window
 #property indicator_buffers 12
 #property indicator_plots   6
@@ -43,7 +43,7 @@
 //====================================================================
 // Inputs (mirrors the Pine Script's input groups)
 //====================================================================
-input group "=== EMA Settings ==="
+input group "=== Cài Đặt EMA ==="
 input int    InpLen1 = 30;
 input int    InpLen2 = 35;
 input int    InpLen3 = 40;
@@ -51,35 +51,35 @@ input int    InpLen4 = 45;
 input int    InpLen5 = 50;
 input int    InpLen6 = 60;
 
-input group "=== Multi-Timeframe Settings ==="
+input group "=== Cài Đặt Đa Khung Thời Gian ==="
 input ENUM_TIMEFRAMES InpTf1 = PERIOD_M15;
 input ENUM_TIMEFRAMES InpTf2 = PERIOD_M30;
 input ENUM_TIMEFRAMES InpTf3 = PERIOD_H1;
 input ENUM_TIMEFRAMES InpTf4 = PERIOD_H4;
 input ENUM_TIMEFRAMES InpTf5 = PERIOD_D1;
 
-input group "=== Risk Management (levels drawn for the latest signal, matches the EA) ==="
+input group "=== Quản Lý Rủi Ro (mốc vẽ cho tín hiệu gần nhất, khớp với EA) ==="
 input double InpStopLossPercent = 0.25;
 input double InpTP1Multiplier   = 1.0;
 input double InpTP2Multiplier   = 2.0;
 
-input group "=== Display ==="
-input int    InpLineLength  = 1;    // bars the entry/SL/TP lines extend to the right
+input group "=== Hiển Thị ==="
+input int    InpLineLength  = 1;    // số nến đường Entry/SL/TP kéo dài sang phải
 input bool   InpShowNumbers = true;
 input bool   InpShowLabels  = true;
 
-input group "=== Dashboard ==="
+input group "=== Bảng Điều Khiển ==="
 input bool   InpShowDashboard   = true;
 input ENUM_BASE_CORNER InpDashboardCorner = CORNER_LEFT_UPPER;
 input int    InpDashboardFontSize = 9;
 
-input group "=== Telegram Alert ==="
+input group "=== Cảnh Báo Telegram ==="
 input bool   InpTelegramEnabled  = false;
-input string InpTelegramBotToken = ""; // from @BotFather
+input string InpTelegramBotToken = ""; // lấy từ @BotFather
 input string InpTelegramChatId   = "";
 
-input group "=== Win-Rate Stats Table ==="
-input bool   InpShowStatsTable = true; // historical % of signals that reached TP1/TP2 vs hit SL first
+input group "=== Bảng Thống Kê Tỷ Lệ Thắng ==="
+input bool   InpShowStatsTable = true; // % lịch sử tín hiệu đã chạm TP1/TP2 so với chạm SL trước
 
 //====================================================================
 // Buffers
@@ -103,7 +103,7 @@ bool   g_haveSignal = false;
 datetime g_lastAlertBarTime = 0;
 bool   g_firstCalc = true;
 
-#define OBJ_PREFIX "DTC135_"
+#define OBJ_PREFIX "DTC136_"
 
 //====================================================================
 // Win-rate stats: forward-simulate each historical signal (SL moves to
@@ -161,11 +161,17 @@ int OnInit()
       handleEma4==INVALID_HANDLE || handleEma5==INVALID_HANDLE || handleEma6==INVALID_HANDLE ||
       handleAtr==INVALID_HANDLE)
    {
-      Print("[DTC-Ind] Failed to create indicator handles");
+      Print("[DTC-Ind] Không thể tạo handle chỉ báo");
       return INIT_FAILED;
    }
 
-   IndicatorSetString(INDICATOR_SHORTNAME, "DTC - v1.35");
+   // dọn mọi object của bản cũ (DTC135_...) và các object TP3/TP4 còn sót lại, ngay khi nạp lại
+   ObjectsDeleteAll(0, "DTC135_");
+   ObjectDelete(0, OBJ_PREFIX+"tp3Line"); ObjectDelete(0, OBJ_PREFIX+"tp4Line");
+   ObjectDelete(0, OBJ_PREFIX+"tp3Lbl");  ObjectDelete(0, OBJ_PREFIX+"tp4Lbl");
+   ObjectDelete(0, OBJ_PREFIX+"dash_stat_row4"); ObjectDelete(0, OBJ_PREFIX+"dash_stat_row5");
+
+   IndicatorSetString(INDICATOR_SHORTNAME, "DTC - v1.36");
    return INIT_SUCCEEDED;
 }
 
@@ -212,15 +218,15 @@ void DrawSignalLabel(string name, datetime t, double price, bool isBuy)
    ObjectSetInteger(0, name, OBJPROP_COLOR, isBuy?clrLime:clrRed);
    ObjectSetInteger(0, name, OBJPROP_WIDTH, 3);
    ObjectSetInteger(0, name, OBJPROP_SELECTABLE, false);
-   ObjectSetString(0, name, OBJPROP_TOOLTIP, isBuy?"BUY":"SELL");
+   ObjectSetString(0, name, OBJPROP_TOOLTIP, isBuy?"MUA":"BÁN");
 }
 
 void SendTelegramAlert(string signalType, double entry, double sl, double t1, double t2)
 {
    if(!InpTelegramEnabled || InpTelegramBotToken=="" || InpTelegramChatId=="") return;
 
-   string msg = signalType + " Signal - " + _Symbol + " (" + EnumToString((ENUM_TIMEFRAMES)Period()) + ")" +
-      "\nEntry: " + DoubleToString(entry, _Digits) +
+   string msg = "Tín hiệu " + signalType + " - " + _Symbol + " (" + EnumToString((ENUM_TIMEFRAMES)Period()) + ")" +
+      "\nVào lệnh: " + DoubleToString(entry, _Digits) +
       "\nSL: " + DoubleToString(sl, _Digits) +
       "\nTP1: " + DoubleToString(t1, _Digits) +
       "\nTP2: " + DoubleToString(t2, _Digits);
@@ -233,7 +239,7 @@ void SendTelegramAlert(string signalType, double entry, double sl, double t1, do
    StringToCharArray(json, post, 0, StringLen(json));
    int res = WebRequest("POST", url, headers, 5000, post, result, resultHeaders);
    if(res==-1)
-      PrintFormat("[DTC-Ind] Telegram WebRequest failed, error=%d. Add %s to Tools>Options>Expert Advisors>Allow WebRequest.", GetLastError(), url);
+      PrintFormat("[DTC-Ind] Gửi Telegram thất bại, lỗi=%d. Thêm %s vào Tools>Options>Expert Advisors>Allow WebRequest.", GetLastError(), url);
 }
 
 void QueueSignalForStats(bool bullish, double entry, double sl, double tp1, double tp2, int barIndex)
@@ -310,13 +316,10 @@ void UpdateStatsTable(int rowOffset)
 {
    if(!InpShowStatsTable) { ObjectsDeleteAll(0, OBJ_PREFIX+"dash_stat"); return; }
 
-   // clean up TP3/TP4 rows left over from older versions of this indicator
-   DeleteObj(OBJ_PREFIX+"dash_stat_row4"); DeleteObj(OBJ_PREFIX+"dash_stat_row5");
-
    long total = g_statTotal;
    string rows[4];
    color  clrs[4];
-   rows[0] = "Win Rate (n=" + IntegerToString((int)total) + ")"; clrs[0] = clrWhite;
+   rows[0] = "Tỷ Lệ Thắng (n=" + IntegerToString((int)total) + ")"; clrs[0] = clrWhite;
 
    string tpLabel[2] = {"TP1","TP2"};
    for(int k=0; k<2; k++)
@@ -359,12 +362,12 @@ void UpdateDashboard()
    if(CopyBuffer(handleHtf5Fast,0,0,1,f5)<=0 || CopyBuffer(handleHtf5Slow,0,0,1,s5)<=0) return;
 
    string rows[6];
-   rows[0] = "DTC V - 1.35";
-   rows[1] = "15   " + (f1[0]>s1[0] ? "Bullish" : "Bearish");
-   rows[2] = "30   " + (f2[0]>s2[0] ? "Bullish" : "Bearish");
-   rows[3] = "60   " + (f3[0]>s3[0] ? "Bullish" : "Bearish");
-   rows[4] = "240  " + (f4[0]>s4[0] ? "Bullish" : "Bearish");
-   rows[5] = "D    " + (f5[0]>s5[0] ? "Bullish" : "Bearish");
+   rows[0] = "DTC V - 1.36";
+   rows[1] = "15   " + (f1[0]>s1[0] ? "Tăng" : "Giảm");
+   rows[2] = "30   " + (f2[0]>s2[0] ? "Tăng" : "Giảm");
+   rows[3] = "60   " + (f3[0]>s3[0] ? "Tăng" : "Giảm");
+   rows[4] = "240  " + (f4[0]>s4[0] ? "Tăng" : "Giảm");
+   rows[5] = "D    " + (f5[0]>s5[0] ? "Tăng" : "Giảm");
    bool bull[6];
    bull[0]=true; bull[1]=(f1[0]>s1[0]); bull[2]=(f2[0]>s2[0]); bull[3]=(f3[0]>s3[0]); bull[4]=(f4[0]>s4[0]); bull[5]=(f5[0]>s5[0]);
 
@@ -471,15 +474,13 @@ int OnCalculate(const int rates_total, const int prev_calculated, const datetime
       DrawHLine(OBJ_PREFIX+"slLine",    time[i], sl,    t2, clrRed);
       DrawHLine(OBJ_PREFIX+"tp1Line",   time[i], tp1,   t2, clrGreen);
       DrawHLine(OBJ_PREFIX+"tp2Line",   time[i], tp2,   t2, clrGreen);
-      DeleteObj(OBJ_PREFIX+"tp3Line"); DeleteObj(OBJ_PREFIX+"tp4Line"); // clean up leftovers from older versions
 
       if(InpShowNumbers)
       {
-         DrawPriceLabel(OBJ_PREFIX+"entryLbl", t2, entry, "ENTRY "+DoubleToString(entry,_Digits), clrBlue);
-         DrawPriceLabel(OBJ_PREFIX+"slLbl",    t2, sl,    "SL "+DoubleToString(sl,_Digits),        clrRed);
-         DrawPriceLabel(OBJ_PREFIX+"tp1Lbl",   t2, tp1,   "TP1 "+DoubleToString(tp1,_Digits),      clrGreen);
-         DrawPriceLabel(OBJ_PREFIX+"tp2Lbl",   t2, tp2,   "TP2 "+DoubleToString(tp2,_Digits),      clrGreen);
-         DeleteObj(OBJ_PREFIX+"tp3Lbl"); DeleteObj(OBJ_PREFIX+"tp4Lbl");
+         DrawPriceLabel(OBJ_PREFIX+"entryLbl", t2, entry, "VÀO LỆNH "+DoubleToString(entry,_Digits), clrBlue);
+         DrawPriceLabel(OBJ_PREFIX+"slLbl",    t2, sl,    "SL "+DoubleToString(sl,_Digits),          clrRed);
+         DrawPriceLabel(OBJ_PREFIX+"tp1Lbl",   t2, tp1,   "TP1 "+DoubleToString(tp1,_Digits),        clrGreen);
+         DrawPriceLabel(OBJ_PREFIX+"tp2Lbl",   t2, tp2,   "TP2 "+DoubleToString(tp2,_Digits),        clrGreen);
       }
 
       g_entry=entry; g_sl=sl; g_tp1=tp1; g_tp2=tp2;
@@ -489,7 +490,7 @@ int OnCalculate(const int rates_total, const int prev_calculated, const datetime
       // Only alert for the newest closed bar, and never on the indicator's first (historical) calc pass
       if(i==lastClosedBar && !g_firstCalc && time[i]>g_lastAlertBarTime)
       {
-         SendTelegramAlert(longSignal?"BUY":"SELL", entry, sl, tp1, tp2);
+         SendTelegramAlert(longSignal?"MUA":"BÁN", entry, sl, tp1, tp2);
          g_lastAlertBarTime = time[i];
       }
    }

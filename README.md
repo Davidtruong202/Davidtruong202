@@ -103,24 +103,26 @@ giao dịch với số vốn bạn chấp nhận rủi ro mất.
 
 ---
 
-# DTC - v1.35 (port từ Pine Script sang MT5)
+# DTC - v1.36 (port từ Pine Script "DTC - v1.35" sang MT5)
 
 Bản chuyển đổi indicator TradingView **"DTC - v1.35"** (hệ thống 6 đường
 EMA 30/35/40/45/50/60 xác định xu hướng, đổi màu theo trend, dashboard đa
-khung thời gian, vẽ Entry/SL/TP1-4, và cảnh báo Telegram) sang MetaTrader 5.
-Có 2 file, dùng độc lập với bộ EA ICT/SMC ở trên:
+khung thời gian, vẽ Entry/SL/TP, và cảnh báo Telegram) sang MetaTrader 5.
+Toàn bộ giao diện (Inputs, dashboard, bảng, tin nhắn Telegram, log) đã
+được Việt hoá có dấu. Có 2 file, dùng độc lập với bộ EA ICT/SMC ở trên:
 
-- `MQL5/Indicators/DTC_v135.mq5` — **Custom Indicator**, bám sát bản Pine
+- `MQL5/Indicators/DTC_v136.mq5` — **Custom Indicator**, bám sát bản Pine
   Script gốc nhất có thể: 6 đường EMA đổi màu xanh/đỏ/xám theo trend, nhãn
-  mũi tên BUY/SELL tại mọi điểm tín hiệu lịch sử, đường + nhãn Entry/SL/TP1-4
-  cho tín hiệu gần nhất, dashboard 15M/30M/1H/4H/D ở góc trên-phải, và gửi
-  cảnh báo Telegram (gọi thẳng Telegram Bot API bằng `WebRequest`, không cần
-  `alert()` + webhook như trên TradingView), và bảng **thống kê Win Rate**
-  (xem mục riêng bên dưới). **Không tự vào lệnh.**
-- `MQL5/Experts/DTC_v135_EA.mq5` — **Expert Advisor** tự động giao dịch dựa
+  mũi tên MUA/BÁN tại mọi điểm tín hiệu lịch sử, đường + nhãn "VÀO LỆNH"/
+  SL/TP1/TP2 cho tín hiệu gần nhất, dashboard 15M/30M/1H/4H/D ở góc
+  trên-trái, và gửi cảnh báo Telegram (gọi thẳng Telegram Bot API bằng
+  `WebRequest`, không cần `alert()` + webhook như trên TradingView), cùng
+  bảng **Thống Kê Tỷ Lệ Thắng** (xem mục riêng bên dưới). **Không tự vào
+  lệnh.**
+- `MQL5/Experts/DTC_v136_EA.mq5` — **Expert Advisor** tự động giao dịch dựa
   trên đúng tín hiệu cắt/thẳng hàng EMA của indicator trên. Vì bản Pine Script
   gốc chỉ vẽ chart chứ không tự quản lý lệnh, EA bổ sung phần quản lý vị thế:
-  - Vào lệnh Buy/Sell khi 6 EMA vừa thẳng hàng (giống hệt điều kiện
+  - Vào lệnh Mua/Bán khi 6 EMA vừa thẳng hàng (giống hệt điều kiện
     `bullish_trend`/`bearish_trend` trong Pine Script), tính trên nến vừa
     đóng cửa (không dùng nến đang chạy, tránh repaint) — vào lệnh ngay tick
     đầu tiên của nến mới, không có độ trễ nhân tạo.
@@ -156,35 +158,31 @@ Có 2 file, dùng độc lập với bộ EA ICT/SMC ở trên:
     kết lời/lỗ **của đúng ngày/tháng vừa qua** — độc lập với thông báo mỗi
     lần vào lệnh.
 
-## Bảng thống kê Win Rate (indicator)
+## Bảng Thống Kê Tỷ Lệ Thắng (indicator)
 
-`DTC_v135.mq5` hiển thị thêm một bảng nhỏ ngay dưới dashboard MTF (bật/tắt
-bằng `InpShowStatsTable`), liệt kê % tín hiệu lịch sử đã chạm từng mốc:
+`DTC_v136.mq5` hiển thị thêm một bảng nhỏ ngay dưới dashboard MTF (bật/tắt
+bằng `InpShowStatsTable`), liệt kê % tín hiệu lịch sử đã chạm từng mốc —
+**chỉ TP1/TP2, khớp đúng với những gì EA thực sự giao dịch**:
 
 ```
-Win Rate (n=42)
+Tỷ Lệ Thắng (n=42)
 TP1  71.4%  (30)
 TP2  47.6%  (20)
-TP3  28.6%  (12)
-TP4  16.7%  (7)
 SL   28.6%  (12)
 ```
 
-Cách tính: với mỗi tín hiệu Long/Short trong lịch sử, indicator tự mô
+Cách tính: với mỗi tín hiệu Mua/Bán trong lịch sử, indicator tự mô
 phỏng tiến về sau trên đúng dữ liệu giá của chart (dùng high/low từng nến)
 để xem giá chạm SL hay TP1 trước; nếu chạm TP1 trước, SL giả định được dời
-về hoà vốn rồi tiếp tục xét TP2, v.v. Một tín hiệu được tính là **thắng ở
-mức TPx** nếu giá từng chạm tới đó, bất kể sau đó lệnh dừng ở hoà vốn hay đi
+về hoà vốn rồi tiếp tục xét TP2. Một tín hiệu được tính là **thắng ở mức
+TPx** nếu giá từng chạm tới đó, bất kể sau đó lệnh dừng ở hoà vốn hay đi
 tiếp; **SL** chỉ tính khi giá chạm SL gốc *trước khi* từng chạm TP1 (thua
-toàn bộ). Bảng này vẫn thống kê đủ TP1-TP4 để bám sát 4 mốc mà bản Pine
-Script gốc vẽ ra — bản EA (bên dưới) chỉ thực sự giao dịch TP1/TP2 nên số
-liệu TP3/TP4 ở đây mang tính tham khảo xu hướng đi xa của giá, không phản
-ánh lệnh thật của EA. Tín hiệu quá mới, giá chưa kịp đi đến đâu, sẽ tạm
-không được tính vào `n` cho tới khi có đủ nến để phân định
-kết quả. Đây là thống kê dựa trên đúng lịch sử giá của chart đang mở —
-không phải kết quả backtest chính thức của Strategy Tester, và nếu SL/TP
-chạm cùng một nến thì mặc định coi SL chạm trước (giả định an toàn/thận
-trọng vì không có dữ liệu tick trong lịch sử OHLC).
+toàn bộ). Tín hiệu quá mới, giá chưa kịp đi đến đâu, sẽ tạm không được
+tính vào `n` cho tới khi có đủ nến để phân định kết quả. Đây là thống kê
+dựa trên đúng lịch sử giá của chart đang mở — không phải kết quả backtest
+chính thức của Strategy Tester, và nếu SL/TP chạm cùng một nến thì mặc
+định coi SL chạm trước (giả định an toàn/thận trọng vì không có dữ liệu
+tick trong lịch sử OHLC).
 
 ## Những khác biệt so với script Pine gốc
 
@@ -192,22 +190,37 @@ trọng vì không có dữ liệu tick trong lịch sử OHLC).
    ra `sl_length` nhưng **không được dùng ở đâu khác** trong code Pine (biến
    `lowest_low`/`highest_high` tính ra rồi bỏ không) — coi như dead code nên
    không port sang, không ảnh hưởng gì đến hành vi hiển thị hay giao dịch.
-2. TradingView gửi Telegram qua cơ chế `alert()` + webhook URL (đã chứa sẵn
+2. Script gốc có 4 mốc TP (TP1-TP4); bản MT5 (cả indicator lẫn EA) **chỉ
+   dùng TP1/TP2** theo đúng yêu cầu khi làm việc — TP3/TP4 đã bỏ hẳn khỏi
+   cả phần vẽ chart lẫn phần giao dịch, không còn xuất hiện ở đâu nữa.
+3. TradingView gửi Telegram qua cơ chế `alert()` + webhook URL (đã chứa sẵn
    Bot Token) do người dùng dán vào ô Alert; MT5 không có khái niệm này nên
    indicator/EA gọi thẳng Telegram Bot API bằng `WebRequest`, cần thêm input
    **Bot Token** (lấy từ @BotFather) chứ không chỉ Chat ID.
-3. Script gốc chỉ vẽ Entry/SL/TP1-4 — không tự đóng/chốt lệnh, không đảo
-   chiều. EA chỉ giao dịch **TP1 và TP2** (bỏ TP3/TP4), mở 2 lệnh riêng biệt
-   khối lượng chia đều thay vì 1 lệnh rồi tự chốt từng phần, tự dời SL về
-   hoà vốn sau TP1, và luôn đảo chiều khi có tín hiệu ngược — toàn bộ phần
-   quản lý vị thế này hoàn toàn mới so với bản Pine Script (theo yêu cầu khi
-   tạo EA).
+4. Script gốc chỉ vẽ Entry/SL/TP — không tự đóng/chốt lệnh, không đảo
+   chiều. EA thêm: mở 2 lệnh riêng biệt khối lượng chia đều (1 lệnh/TP) thay
+   vì 1 lệnh rồi tự chốt từng phần, tự dời SL về hoà vốn sau TP1, luôn đảo
+   chiều khi có tín hiệu ngược, cộng thêm bảng lợi nhuận theo ngày/tháng và
+   thông báo Telegram tổng kết — toàn bộ phần này hoàn toàn mới so với bản
+   Pine Script (theo yêu cầu khi tạo EA).
+
+## Đổi tên file: DTC_v135 → DTC_v136
+
+Indicator và EA đã đổi tên từ `DTC_v135.mq5`/`DTC_v135_EA.mq5` sang
+`DTC_v136.mq5`/`DTC_v136_EA.mq5` để MT5 chắc chắn nạp đúng bản mới (tránh
+tình trạng file `.ex5` cũ vẫn được cache lại dưới tên cũ, khiến chart vẫn
+hiện hành vi cũ dù source đã sửa). Nếu chart của bạn đang gắn bản `v135`
+cũ, hãy gỡ nó ra và gắn lại bằng file `v136` mới; các object/đường kẻ của
+bản cũ (tiền tố `DTC135_`, `DTCEA135_`) sẽ tự động được dọn sạch khi bản
+`v136` khởi động lần đầu trên chart đó.
 
 ## Cài đặt
 
-1. Copy `DTC_v135.mq5` vào `MQL5/Indicators/` và/hoặc `DTC_v135_EA.mq5` vào
+1. Copy `DTC_v136.mq5` vào `MQL5/Indicators/` và/hoặc `DTC_v136_EA.mq5` vào
    `MQL5/Experts/`, mở MetaEditor, biên dịch (F7). Môi trường này không có
    MetaTrader để compile/test — kiểm tra kỹ lỗi cú pháp trước khi chạy thật.
+   Nếu chữ tiếng Việt hiển thị lỗi font trong MetaEditor, vào **File → Save
+   As**, chọn encoding UTF-8 rồi lưu lại trước khi biên dịch.
 2. Nếu bật Telegram Alert: vào **Tools → Options → Expert Advisors**, tick
    "Allow WebRequest for listed URL" và thêm
    `https://api.telegram.org` vào danh sách, rồi điền Bot Token + Chat ID
