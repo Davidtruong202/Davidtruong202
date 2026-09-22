@@ -256,6 +256,22 @@ góc trên bên phải chart), gỡ hết bản cũ, chỉ giữ đúng 1 bản 
 nhất. Từ bản này, mọi bảng (dashboard, thống kê, P&L, lịch sử lệnh) đều có
 khung nền riêng để không bị "nổi chữ" đè lên nến hay đè lên bảng khác.
 
+## Kéo thả bảng + chữ không bao giờ lọt ra ngoài khung
+
+Mọi bảng (dashboard+thống kê của indicator; P&L, lịch sử lệnh, trạng thái+
+nút Test của EA) đều **kéo thả được bằng chuột**: bấm giữ ngay trên khung
+nền của bảng rồi kéo tới vị trí bạn muốn trên chart, thả ra là xong — vị
+trí mới được nhớ lại, không bị nhảy về chỗ cũ ở lần làm mới tiếp theo
+(mỗi 20 giây với EA, mỗi khi có nến mới với indicator). Muốn đưa bảng về
+lại góc mặc định thì đổi giá trị input góc tương ứng (`InpDashboardCorner`,
+`InpPnLCorner`, `InpTradeLogCorner`, `InpButtonCorner`) rồi gắn lại
+indicator/EA.
+
+Bề rộng mỗi khung nền được **tự tính theo đúng độ dài chữ dài nhất** đang
+hiển thị trong bảng đó (dùng `TextGetSize` đo pixel thật của font Consolas)
+cộng thêm khoảng đệm, nên chữ luôn nằm gọn bên trong khung, không lọt ra
+ngoài dù số tiền lời/lỗ dài hay ngắn.
+
 ## Cài đặt
 
 1. Copy `DTC_v138.mq5` vào `MQL5/Indicators/` và/hoặc `DTC_v138_EA.mq5` vào

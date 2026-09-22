@@ -83,6 +83,12 @@ bool   g_beApplied = false;
 
 datetime g_curDayStart = 0, g_curMonthStart = 0;
 
+// Vị trí góc trên-trái của từng bảng - kéo thả bằng chuột ngay trên chart để đổi
+// chỗ, vị trí mới được giữ nguyên qua các lần bảng tự làm mới.
+int g_pnlX=10, g_pnlY=10;
+int g_logX=10, g_logY=10;
+int g_panelX=10, g_panelY=10;
+
 #define OBJ_PREFIX "DTCEA138_"
 
 //====================================================================
@@ -166,10 +172,11 @@ void UpdatePnLDashboard()
    clrs[2] = monthPnL>=0 ? clrLime : clrRed;
 
    int rowH = InpPnLFontSize+7;
-   int panelW = 150;
-   int baseX=10, baseY=10;
+   int panelW = MeasureMaxTextWidth(rows, InpPnLFontSize) + 14;
+   int baseX=g_pnlX, baseY=g_pnlY;
 
    DrawTableRect(OBJ_PREFIX+"pnl_bg", InpPnLCorner, baseX, baseY, panelW, rowH*3, C'20,20,20', clrSilver);
+   ObjectSetInteger(0, OBJ_PREFIX+"pnl_bg", OBJPROP_SELECTABLE, true); // kéo thả bằng chuột để đổi vị trí
    for(int r=0; r<3; r++)
       DrawTableText(OBJ_PREFIX+"pnl_row"+IntegerToString(r), InpPnLCorner, baseX+6, baseY+4+r*rowH, rows[r], clrs[r], InpPnLFontSize);
 }
@@ -220,6 +227,21 @@ void DrawTableText(string name, ENUM_BASE_CORNER corner, int x, int y, string te
    ObjectSetInteger(0, name, OBJPROP_COLOR, clr);
 }
 
+// Đo bề rộng (pixel) của dòng chữ dài nhất trong mảng, để khung nền luôn đủ rộng
+// chứa hết chữ - không bao giờ bị chữ lọt ra ngoài khung.
+int MeasureMaxTextWidth(const string &arr[], int fontSize)
+{
+   TextSetFont("Consolas", -fontSize*10);
+   int maxW = 0;
+   for(int i=0; i<ArraySize(arr); i++)
+   {
+      int w=0, h=0;
+      TextGetSize(arr[i], w, h);
+      if(w>maxW) maxW=w;
+   }
+   return maxW;
+}
+
 // Bảng lịch sử N lệnh gần nhất đã đóng của đúng EA này (lọc theo InpMagicNumber, lấy từ
 // deal history thật của tài khoản - không phải mô phỏng). Mỗi tín hiệu tạo 2 dòng (lệnh TP1
 // + lệnh TP2) vì đó là 2 lệnh riêng biệt. Kết quả (TP1/TP2/SL/Đóng tay) đọc từ comment của
@@ -262,17 +284,34 @@ void UpdateTradeLogTable()
 
    int fontSize = InpTradeLogFontSize;
    int rowH = fontSize+7;
-   int colGio=52, colLoai=42, colKq=58, colPL=82;
+   int n = ArraySize(rows);
+
+   // đo bề rộng từng cột riêng (kể cả tiêu đề) để không cột nào bị chữ lọt ra ngoài
+   string col0Texts[]; ArrayResize(col0Texts, n+1); col0Texts[0]="Giờ";
+   string col1Texts[]; ArrayResize(col1Texts, n+1); col1Texts[0]="Loại";
+   string col2Texts[]; ArrayResize(col2Texts, n+1); col2Texts[0]="Kết quả";
+   string col3Texts[]; ArrayResize(col3Texts, n+1); col3Texts[0]="Lãi/Lỗ";
+   for(int i=0; i<n; i++)
+   {
+      col0Texts[i+1] = TimeToString(rows[i].t, TIME_MINUTES);
+      col1Texts[i+1] = rows[i].bullish?"MUA":"BÁN";
+      col2Texts[i+1] = rows[i].result;
+      col3Texts[i+1] = FormatMoney(rows[i].profit);
+   }
+   int colGio = MeasureMaxTextWidth(col0Texts, fontSize) + 10;
+   int colLoai = MeasureMaxTextWidth(col1Texts, fontSize) + 10;
+   int colKq = MeasureMaxTextWidth(col2Texts, fontSize) + 10;
+   int colPL = MeasureMaxTextWidth(col3Texts, fontSize) + 10;
    int tableW = colGio+colLoai+colKq+colPL;
-   int baseX=10, baseY=10;
+   int baseX=g_logX, baseY=g_logY;
 
    DrawTableRect(OBJ_PREFIX+"log_hdr_bg", InpTradeLogCorner, baseX, baseY, tableW, rowH, C'40,40,40', clrSilver);
+   ObjectSetInteger(0, OBJ_PREFIX+"log_hdr_bg", OBJPROP_SELECTABLE, true); // kéo thả bằng chuột để đổi vị trí cả bảng
    DrawTableText(OBJ_PREFIX+"log_hdr_0", InpTradeLogCorner, baseX+4, baseY+3, "Giờ", clrWhite, fontSize);
    DrawTableText(OBJ_PREFIX+"log_hdr_1", InpTradeLogCorner, baseX+colGio+2, baseY+3, "Loại", clrWhite, fontSize);
    DrawTableText(OBJ_PREFIX+"log_hdr_2", InpTradeLogCorner, baseX+colGio+colLoai+2, baseY+3, "Kết quả", clrWhite, fontSize);
    DrawTableText(OBJ_PREFIX+"log_hdr_3", InpTradeLogCorner, baseX+colGio+colLoai+colKq+2, baseY+3, "Lãi/Lỗ", clrWhite, fontSize);
 
-   int n = ArraySize(rows);
    for(int r=0; r<TRADE_LOG_MAX_ROWS; r++)
    {
       string rectName = OBJ_PREFIX+"log_row_bg"+IntegerToString(r);
@@ -332,8 +371,7 @@ void UpdateStatusPanel()
 
    int fontSize = 9;
    int rowH = fontSize+7;
-   int panelW = 210;
-   int baseX=10, baseY=10;
+   int baseX=g_panelX, baseY=g_panelY;
 
    int dir;
    bool hasPos = GroupOpen(dir);
@@ -346,12 +384,16 @@ void UpdateStatusPanel()
    rows[2] = "Lệnh: " + (hasPos ? ("Đang giữ " + (dir==1?"MUA":"BÁN")) : "Không có"); clrs[2] = hasPos ? clrAqua : clrSilver;
    rows[3] = "Trạng thái: Đang chạy"; clrs[3] = clrLime;
 
+   int btnW = 66, btnH = 22, gap=4;
+   int buttonsW = 3*btnW + 2*gap;
+   int panelW = MathMax(MeasureMaxTextWidth(rows, fontSize) + 14, buttonsW + 12);
+
    DrawTableRect(OBJ_PREFIX+"panel_bg", InpButtonCorner, baseX, baseY, panelW, rowH*4, C'20,20,20', clrSilver);
+   ObjectSetInteger(0, OBJ_PREFIX+"panel_bg", OBJPROP_SELECTABLE, true); // kéo thả bằng chuột để đổi vị trí cả khối
    for(int r=0; r<4; r++)
       DrawTableText(OBJ_PREFIX+"panel_row"+IntegerToString(r), InpButtonCorner, baseX+6, baseY+4+r*rowH, rows[r], clrs[r], fontSize);
 
    int btnY = baseY + rowH*4 + 6;
-   int btnW = 66, btnH = 22, gap=4;
    CreateButton(OBJ_PREFIX+"btn_testtg",   InpButtonCorner, baseX,              btnY, btnW, btnH, "Test TG",   C'20,80,20',  clrWhite);
    CreateButton(OBJ_PREFIX+"btn_testbuy",  InpButtonCorner, baseX+btnW+gap,     btnY, btnW, btnH, "Test BUY",  C'20,120,20', clrWhite);
    CreateButton(OBJ_PREFIX+"btn_testsell", InpButtonCorner, baseX+2*(btnW+gap),btnY, btnW, btnH, "Test SELL", C'140,20,20', clrWhite);
@@ -397,25 +439,53 @@ void HandleTestButtonClick(bool bullish)
 
 void OnChartEvent(const int id, const long &lparam, const double &dparam, const string &sparam)
 {
-   if(id != CHARTEVENT_OBJECT_CLICK) return;
+   if(id == CHARTEVENT_OBJECT_CLICK)
+   {
+      if(sparam == OBJ_PREFIX+"btn_testtg")
+      {
+         ObjectSetInteger(0, sparam, OBJPROP_STATE, false);
+         SendTestTelegramMessages();
+         ChartRedraw();
+      }
+      else if(sparam == OBJ_PREFIX+"btn_testbuy")
+      {
+         ObjectSetInteger(0, sparam, OBJPROP_STATE, false);
+         HandleTestButtonClick(true);
+         ChartRedraw();
+      }
+      else if(sparam == OBJ_PREFIX+"btn_testsell")
+      {
+         ObjectSetInteger(0, sparam, OBJPROP_STATE, false);
+         HandleTestButtonClick(false);
+         ChartRedraw();
+      }
+      return;
+   }
 
-   if(sparam == OBJ_PREFIX+"btn_testtg")
+   // Kéo thả 1 trong 3 khung nền bằng chuột -> vẽ lại đúng bảng đó tại vị trí mới ngay lập tức.
+   if(id == CHARTEVENT_OBJECT_DRAG)
    {
-      ObjectSetInteger(0, sparam, OBJPROP_STATE, false);
-      SendTestTelegramMessages();
-      ChartRedraw();
-   }
-   else if(sparam == OBJ_PREFIX+"btn_testbuy")
-   {
-      ObjectSetInteger(0, sparam, OBJPROP_STATE, false);
-      HandleTestButtonClick(true);
-      ChartRedraw();
-   }
-   else if(sparam == OBJ_PREFIX+"btn_testsell")
-   {
-      ObjectSetInteger(0, sparam, OBJPROP_STATE, false);
-      HandleTestButtonClick(false);
-      ChartRedraw();
+      if(sparam == OBJ_PREFIX+"pnl_bg")
+      {
+         g_pnlX = (int)ObjectGetInteger(0, sparam, OBJPROP_XDISTANCE);
+         g_pnlY = (int)ObjectGetInteger(0, sparam, OBJPROP_YDISTANCE);
+         UpdatePnLDashboard();
+         ChartRedraw();
+      }
+      else if(sparam == OBJ_PREFIX+"log_hdr_bg")
+      {
+         g_logX = (int)ObjectGetInteger(0, sparam, OBJPROP_XDISTANCE);
+         g_logY = (int)ObjectGetInteger(0, sparam, OBJPROP_YDISTANCE);
+         UpdateTradeLogTable();
+         ChartRedraw();
+      }
+      else if(sparam == OBJ_PREFIX+"panel_bg")
+      {
+         g_panelX = (int)ObjectGetInteger(0, sparam, OBJPROP_XDISTANCE);
+         g_panelY = (int)ObjectGetInteger(0, sparam, OBJPROP_YDISTANCE);
+         UpdateStatusPanel();
+         ChartRedraw();
+      }
    }
 }
 

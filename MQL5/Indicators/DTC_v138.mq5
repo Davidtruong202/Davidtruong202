@@ -107,6 +107,10 @@ bool   g_haveSignal = false;
 datetime g_lastAlertBarTime = 0;
 bool   g_firstCalc = true;
 
+// Vị trí góc trên-trái của khối dashboard+thống kê - bạn có thể kéo thả bảng
+// (kéo bằng chuột ngay trên chart) để đổi chỗ, vị trí mới sẽ được giữ nguyên.
+int g_dashX = 10, g_dashY = 10;
+
 #define OBJ_PREFIX "DTC138_"
 
 //====================================================================
@@ -262,6 +266,21 @@ void DrawTableText(string name, ENUM_BASE_CORNER corner, int x, int y, string te
    ObjectSetInteger(0, name, OBJPROP_COLOR, clr);
 }
 
+// Đo bề rộng (pixel) của dòng chữ dài nhất trong mảng, để khung nền luôn đủ rộng
+// chứa hết chữ - không bao giờ bị chữ lọt ra ngoài khung.
+int MeasureMaxTextWidth(const string &arr[], int fontSize)
+{
+   TextSetFont("Consolas", -fontSize*10);
+   int maxW = 0;
+   for(int i=0; i<ArraySize(arr); i++)
+   {
+      int w=0, h=0;
+      TextGetSize(arr[i], w, h);
+      if(w>maxW) maxW=w;
+   }
+   return maxW;
+}
+
 void SendTelegramAlert(string signalType, double entry, double sl, double t1, double t2)
 {
    if(!InpTelegramEnabled || InpTelegramBotToken=="" || InpTelegramChatId=="") return;
@@ -385,8 +404,8 @@ void UpdateStatsTable(int rowOffset)
    clrs[3] = clrRed;
 
    int rowH = InpDashboardFontSize+6;
-   int panelW = 150;
-   int baseX=10, baseY=10+rowOffset*rowH+4; // +4 để có khoảng cách nhỏ với bảng MTF phía trên
+   int panelW = MeasureMaxTextWidth(rows, InpDashboardFontSize) + 14;
+   int baseX = g_dashX, baseY = g_dashY + rowOffset*rowH + 4; // +4: khoảng cách nhỏ với bảng MTF phía trên, đi theo khi bảng MTF bị kéo
 
    DrawTableRect(OBJ_PREFIX+"dash_stat_bg", InpDashboardCorner, baseX, baseY, panelW, rowH*4, C'20,20,20', clrSilver);
    for(int r=0; r<4; r++)
@@ -415,14 +434,28 @@ void UpdateDashboard()
    bull[0]=true; bull[1]=(f1[0]>s1[0]); bull[2]=(f2[0]>s2[0]); bull[3]=(f3[0]>s3[0]); bull[4]=(f4[0]>s4[0]); bull[5]=(f5[0]>s5[0]);
 
    int rowH = InpDashboardFontSize+6;
-   int panelW = 150;
-   int baseX=10, baseY=10;
+   int panelW = MeasureMaxTextWidth(rows, InpDashboardFontSize) + 14;
+   int baseX = g_dashX, baseY = g_dashY;
 
    DrawTableRect(OBJ_PREFIX+"dash_bg", InpDashboardCorner, baseX, baseY, panelW, rowH*6, C'20,20,20', clrSilver);
+   ObjectSetInteger(0, OBJ_PREFIX+"dash_bg", OBJPROP_SELECTABLE, true); // kéo thả bằng chuột để đổi vị trí cả khối
    for(int r=0; r<6; r++)
       DrawTableText(OBJ_PREFIX+"dash_row"+IntegerToString(r), InpDashboardCorner, baseX+6, baseY+4+r*rowH, rows[r], r==0?clrWhite:(bull[r]?clrLime:clrRed), InpDashboardFontSize);
 
    UpdateStatsTable(6);
+}
+
+// Khi bạn kéo khung nền dashboard sang vị trí khác, cả khối (dashboard + bảng thống kê
+// bên dưới) sẽ tự vẽ lại đúng ngay tại vị trí mới, không cần khởi động lại indicator.
+void OnChartEvent(const int id, const long &lparam, const double &dparam, const string &sparam)
+{
+   if(id != CHARTEVENT_OBJECT_DRAG) return;
+   if(sparam != OBJ_PREFIX+"dash_bg") return;
+
+   g_dashX = (int)ObjectGetInteger(0, sparam, OBJPROP_XDISTANCE);
+   g_dashY = (int)ObjectGetInteger(0, sparam, OBJPROP_YDISTANCE);
+   UpdateDashboard();
+   ChartRedraw();
 }
 
 //====================================================================
