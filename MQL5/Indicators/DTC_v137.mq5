@@ -80,6 +80,7 @@ input group "=== Cảnh Báo Telegram ==="
 input bool   InpTelegramEnabled  = false;
 input string InpTelegramBotToken = ""; // lấy từ @BotFather
 input string InpTelegramChatId   = ""; // 1 hoặc nhiều Chat ID cách nhau bởi dấu phẩy, vd: 111111,-100222222,-100333333 (gửi cùng lúc vào nhiều nhóm/kênh)
+input int    InpTelegramThreadId = 0;  // message_thread_id nếu muốn gửi vào 1 Topic cụ thể của nhóm đang bật Forum/Topics (0 = gửi vào nhóm chính, không chỉ định Topic)
 
 input group "=== Bảng Thống Kê Tỷ Lệ Thắng ==="
 input bool   InpShowStatsTable = true; // % lịch sử tín hiệu đã chạm TP1/TP2 so với chạm SL trước
@@ -242,7 +243,8 @@ void SendTelegramAlert(string signalType, double entry, double sl, double t1, do
       if(id=="") continue;
 
       string url = "https://api.telegram.org/bot" + InpTelegramBotToken + "/sendMessage";
-      string json = "{\"chat_id\":\"" + id + "\",\"text\":\"" + msg + "\"}";
+      string json = "{\"chat_id\":\"" + id + "\",\"text\":\"" + msg + "\"" +
+         (InpTelegramThreadId>0 ? ",\"message_thread_id\":"+IntegerToString(InpTelegramThreadId) : "") + "}";
 
       char post[], result[];
       string headers = "Content-Type: application/json\r\n", resultHeaders;

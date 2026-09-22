@@ -245,12 +245,14 @@ khi bản `v137` khởi động lần đầu trên chart đó.
 2. Nếu bật Telegram Alert: vào **Tools → Options → Expert Advisors**, tick
    "Allow WebRequest for listed URL" và thêm
    `https://api.telegram.org` vào danh sách, rồi điền Bot Token + Chat ID
-   vào input của indicator/EA. **Muốn gửi vào nhiều nhóm/kênh cùng lúc**
-   (ví dụ vừa nhóm riêng vừa 1 kênh "Signal Gold" công khai): điền nhiều
-   Chat ID vào cùng ô `InpTelegramChatId`, cách nhau bởi dấu phẩy, ví dụ
-   `111111,-100222222,-100333333` — cả 2 file (indicator lẫn EA) đều tự
-   gửi tin tới từng Chat ID trong danh sách. Số lượng nhóm không giới hạn
-   4, muốn thêm bao nhiêu cũng được, chỉ cần nối thêm dấu phẩy.
+   vào input của indicator/EA. **Muốn gửi vào nhiều nhóm/kênh cùng lúc**:
+   điền nhiều Chat ID vào cùng ô `InpTelegramChatId`, cách nhau bởi dấu
+   phẩy, ví dụ `111111,-100222222,-100333333`. **Muốn gửi vào đúng 1 Topic
+   cụ thể** của một nhóm đang bật tính năng Forum/Topics (ví dụ kênh
+   "Signal Gold" có nhiều topic con 1/2/3/4...): điền số Topic đó vào
+   `InpTelegramThreadId` (giống ô `message_thread_id` trong các EA khác
+   bạn đang dùng) — để `0` nếu gửi thẳng vào nhóm chính, không nhắm topic
+   nào.
 3. Gắn EA/indicator lên đúng symbol + khung thời gian bạn muốn giao dịch
    (không cố định XAUUSD như bộ EA ICT — hệ EMA này dùng được trên mọi
    symbol/khung giống bản Pine Script gốc `overlay=true`).
