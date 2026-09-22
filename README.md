@@ -135,24 +135,36 @@ cũng được, chọn khung làm việc qua input `InpTimeframe` (mặc định
 - **Lọc tin tức**: hai khung giờ chặn theo giờ NY (mặc định quanh 08:30 NY
   cho NFP/CPI và 14:00 NY cho FOMC), có thể tắt/chỉnh qua input.
 
-## Quản lý vốn & rủi ro
+## Quản lý vốn & rủi ro (đúng bảng "Quản lý lệnh & chốt lời" trong tài liệu)
 
-- Rủi ro mỗi lệnh: `InpRiskPercent` (mặc định 0.75%).
+- Rủi ro mỗi lệnh: `InpRiskPercent` (mặc định 1.0%, trong khoảng 1-2%
+  khuyến nghị).
 - **Entry**: market tại giá hiện tại khi nến xác nhận vừa đóng cửa.
 - **Stop Loss**: dưới đáy leg/Band dưới (BUY) hoặc trên đỉnh leg/Band trên
-  (SELL), cộng thêm đệm `InpSLBufferATR × ATR` — đúng như tài liệu "đặt SL
-  phía trên/dưới đỉnh/đáy gần nhất hoặc trên/dưới Band".
-- **Take Profit 3 tầng** (đúng bảng TP trong tài liệu):
+  (SELL), cộng thêm đệm `InpSLBufferATR × ATR` (mặc định 0.75, khuyến nghị
+  0.5-1 ATR) — đúng như tài liệu "đặt SL dưới đáy/trên đỉnh gần nhất hoặc
+  dưới/trên Band".
+- **Take Profit 3 tầng, chốt từng phần TP1 (50%) – TP2 (30%) – TP3 (20%)**
+  (đúng tỉ lệ trong tài liệu):
   - TP1 = đỉnh/đáy gần nhất của leg — đóng `InpTP1ClosePct`% khối lượng
-    gốc, dời SL về hoà vốn.
-  - TP2 = Fibonacci Extension 127.2% — đóng thêm `InpTP2ClosePct`%, dời SL
-    lên/xuống TP1.
-  - TP3 = Fibonacci Extension 161.8% — phần khối lượng còn lại chạy tới
+    gốc (mặc định 50%), dời SL về hoà vốn.
+  - TP2 = Fibonacci Extension 127.2% — đóng thêm `InpTP2ClosePct`% (mặc
+    định 30%), dời SL lên/xuống TP1.
+  - TP3 = Fibonacci Extension 161.8% — 20% khối lượng còn lại chạy tới
     đây (đặt sẵn làm TP của lệnh khi vào).
 - Thoát sớm toàn bộ nếu xuất hiện nến xác nhận ngược hướng trước khi đạt
   TP1 (tránh giữ lệnh khi tín hiệu đã bị vô hiệu).
 - Giới hạn lỗ ngày `InpMaxDailyLossPercent` (3%) và khoá sau
   `InpMaxConsecLosses` lệnh thua liên tiếp (`InpPauseMinutes` phút).
+
+## 4 thời điểm tránh giao dịch (theo tài liệu) — cách EA xử lý
+
+1. **Tin tức mạnh (NFP, CPI, FOMC...)** → hai khung giờ chặn
+   `InpNewsHour1`/`InpNewsHour2` (NY time).
+2. **Thị trường đi ngang** → bộ lọc độ rộng Band `InpMinBandWidthPct`.
+3. **Biến động quá thấp** → bộ lọc leg tối thiểu theo ATR `InpMinLegATR`.
+4. **Không có tín hiệu xác nhận rõ ràng** → chỉ vào lệnh khi có đủ nến xác
+   nhận (Pin Bar/Engulfing/Star) đóng cửa đúng vùng Fib + chạm Band.
 
 ## Những đơn giản hoá so với tài liệu gốc
 

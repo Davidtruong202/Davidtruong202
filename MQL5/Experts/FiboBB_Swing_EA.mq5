@@ -42,13 +42,13 @@ input bool   InpAllowEngulfing  = true;
 input bool   InpAllowStar       = true; // Morning Star / Evening Star
 
 input group "=== Risk Management ==="
-input double InpRiskPercent         = 0.75;
-input double InpSLBufferATR         = 0.3;
+input double InpRiskPercent         = 1.0;  // 1-2% tai khoan moi lenh (khuyen nghi)
+input double InpSLBufferATR         = 0.75; // dem ngoai day/dinh gan nhat hoac Band, khuyen nghi 0.5-1 ATR
 input double InpMaxDailyLossPercent = 3.0;
 input int    InpMaxConsecLosses     = 3;
 input int    InpPauseMinutes        = 60;
-input double InpTP1ClosePct         = 40; // % of original volume closed at TP1
-input double InpTP2ClosePct         = 30; // % of original volume closed at TP2 (remainder rides to TP3)
+input double InpTP1ClosePct         = 50; // % of original volume closed at TP1
+input double InpTP2ClosePct         = 30; // % of original volume closed at TP2 (remaining 20% rides to TP3)
 
 input group "=== Timezone (NY) ==="
 input bool   InpBrokerFixedNYOffset  = true;
