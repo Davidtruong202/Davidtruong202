@@ -103,7 +103,7 @@ giao dịch với số vốn bạn chấp nhận rủi ro mất.
 
 ---
 
-# DTC - v1.37 (port từ Pine Script "DTC - v1.35" sang MT5)
+# DTC - v1.38 (port từ Pine Script "DTC - v1.35" sang MT5)
 
 Bản chuyển đổi indicator TradingView **"DTC - v1.35"** (hệ thống 6 đường
 EMA 30/35/40/45/50/60 xác định xu hướng, đổi màu theo trend, dashboard đa
@@ -111,7 +111,7 @@ khung thời gian, vẽ Entry/SL/TP, và cảnh báo Telegram) sang MetaTrader 5
 Toàn bộ giao diện (Inputs, dashboard, bảng, tin nhắn Telegram, log) đã
 được Việt hoá có dấu. Có 2 file, dùng độc lập với bộ EA ICT/SMC ở trên:
 
-- `MQL5/Indicators/DTC_v137.mq5` — **Custom Indicator**, bám sát bản Pine
+- `MQL5/Indicators/DTC_v138.mq5` — **Custom Indicator**, bám sát bản Pine
   Script gốc nhất có thể: 6 đường EMA đổi màu xanh/đỏ/xám theo trend, nhãn
   mũi tên MUA/BÁN tại mọi điểm tín hiệu lịch sử, đường + nhãn "VÀO LỆNH"/
   SL/TP1/TP2 cho tín hiệu gần nhất, dashboard 15M/30M/1H/4H/D ở góc
@@ -119,7 +119,7 @@ Toàn bộ giao diện (Inputs, dashboard, bảng, tin nhắn Telegram, log) đ�
   `WebRequest`, không cần `alert()` + webhook như trên TradingView), cùng
   bảng **Thống Kê Tỷ Lệ Thắng** (xem mục riêng bên dưới). **Không tự vào
   lệnh.**
-- `MQL5/Experts/DTC_v137_EA.mq5` — **Expert Advisor** tự động giao dịch dựa
+- `MQL5/Experts/DTC_v138_EA.mq5` — **Expert Advisor** tự động giao dịch dựa
   trên đúng tín hiệu cắt/thẳng hàng EMA của indicator trên. Vì bản Pine Script
   gốc chỉ vẽ chart chứ không tự quản lý lệnh, EA bổ sung phần quản lý vị thế:
   - Vào lệnh Mua/Bán khi 6 EMA vừa thẳng hàng (giống hệt điều kiện
@@ -191,7 +191,7 @@ Toàn bộ giao diện (Inputs, dashboard, bảng, tin nhắn Telegram, log) đ�
 
 ## Bảng Thống Kê Tỷ Lệ Thắng (indicator)
 
-`DTC_v137.mq5` hiển thị thêm một bảng nhỏ ngay dưới dashboard MTF (bật/tắt
+`DTC_v138.mq5` hiển thị thêm một bảng nhỏ ngay dưới dashboard MTF (bật/tắt
 bằng `InpShowStatsTable`), liệt kê % tín hiệu lịch sử đã chạm từng mốc —
 **chỉ TP1/TP2, khớp đúng với những gì EA thực sự giao dịch**:
 
@@ -235,19 +235,20 @@ tick trong lịch sử OHLC).
    thông báo Telegram tổng kết — toàn bộ phần này hoàn toàn mới so với bản
    Pine Script (theo yêu cầu khi tạo EA).
 
-## Đổi tên file: DTC_v135 → DTC_v136 → DTC_v137
+## Đổi tên file: DTC_v135 → DTC_v136 → DTC_v137 → DTC_v138
 
-File hiện tại (mới nhất) là `DTC_v137.mq5`/`DTC_v137_EA.mq5`. Mỗi lần đổi
+File hiện tại (mới nhất) là `DTC_v138.mq5`/`DTC_v138_EA.mq5`. Mỗi lần đổi
 tên là để MT5 chắc chắn nạp đúng bản mới (tránh tình trạng file `.ex5` cũ
 vẫn được cache lại dưới tên cũ, khiến chart vẫn hiện hành vi cũ dù source
-đã sửa). Nếu chart của bạn đang gắn bản `v135` hoặc `v136` cũ, hãy gỡ nó ra
-và gắn lại bằng file `v137` mới; các object/đường kẻ của các bản cũ (tiền
-tố `DTC135_`/`DTC136_`, `DTCEA135_`/`DTCEA136_`) sẽ tự động được dọn sạch
-khi bản `v137` khởi động lần đầu trên chart đó.
+đã sửa). Nếu chart của bạn đang gắn bản `v135`/`v136`/`v137` cũ, hãy gỡ nó
+ra và gắn lại bằng file `v138` mới; các object/đường kẻ của các bản cũ
+(tiền tố `DTC135_`/`DTC136_`/`DTC137_`, `DTCEA135_`/`DTCEA136_`/
+`DTCEA137_`) sẽ tự động được dọn sạch khi bản `v138` khởi động lần đầu
+trên chart đó.
 
 ## Cài đặt
 
-1. Copy `DTC_v137.mq5` vào `MQL5/Indicators/` và/hoặc `DTC_v137_EA.mq5` vào
+1. Copy `DTC_v138.mq5` vào `MQL5/Indicators/` và/hoặc `DTC_v138_EA.mq5` vào
    `MQL5/Experts/`, mở MetaEditor, biên dịch (F7). Môi trường này không có
    MetaTrader để compile/test — kiểm tra kỹ lỗi cú pháp trước khi chạy thật.
    Nếu chữ tiếng Việt hiển thị lỗi font trong MetaEditor, vào **File → Save
