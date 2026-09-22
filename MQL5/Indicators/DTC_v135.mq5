@@ -71,7 +71,7 @@ input bool   InpShowLabels  = true;
 
 input group "=== Dashboard ==="
 input bool   InpShowDashboard   = true;
-input ENUM_BASE_CORNER InpDashboardCorner = CORNER_RIGHT_UPPER;
+input ENUM_BASE_CORNER InpDashboardCorner = CORNER_LEFT_UPPER;
 input int    InpDashboardFontSize = 9;
 
 input group "=== Telegram Alert ==="
