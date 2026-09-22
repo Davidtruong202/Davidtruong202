@@ -2,9 +2,10 @@
 //|                                              DTC_v135.mq5        |
 //|  1:1 visual port of the "DTC - v1.35" Pine Script indicator:     |
 //|  6-EMA trend-alignment system with trend-colored EMA lines,      |
-//|  BUY/SELL signal labels, Entry/SL/TP1-4 lines+labels for the     |
-//|  latest signal, a 15M/30M/1H/4H/D trend dashboard, and an        |
-//|  optional Telegram alert on each new confirmed signal. This is a |
+//|  BUY/SELL signal labels, Entry/SL/TP1/TP2 lines+labels for the   |
+//|  latest signal (matches the EA, which only trades TP1/TP2), a    |
+//|  15M/30M/1H/4H/D trend dashboard, and an optional Telegram       |
+//|  alert on each new confirmed signal. This is a                   |
 //|  display-only indicator (no auto-trading) - see DTC_v135_EA.mq5  |
 //|  in MQL5/Experts for the auto-trading version. See README.md.    |
 //+------------------------------------------------------------------+
@@ -57,12 +58,10 @@ input ENUM_TIMEFRAMES InpTf3 = PERIOD_H1;
 input ENUM_TIMEFRAMES InpTf4 = PERIOD_H4;
 input ENUM_TIMEFRAMES InpTf5 = PERIOD_D1;
 
-input group "=== Risk Management (levels drawn for the latest signal) ==="
+input group "=== Risk Management (levels drawn for the latest signal, matches the EA) ==="
 input double InpStopLossPercent = 0.25;
 input double InpTP1Multiplier   = 1.0;
 input double InpTP2Multiplier   = 2.0;
-input double InpTP3Multiplier   = 3.0;
-input double InpTP4Multiplier   = 4.0;
 
 input group "=== Display ==="
 input int    InpLineLength  = 1;    // bars the entry/SL/TP lines extend to the right
@@ -80,7 +79,7 @@ input string InpTelegramBotToken = ""; // from @BotFather
 input string InpTelegramChatId   = "";
 
 input group "=== Win-Rate Stats Table ==="
-input bool   InpShowStatsTable = true; // historical % of signals that reached TP1-4 vs hit SL first
+input bool   InpShowStatsTable = true; // historical % of signals that reached TP1/TP2 vs hit SL first
 
 //====================================================================
 // Buffers
@@ -99,7 +98,7 @@ int handleEma1, handleEma2, handleEma3, handleEma4, handleEma5, handleEma6, hand
 int handleHtf1Fast, handleHtf1Slow, handleHtf2Fast, handleHtf2Slow, handleHtf3Fast, handleHtf3Slow,
     handleHtf4Fast, handleHtf4Slow, handleHtf5Fast, handleHtf5Slow;
 
-double g_entry=0, g_sl=0, g_tp1=0, g_tp2=0, g_tp3=0, g_tp4=0;
+double g_entry=0, g_sl=0, g_tp1=0, g_tp2=0;
 bool   g_haveSignal = false;
 datetime g_lastAlertBarTime = 0;
 bool   g_firstCalc = true;
@@ -109,19 +108,19 @@ bool   g_firstCalc = true;
 //====================================================================
 // Win-rate stats: forward-simulate each historical signal (SL moves to
 // breakeven once TP1 is reached, same as the EA) until it resolves as
-// either a loss (SL hit before TP1) or reaches TP1/2/3/4.
+// either a loss (SL hit before TP1) or reaches TP1/TP2.
 //====================================================================
 struct PendingSignal
 {
    bool   bullish;
-   double entry, sl, tp1, tp2, tp3, tp4;
-   int    phase;       // next target index: 0=TP1 .. 3=TP4
+   double entry, sl, tp1, tp2;
+   int    phase;       // next target index: 0=TP1, 1=TP2
    double stopLevel;   // sl initially, moves to entry (breakeven) after TP1
    int    lastScanned; // last bar index already scanned (inclusive)
 };
 PendingSignal g_pending[];
 long   g_statTotal = 0;
-long   g_statReached[4] = {0,0,0,0};
+long   g_statReached[2] = {0,0};
 long   g_statSL = 0;
 
 //====================================================================
@@ -216,7 +215,7 @@ void DrawSignalLabel(string name, datetime t, double price, bool isBuy)
    ObjectSetString(0, name, OBJPROP_TOOLTIP, isBuy?"BUY":"SELL");
 }
 
-void SendTelegramAlert(string signalType, double entry, double sl, double t1, double t2, double t3, double t4)
+void SendTelegramAlert(string signalType, double entry, double sl, double t1, double t2)
 {
    if(!InpTelegramEnabled || InpTelegramBotToken=="" || InpTelegramChatId=="") return;
 
@@ -224,9 +223,7 @@ void SendTelegramAlert(string signalType, double entry, double sl, double t1, do
       "\nEntry: " + DoubleToString(entry, _Digits) +
       "\nSL: " + DoubleToString(sl, _Digits) +
       "\nTP1: " + DoubleToString(t1, _Digits) +
-      "\nTP2: " + DoubleToString(t2, _Digits) +
-      "\nTP3: " + DoubleToString(t3, _Digits) +
-      "\nTP4: " + DoubleToString(t4, _Digits);
+      "\nTP2: " + DoubleToString(t2, _Digits);
 
    string url = "https://api.telegram.org/bot" + InpTelegramBotToken + "/sendMessage";
    string json = "{\"chat_id\":\"" + InpTelegramChatId + "\",\"text\":\"" + msg + "\"}";
@@ -239,21 +236,21 @@ void SendTelegramAlert(string signalType, double entry, double sl, double t1, do
       PrintFormat("[DTC-Ind] Telegram WebRequest failed, error=%d. Add %s to Tools>Options>Expert Advisors>Allow WebRequest.", GetLastError(), url);
 }
 
-void QueueSignalForStats(bool bullish, double entry, double sl, double tp1, double tp2, double tp3, double tp4, int barIndex)
+void QueueSignalForStats(bool bullish, double entry, double sl, double tp1, double tp2, int barIndex)
 {
    int idx = ArraySize(g_pending);
    ArrayResize(g_pending, idx+1);
    g_pending[idx].bullish = bullish;
    g_pending[idx].entry = entry; g_pending[idx].sl = sl;
-   g_pending[idx].tp1 = tp1; g_pending[idx].tp2 = tp2; g_pending[idx].tp3 = tp3; g_pending[idx].tp4 = tp4;
+   g_pending[idx].tp1 = tp1; g_pending[idx].tp2 = tp2;
    g_pending[idx].phase = 0;
    g_pending[idx].stopLevel = sl;
    g_pending[idx].lastScanned = barIndex;
 }
 
 // Advances every pending (not-yet-resolved) signal using bars that are now available,
-// moves the stop to breakeven each time a TP level is reached (mirrors the EA), and
-// commits resolved signals (loss at SL, or exit/close after reaching TP1-4) into the
+// moves the stop to breakeven once TP1 is reached (mirrors the EA), and commits
+// resolved signals (loss at SL, or exit/close after reaching TP1/TP2) into the
 // win-rate counters. Unresolved (still-open) signals are kept for the next call.
 void ResolvePendingSignals(const double &high[], const double &low[], int rates_total)
 {
@@ -263,11 +260,11 @@ void ResolvePendingSignals(const double &high[], const double &low[], int rates_
    bool resolved[];
    ArrayResize(resolved, n);
    ArrayInitialize(resolved, false);
-   double tp[4];
+   double tp[2];
 
    for(int p=0; p<n; p++)
    {
-      tp[0]=g_pending[p].tp1; tp[1]=g_pending[p].tp2; tp[2]=g_pending[p].tp3; tp[3]=g_pending[p].tp4;
+      tp[0]=g_pending[p].tp1; tp[1]=g_pending[p].tp2;
       int j = g_pending[p].lastScanned+1;
       for(; j<rates_total; j++)
       {
@@ -286,8 +283,8 @@ void ResolvePendingSignals(const double &high[], const double &low[], int rates_
          {
             g_statReached[g_pending[p].phase]++;
             g_pending[p].phase++;
-            g_pending[p].stopLevel = g_pending[p].entry; // breakeven after each TP, same as the EA
-            if(g_pending[p].phase>=4) { g_statTotal++; resolved[p]=true; break; }
+            g_pending[p].stopLevel = g_pending[p].entry; // breakeven after TP1, same as the EA
+            if(g_pending[p].phase>=2) { g_statTotal++; resolved[p]=true; break; }
          }
       }
       g_pending[p].lastScanned = MathMin(j, rates_total-1);
@@ -308,28 +305,31 @@ void ResolvePendingSignals(const double &high[], const double &low[], int rates_
 }
 
 // Win-rate table drawn right below the MTF rows: % of resolved historical signals
-// that reached TP1/TP2/TP3/TP4, and % that hit SL before ever reaching TP1.
+// that reached TP1/TP2, and % that hit SL before ever reaching TP1.
 void UpdateStatsTable(int rowOffset)
 {
    if(!InpShowStatsTable) { ObjectsDeleteAll(0, OBJ_PREFIX+"dash_stat"); return; }
 
+   // clean up TP3/TP4 rows left over from older versions of this indicator
+   DeleteObj(OBJ_PREFIX+"dash_stat_row4"); DeleteObj(OBJ_PREFIX+"dash_stat_row5");
+
    long total = g_statTotal;
-   string rows[6];
-   color  clrs[6];
+   string rows[4];
+   color  clrs[4];
    rows[0] = "Win Rate (n=" + IntegerToString((int)total) + ")"; clrs[0] = clrWhite;
 
-   string tpLabel[4] = {"TP1","TP2","TP3","TP4"};
-   for(int k=0; k<4; k++)
+   string tpLabel[2] = {"TP1","TP2"};
+   for(int k=0; k<2; k++)
    {
       double pct = (total>0) ? (100.0*g_statReached[k]/total) : 0.0;
       rows[k+1] = tpLabel[k] + "  " + DoubleToString(pct,1) + "%  (" + IntegerToString((int)g_statReached[k]) + ")";
       clrs[k+1] = clrLime;
    }
    double slPct = (total>0) ? (100.0*g_statSL/total) : 0.0;
-   rows[5] = "SL   " + DoubleToString(slPct,1) + "%  (" + IntegerToString((int)g_statSL) + ")";
-   clrs[5] = clrRed;
+   rows[3] = "SL   " + DoubleToString(slPct,1) + "%  (" + IntegerToString((int)g_statSL) + ")";
+   clrs[3] = clrRed;
 
-   for(int r=0; r<6; r++)
+   for(int r=0; r<4; r++)
    {
       string name = OBJ_PREFIX+"dash_stat_row"+IntegerToString(r);
       if(ObjectFind(0, name) < 0)
@@ -445,22 +445,18 @@ int OnCalculate(const int rates_total, const int prev_calculated, const datetime
       if(!longSignal && !shortSignal) continue;
 
       double entry = close[i];
-      double sl, tp1, tp2, tp3, tp4;
+      double sl, tp1, tp2;
       if(longSignal)
       {
          sl  = entry*(1 - InpStopLossPercent/100.0);
          tp1 = entry*(1 + InpStopLossPercent*InpTP1Multiplier/100.0);
          tp2 = entry*(1 + InpStopLossPercent*InpTP2Multiplier/100.0);
-         tp3 = entry*(1 + InpStopLossPercent*InpTP3Multiplier/100.0);
-         tp4 = entry*(1 + InpStopLossPercent*InpTP4Multiplier/100.0);
       }
       else
       {
          sl  = entry*(1 + InpStopLossPercent/100.0);
          tp1 = entry*(1 - InpStopLossPercent*InpTP1Multiplier/100.0);
          tp2 = entry*(1 - InpStopLossPercent*InpTP2Multiplier/100.0);
-         tp3 = entry*(1 - InpStopLossPercent*InpTP3Multiplier/100.0);
-         tp4 = entry*(1 - InpStopLossPercent*InpTP4Multiplier/100.0);
       }
 
       if(InpShowLabels)
@@ -475,8 +471,7 @@ int OnCalculate(const int rates_total, const int prev_calculated, const datetime
       DrawHLine(OBJ_PREFIX+"slLine",    time[i], sl,    t2, clrRed);
       DrawHLine(OBJ_PREFIX+"tp1Line",   time[i], tp1,   t2, clrGreen);
       DrawHLine(OBJ_PREFIX+"tp2Line",   time[i], tp2,   t2, clrGreen);
-      DrawHLine(OBJ_PREFIX+"tp3Line",   time[i], tp3,   t2, clrGreen);
-      DrawHLine(OBJ_PREFIX+"tp4Line",   time[i], tp4,   t2, clrGreen);
+      DeleteObj(OBJ_PREFIX+"tp3Line"); DeleteObj(OBJ_PREFIX+"tp4Line"); // clean up leftovers from older versions
 
       if(InpShowNumbers)
       {
@@ -484,18 +479,17 @@ int OnCalculate(const int rates_total, const int prev_calculated, const datetime
          DrawPriceLabel(OBJ_PREFIX+"slLbl",    t2, sl,    "SL "+DoubleToString(sl,_Digits),        clrRed);
          DrawPriceLabel(OBJ_PREFIX+"tp1Lbl",   t2, tp1,   "TP1 "+DoubleToString(tp1,_Digits),      clrGreen);
          DrawPriceLabel(OBJ_PREFIX+"tp2Lbl",   t2, tp2,   "TP2 "+DoubleToString(tp2,_Digits),      clrGreen);
-         DrawPriceLabel(OBJ_PREFIX+"tp3Lbl",   t2, tp3,   "TP3 "+DoubleToString(tp3,_Digits),      clrGreen);
-         DrawPriceLabel(OBJ_PREFIX+"tp4Lbl",   t2, tp4,   "TP4 "+DoubleToString(tp4,_Digits),      clrGreen);
+         DeleteObj(OBJ_PREFIX+"tp3Lbl"); DeleteObj(OBJ_PREFIX+"tp4Lbl");
       }
 
-      g_entry=entry; g_sl=sl; g_tp1=tp1; g_tp2=tp2; g_tp3=tp3; g_tp4=tp4;
+      g_entry=entry; g_sl=sl; g_tp1=tp1; g_tp2=tp2;
       g_haveSignal = true;
-      QueueSignalForStats(longSignal, entry, sl, tp1, tp2, tp3, tp4, i);
+      QueueSignalForStats(longSignal, entry, sl, tp1, tp2, i);
 
       // Only alert for the newest closed bar, and never on the indicator's first (historical) calc pass
       if(i==lastClosedBar && !g_firstCalc && time[i]>g_lastAlertBarTime)
       {
-         SendTelegramAlert(longSignal?"BUY":"SELL", entry, sl, tp1, tp2, tp3, tp4);
+         SendTelegramAlert(longSignal?"BUY":"SELL", entry, sl, tp1, tp2);
          g_lastAlertBarTime = time[i];
       }
    }
@@ -506,16 +500,16 @@ int OnCalculate(const int rates_total, const int prev_calculated, const datetime
    if(g_haveSignal)
    {
       datetime tExt = time[rates_total-1] + PeriodSeconds()*InpLineLength;
-      string lineNames[6] = {"entryLine","slLine","tp1Line","tp2Line","tp3Line","tp4Line"};
-      for(int k=0;k<6;k++)
+      string lineNames[4] = {"entryLine","slLine","tp1Line","tp2Line"};
+      for(int k=0;k<4;k++)
       {
          string nm = OBJ_PREFIX+lineNames[k];
          if(ObjectFind(0, nm)>=0) ObjectSetInteger(0, nm, OBJPROP_TIME, 1, tExt);
       }
       if(InpShowNumbers)
       {
-         string lblNames[6] = {"entryLbl","slLbl","tp1Lbl","tp2Lbl","tp3Lbl","tp4Lbl"};
-         for(int k=0;k<6;k++)
+         string lblNames[4] = {"entryLbl","slLbl","tp1Lbl","tp2Lbl"};
+         for(int k=0;k<4;k++)
          {
             string nm = OBJ_PREFIX+lblNames[k];
             if(ObjectFind(0, nm)>=0) ObjectSetInteger(0, nm, OBJPROP_TIME, tExt);
