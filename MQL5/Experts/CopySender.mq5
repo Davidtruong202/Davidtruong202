@@ -18,6 +18,16 @@ string D(const string sym, const double v)
    return DoubleToString(v, digits > 0 ? digits : 5);
   }
 
+void AddUnique(string &arr[], const string s)
+  {
+   for(int i = 0; i < ArraySize(arr); i++)
+      if(arr[i] == s)
+         return;
+   int n = ArraySize(arr);
+   ArrayResize(arr, n + 1);
+   arr[n] = s;
+  }
+
 void Publish()
   {
    int h = FileOpen(InpChannel + ".csv", FILE_WRITE | FILE_TXT | FILE_ANSI | FILE_COMMON | FILE_SHARE_READ);
@@ -54,6 +64,20 @@ void Publish()
                                       D(s, OrderGetDouble(ORDER_TP))));
       n++;
      }
+   // gia hien tai cua nguon -> receiver bu chenh lech gia giua 2 san
+   string qs[];
+   ArrayResize(qs, 0);
+   for(int i = 0; i < PositionsTotal(); i++)
+      if(PositionGetTicket(i) != 0)
+         AddUnique(qs, PositionGetString(POSITION_SYMBOL));
+   for(int i = 0; i < OrdersTotal(); i++)
+      if(OrderGetTicket(i) != 0)
+         AddUnique(qs, OrderGetString(ORDER_SYMBOL));
+   AddUnique(qs, _Symbol);
+   for(int i = 0; i < ArraySize(qs); i++)
+      FileWriteString(h, StringFormat("Q,%s,%s,%s\r\n", qs[i],
+                                      D(qs[i], SymbolInfoDouble(qs[i], SYMBOL_BID)),
+                                      D(qs[i], SymbolInfoDouble(qs[i], SYMBOL_ASK))));
    // dong ket thuc: receiver dung de biet file da ghi xong
    FileWriteString(h, StringFormat("E,%d\r\n", n));
    FileClose(h);

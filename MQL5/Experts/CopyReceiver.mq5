@@ -19,7 +19,10 @@ enum ENUM_LOT_MODE
   };
 
 input string        InpChannel           = "copy1";         // Ten kenh (trung voi CopySender)
-input string        InpSymbolSuffix      = "c";             // Hau to symbol tai khoan nay (Exness cent: XAUUSDc). Trong = giu nguyen
+input string        InpSymbolMap         = "";              // Doi ten symbol, vd "XAUUSD=XAUUSDc" (nhieu cap cach dau ;)
+input string        InpSymbolSuffix      = "";              // Hoac chi them hau to, vd "c" (dung khi khong khai InpSymbolMap)
+input bool          InpPriceOffset       = true;            // Bu chenh lech gia giua 2 san cho SL/TP/lenh cho
+input int           InpSyncTolerancePts  = 30;              // Chi sua SL/TP/gia lenh cho khi lech hon N point
 input ENUM_LOT_MODE InpLotMode           = LOT_MULTIPLIER;  // Cach tinh lot
 input double        InpLotValue          = 1.0;             // He so (mode 0,1) hoac lot co dinh (mode 2)
 input double        InpMaxLot            = 1.0;             // Lot toi da moi lenh
@@ -39,6 +42,8 @@ string   mKind[], mSym[];
 ulong    mTicket[];
 int      mType[];
 double   mVol[], mPrice[], mSL[], mTP[];
+string   qSym[];
+double   qBid[];
 double   mBalance = 0;
 datetime mTs = 0;
 
@@ -96,6 +101,18 @@ bool InList(const ulong &arr[], const ulong t)
 
 string LocalSymbol(const string src)
   {
+   string pairs[];
+   int n = StringSplit(InpSymbolMap, ';', pairs);
+   for(int i = 0; i < n; i++)
+     {
+      string kv[];
+      if(StringSplit(pairs[i], '=', kv) != 2)
+         continue;
+      StringTrimLeft(kv[0]); StringTrimRight(kv[0]);
+      StringTrimLeft(kv[1]); StringTrimRight(kv[1]);
+      if(kv[0] == src && SymbolSelect(kv[1], true))
+         return kv[1];
+     }
    if(StringLen(InpSymbolSuffix) > 0 && SymbolSelect(src + InpSymbolSuffix, true))
       return src + InpSymbolSuffix;
    if(SymbolSelect(src, true))
@@ -148,6 +165,8 @@ bool ReadSource()
    ulong  tk[];
    int    ty[];
    double vol[], pr[], sl[], tp[];
+   string qs[];
+   double qb[];
    double bal = 0;
    datetime ts = 0;
    int n = 0;
@@ -178,6 +197,14 @@ bool ReadSource()
          tp[n]   = StringToDouble(f[7]);
          n++;
         }
+      else if(f[0] == "Q" && k >= 4)
+        {
+         int q = ArraySize(qs);
+         ArrayResize(qs, q + 1);
+         ArrayResize(qb, q + 1);
+         qs[q] = f[1];
+         qb[q] = StringToDouble(f[2]);
+        }
       else if(f[0] == "E" && k >= 2)
          complete = ((int)StringToInteger(f[1]) == n);
      }
@@ -193,10 +220,28 @@ bool ReadSource()
    ArrayCopy(mPrice, pr);   ArrayResize(mPrice, n);
    ArrayCopy(mSL, sl);      ArrayResize(mSL, n);
    ArrayCopy(mTP, tp);      ArrayResize(mTP, n);
+   ArrayCopy(qSym, qs); ArrayResize(qSym, ArraySize(qs));
+   ArrayCopy(qBid, qb); ArrayResize(qBid, ArraySize(qb));
    mBalance = bal;
    mTs = ts;
    return true;
   }
+
+//--- chenh lech gia local - nguon (vd HFM - Exness); cong vao moi muc gia copy sang
+double Offset(const string srcSym, const string sym)
+  {
+   if(!InpPriceOffset)
+      return 0;
+   for(int i = ArraySize(qSym) - 1; i >= 0; i--)
+      if(qSym[i] == srcSym && qBid[i] > 0)
+        {
+         double b = SymbolInfoDouble(sym, SYMBOL_BID);
+         return b > 0 ? b - qBid[i] : 0;
+        }
+   return 0;
+  }
+
+double Shift(const double p, const double off) { return p > 0 ? p + off : 0; }
 
 //+------------------------------------------------------------------+
 ulong FindLocalPosition(const string tag)
@@ -246,8 +291,10 @@ void SyncPosition(const int i)
    string sym = LocalSymbol(mSym[i]);
    if(sym == "")
       return;
-   double sl = NormPrice(sym, mSL[i]), tp = NormPrice(sym, mTP[i]);
+   double off = Offset(mSym[i], sym);
+   double sl = NormPrice(sym, Shift(mSL[i], off)), tp = NormPrice(sym, Shift(mTP[i], off));
    double point = SymbolInfoDouble(sym, SYMBOL_POINT);
+   double tol   = MathMax(InpSyncTolerancePts, 1) * point;
 
    ulong lp = FindLocalPosition(tag);
    if(lp == 0)
@@ -262,7 +309,8 @@ void SyncPosition(const int i)
 
       bool buy = (mType[i] == POSITION_TYPE_BUY);
       double cur = buy ? SymbolInfoDouble(sym, SYMBOL_ASK) : SymbolInfoDouble(sym, SYMBOL_BID);
-      double worse = buy ? (cur - mPrice[i]) : (mPrice[i] - cur);
+      double src = mPrice[i] + off; // gia vao cua nguon, quy doi sang gia san nay
+      double worse = buy ? (cur - src) : (src - cur);
       if(worse / point > InpMaxSlippagePoints)
         {
          PrintFormat("[CopyReceiver] Bo qua %s: gia da chay %.0f point (> %d)", tag, worse / point, InpMaxSlippagePoints);
@@ -301,7 +349,7 @@ void SyncPosition(const int i)
    double bsl, btp;
    BrokerStops(sym, isBuy, sl, tp, bsl, btp);
    double lsl = PositionGetDouble(POSITION_SL), ltp = PositionGetDouble(POSITION_TP);
-   if((MathAbs(lsl - bsl) > point * 0.5 || MathAbs(ltp - btp) > point * 0.5) && CanRetry(st))
+   if((MathAbs(lsl - bsl) > tol || MathAbs(ltp - btp) > tol) && CanRetry(st))
      {
       if(!g_trade.PositionModify(lp, bsl, btp))
          MarkFailed(st);
@@ -342,11 +390,13 @@ void SyncOrder(const int i)
    if(type != ORDER_TYPE_BUY_LIMIT && type != ORDER_TYPE_SELL_LIMIT &&
       type != ORDER_TYPE_BUY_STOP && type != ORDER_TYPE_SELL_STOP)
       return;
-   double price = NormPrice(sym, mPrice[i]);
+   double off   = Offset(mSym[i], sym);
+   double price = NormPrice(sym, Shift(mPrice[i], off));
    bool   buy   = (type == ORDER_TYPE_BUY_LIMIT || type == ORDER_TYPE_BUY_STOP);
    double sl, tp;
-   BrokerStops(sym, buy, NormPrice(sym, mSL[i]), NormPrice(sym, mTP[i]), sl, tp);
+   BrokerStops(sym, buy, NormPrice(sym, Shift(mSL[i], off)), NormPrice(sym, Shift(mTP[i], off)), sl, tp);
    double point = SymbolInfoDouble(sym, SYMBOL_POINT);
+   double tol   = MathMax(InpSyncTolerancePts, 1) * point;
 
    ulong lo = FindLocalOrder(tag);
    if(lo == 0)
@@ -364,9 +414,9 @@ void SyncOrder(const int i)
      }
    if(!OrderSelect(lo))
       return;
-   if(MathAbs(OrderGetDouble(ORDER_PRICE_OPEN) - price) > point * 0.5 ||
-      MathAbs(OrderGetDouble(ORDER_SL) - sl) > point * 0.5 ||
-      MathAbs(OrderGetDouble(ORDER_TP) - tp) > point * 0.5)
+   if(MathAbs(OrderGetDouble(ORDER_PRICE_OPEN) - price) > tol ||
+      MathAbs(OrderGetDouble(ORDER_SL) - sl) > tol ||
+      MathAbs(OrderGetDouble(ORDER_TP) - tp) > tol)
       if(CanRetry(st) && !g_trade.OrderModify(lo, price, sl, tp, ORDER_TIME_GTC, 0))
          MarkFailed(st);
   }
