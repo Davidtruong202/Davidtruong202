@@ -15,7 +15,8 @@ enum ENUM_LOT_MODE
   {
    LOT_MULTIPLIER    = 0, // Lot nguon x he so (1.0 = y het)
    LOT_BALANCE_RATIO = 1, // Theo ti le balance (cung % rui ro)
-   LOT_FIXED         = 2  // Lot co dinh
+   LOT_FIXED         = 2, // Lot co dinh
+   LOT_RISK_PERCENT  = 3  // % rui ro theo khoang SL cua tung lenh
   };
 
 input string        InpChannel           = "copy1";         // Ten kenh (trung voi CopySender)
@@ -24,7 +25,8 @@ input string        InpSymbolSuffix      = "";              // Hoac chi them hau
 input bool          InpPriceOffset       = true;            // Bu chenh lech gia giua 2 san cho SL/TP/lenh cho
 input int           InpSyncTolerancePts  = 30;              // Chi sua SL/TP/gia lenh cho khi lech hon N point
 input ENUM_LOT_MODE InpLotMode           = LOT_MULTIPLIER;  // Cach tinh lot
-input double        InpLotValue          = 1.0;             // He so (mode 0,1) hoac lot co dinh (mode 2)
+input double        InpLotValue          = 1.0;             // He so (mode 0,1) | lot co dinh (mode 2) | % rui ro moi lenh (mode 3)
+input bool          InpCopyPartial       = true;            // Chot tung phan theo nguon (false = chi dong khi nguon dong het)
 input double        InpMaxLot            = 1.0;             // Lot toi da moi lenh
 input bool          InpCopyPending       = true;            // Sao chep ca lenh cho (limit/stop)
 input bool          InpCopyExisting      = false;           // Sao chep ca lenh dang mo luc bat EA
@@ -140,7 +142,7 @@ double NormLot(const string sym, double lot)
    return NormalizeDouble(lot, 2);
   }
 
-double ScaleLot(const string sym, const double srcLot)
+double ScaleLot(const string sym, const double srcLot, const double entry, const double sl)
   {
    double lot = srcLot;
    if(InpLotMode == LOT_MULTIPLIER)
@@ -149,6 +151,25 @@ double ScaleLot(const string sym, const double srcLot)
       lot = srcLot * AccountInfoDouble(ACCOUNT_BALANCE) / mBalance * InpLotValue;
    else if(InpLotMode == LOT_FIXED)
       lot = InpLotValue;
+   else if(InpLotMode == LOT_RISK_PERCENT)
+     {
+      // lot = (balance x %) / (tien lo cho 1 lot neu cham SL)
+      double ts = SymbolInfoDouble(sym, SYMBOL_TRADE_TICK_SIZE);
+      double tv = SymbolInfoDouble(sym, SYMBOL_TRADE_TICK_VALUE_LOSS);
+      if(tv <= 0)
+         tv = SymbolInfoDouble(sym, SYMBOL_TRADE_TICK_VALUE);
+      double dist = MathAbs(entry - sl);
+      if(sl <= 0 || dist <= 0 || ts <= 0 || tv <= 0)
+         lot = SymbolInfoDouble(sym, SYMBOL_VOLUME_MIN); // khong co SL -> lot nho nhat
+      else
+        {
+         double lossPerLot = dist / ts * tv;
+         lot = AccountInfoDouble(ACCOUNT_BALANCE) * InpLotValue / 100.0 / lossPerLot;
+         double step = SymbolInfoDouble(sym, SYMBOL_VOLUME_STEP);
+         if(step > 0)
+            lot = MathFloor(lot / step) * step; // lam tron xuong de khong vuot % rui ro
+        }
+     }
    return NormLot(sym, lot);
   }
 
@@ -317,7 +338,7 @@ void SyncPosition(const int i)
          GlobalVariableSet(GvOpened(st), 1);
          return;
         }
-      double lot = ScaleLot(sym, mVol[i]);
+      double lot = ScaleLot(sym, mVol[i], cur, sl);
       double bsl, btp;
       BrokerStops(sym, buy, sl, tp, bsl, btp);
       bool ok = buy ? g_trade.Buy(lot, sym, 0, bsl, btp, tag) : g_trade.Sell(lot, sym, 0, bsl, btp, tag);
@@ -358,6 +379,8 @@ void SyncPosition(const int i)
      }
 
    //--- dong bo chot tung phan
+   if(!InpCopyPartial)
+      return;
    if(!GlobalVariableCheck(GvMInit(st)))
       GlobalVariableSet(GvMInit(st), mVol[i]);
    if(!GlobalVariableCheck(GvLInit(st)))
@@ -393,8 +416,9 @@ void SyncOrder(const int i)
    double off   = Offset(mSym[i], sym);
    double price = NormPrice(sym, Shift(mPrice[i], off));
    bool   buy   = (type == ORDER_TYPE_BUY_LIMIT || type == ORDER_TYPE_BUY_STOP);
+   double rawSl = NormPrice(sym, Shift(mSL[i], off));
    double sl, tp;
-   BrokerStops(sym, buy, NormPrice(sym, Shift(mSL[i], off)), NormPrice(sym, Shift(mTP[i], off)), sl, tp);
+   BrokerStops(sym, buy, rawSl, NormPrice(sym, Shift(mTP[i], off)), sl, tp);
    double point = SymbolInfoDouble(sym, SYMBOL_POINT);
    double tol   = MathMax(InpSyncTolerancePts, 1) * point;
 
@@ -403,7 +427,7 @@ void SyncOrder(const int i)
      {
       if(GlobalVariableCheck(GvOpened(st)))
          return; // da dat roi (da khop hoac bi huy)
-      double lot = ScaleLot(sym, mVol[i]);
+      double lot = ScaleLot(sym, mVol[i], price, rawSl);
       bool ok = g_trade.OrderOpen(sym, type, lot, 0, price, sl, tp, ORDER_TIME_GTC, 0, tag);
       PrintFormat("[CopyReceiver] Dat %s %s %.2f lot @ %s -> %s (%d)", EnumToString(type), sym, lot,
                   DoubleToString(price, (int)SymbolInfoInteger(sym, SYMBOL_DIGITS)), ok ? "OK" : "LOI", g_trade.ResultRetcode());
