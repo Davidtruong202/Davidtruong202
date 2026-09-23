@@ -113,3 +113,19 @@ và bộ tối ưu walk-forward. Backtest cũng chạy được chiến lược 
 indicator ICT Full Suite gốc — có nhiều điểm đã đơn giản hoá như liệt kê
 ở trên. EA không đảm bảo lợi nhuận; luôn kiểm thử kỹ trên demo và chỉ
 giao dịch với số vốn bạn chấp nhận rủi ro mất.
+
+## GoldBot DCA (`MQL5/Experts/GoldBot_DCA.mq5`)
+
+Bản MT5 của bộ mô phỏng `backtest/goldbot/dca.py`, mặc định là setup 24/24 tốt nhất của
+`backtest/dca_setups.py`: hướng theo EMA50 H1 (giá trên → Buy, dưới → Sell), lệnh đầu 0.01,
+nhồi mỗi 1.5 × ATR(H1), hệ số ×1.3 rồi ×1.2 từ lệnh thứ 6, chốt cả chuỗi tại giá trung bình
+± 0.2 × ATR(H1), không cắt lỗ. Đóng chuỗi xong thì mở chuỗi mới ngay nến M1 kế tiếp.
+
+- Cần tài khoản **hedging**; mặc định chỉ chạy demo/tester (`InpAllowRealAccount = false`).
+- TP chuỗi được đặt lên server cho từng lệnh, nên máy tắt thì chuỗi vẫn chốt được. Nhưng
+  lệnh nhồi chỉ vào được khi EA đang chạy, vì vậy nên để trên VPS.
+- Khi không có chuỗi mở và số dư ≥ `InpWithdrawAt`, EA báo (Alert + push) để bạn rút về
+  `InpWithdrawTo`. EA không tự rút tiền.
+- Mỗi chuỗi đóng được ghi vào `Common\Files\GoldBotDCA_<symbol>_<magic>.csv`.
+- Thang lot: 0.01 0.01 0.01 0.02 0.02 0.03 0.04 0.04 0.05 0.07 0.08 0.10 0.12 0.14 0.17 0.21 0.25 0.30…
+  (18 lệnh = 1.67 lot, là chuỗi dài nhất trong backtest 2024-2026).
