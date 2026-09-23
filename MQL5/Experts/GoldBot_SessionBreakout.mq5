@@ -65,6 +65,7 @@ input double InpRiskPercent         = 0.5;
 input double InpMaxDailyLossPercent = 2.0;
 input int    InpMaxConsecLosses     = 3;
 input double InpMaxSpreadPoints     = 60;
+input double InpMaxMinLotRiskMult   = 2.0;  // tk nho: bo lenh neu lot toi thieu rui ro > 2 lan muc dat
 
 input group "=== He thong ==="
 input long   InpMagic             = 26092301;
@@ -453,6 +454,12 @@ void OnNewBar()
    if(risk <= MathMax((double)SymbolInfoInteger(_Symbol,SYMBOL_TRADE_STOPS_LEVEL),1.0)*_Point) return;
    double lots = LotSize(risk);
    if(lots<=0) return;
+   double tsz = SymbolInfoDouble(_Symbol, SYMBOL_TRADE_TICK_SIZE), tval = SymbolInfoDouble(_Symbol, SYMBOL_TRADE_TICK_VALUE);
+   if(tsz>0 && risk/tsz*tval*lots > AccountInfoDouble(ACCOUNT_BALANCE)*InpRiskPercent/100.0*InpMaxMinLotRiskMult)
+   {
+      g_status = StringFormat("Bo lenh: lot %.2f rui ro qua lon so voi von", lots);
+      return;
+   }
    double tp = up ? fill+InpTP_R*risk : fill-InpTP_R*risk;
 
    bool ok = up ? trade.Buy(lots, _Symbol, fill, NormalizeDouble(sl,_Digits), NormalizeDouble(tp,_Digits), "GB-BO")

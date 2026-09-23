@@ -52,6 +52,7 @@ class RiskParams:
     max_daily_loss_percent: float = 2.0
     max_consec_losses: int = 3         # then stop until the next trading day
     max_spread_points: float = 60      # skip entries when spread is wider
+    max_minlot_risk_mult: float = 2.0  # small accounts: skip when even the minimum lot risks > this x risk_percent
     day_start_ny_hour: float = 17.0    # gold trading day rolls at 17:00 New York
 
 
@@ -165,6 +166,10 @@ class Backtester:
         lots = lot_size(self.balance, self.r.risk_percent, dist, a.tick_size, a.tick_value,
                         a.volume_min, a.volume_max, a.volume_step)
         if lots <= 0:
+            return
+        if dist / a.tick_size * a.tick_value * lots > \
+                self.balance * self.r.risk_percent / 100.0 * self.r.max_minlot_risk_mult:
+            self.cnt["skipped_risk"] += 1   # minimum lot would risk far more than planned
             return
         sgn = 1 if act.buy else -1
         p = _Pos()

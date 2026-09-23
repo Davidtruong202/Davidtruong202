@@ -286,6 +286,11 @@ class LiveTrader:
                         si.volume_min, si.volume_max, si.volume_step)
         if lots <= 0:
             return
+        if dist / si.trade_tick_size * si.trade_tick_value * lots > \
+                av.balance * r.risk_percent / 100.0 * r.max_minlot_risk_mult:
+            log.info("Bo tin hieu %s: lot toi thieu %.2f rui ro qua %.1f lan muc dat", side, lots, r.max_minlot_risk_mult)
+            self.journal("skip", side=side, info="min lot too risky")
+            return
         sgn = 1 if act.buy else -1
         tp = fill + sgn * act.tp_r * dist
         req = dict(action=m.TRADE_ACTION_DEAL, symbol=self.symbol, volume=lots,
