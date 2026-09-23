@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Strategy Tournament</title>
+<style>
+:root{
+  color-scheme: light;
+  --bg:#f4f3ef; --surface:#fcfcfb; --surface-2:#f0efec; --line:#e2e0da;
+  --text:#0b0b0b; --text-2:#52514e; --muted:#8a8983;
+  --accent:#a8740a; --accent-soft:#f6ebd2;
+  --up:#1baf7a; --down:#e34948; --s1:#2a78d6; --hold:#8a8983;
+  --good:#0ca30c; --warning:#fab219; --critical:#d03b3b;
+  --shadow:0 1px 2px rgba(0,0,0,.04),0 4px 16px rgba(0,0,0,.05);
+  --warn-bg:#fff4dc; --warn-line:#f0cf85;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme: dark;
+    --bg:#0f0f0e; --surface:#1a1a19; --surface-2:#222220; --line:#2f2f2c;
+    --text:#ffffff; --text-2:#c3c2b7; --muted:#8b8a82;
+    --accent:#e2b54e; --accent-soft:#2c2513;
+    --up:#199e70; --down:#e66767; --s1:#3987e5; --hold:#8b8a82;
+    --shadow:0 1px 2px rgba(0,0,0,.3),0 6px 24px rgba(0,0,0,.25);
+    --warn-bg:#2c2513; --warn-line:#6b5516;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme: dark;
+  --bg:#0f0f0e; --surface:#1a1a19; --surface-2:#222220; --line:#2f2f2c;
+  --text:#ffffff; --text-2:#c3c2b7; --muted:#8b8a82;
+  --accent:#e2b54e; --accent-soft:#2c2513;
+  --up:#199e70; --down:#e66767; --s1:#3987e5; --hold:#8b8a82;
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 6px 24px rgba(0,0,0,.25);
+  --warn-bg:#2c2513; --warn-line:#6b5516;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--text);font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif}
+.num{font-variant-numeric:tabular-nums}
+.wrap{max-width:1200px;margin:0 auto;padding:20px 16px 48px}
+header{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:16px}
+.logo{width:40px;height:40px;border-radius:10px;background:linear-gradient(135deg,var(--accent),#7a5406);display:grid;place-items:center;color:#fff;font-weight:800;flex:none}
+h1{font-size:19px;margin:0}
+header p{margin:0;color:var(--text-2);font-size:13px}
+.btn{margin-left:auto;border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:6px 10px;cursor:pointer;color:inherit;font:inherit;min-height:32px}
+.banner{border:1px solid var(--warn-line);background:var(--warn-bg);border-radius:12px;padding:10px 14px;margin-bottom:16px;font-size:13px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);padding:14px 16px;margin-bottom:16px}
+.card h2{font-size:15px;margin:0 0 2px}
+.sub{color:var(--text-2);font-size:12px;margin:0 0 12px}
+.hero{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:16px}
+.winner .t{font-size:12px;color:var(--text-2)}
+.winner .n{font-size:26px;font-weight:700;letter-spacing:-.4px;margin:2px 0}
+.winner .s{color:var(--text-2);font-size:13px}
+.chip{display:inline-flex;align-items:center;gap:5px;border-radius:999px;padding:2px 9px;font-size:12px;font-weight:600;background:var(--surface-2);white-space:nowrap}
+.chip i{font-style:normal}
+.timeline svg{width:100%;height:auto;display:block}
+.tl-legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--text-2);margin-top:8px}
+.tl-legend span{display:inline-flex;align-items:center;gap:6px}
+.sw{width:10px;height:10px;border-radius:3px;display:inline-block}
+table{border-collapse:collapse;width:100%}
+th,td{padding:9px 8px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap;vertical-align:middle}
+th{font-size:12px;color:var(--text-2);font-weight:600}
+td.n,th.n{text-align:right}
+tbody tr:hover{background:var(--surface-2)}
+.rank{font-weight:700;color:var(--muted);width:28px}
+.name b{display:block}
+.name span{font-size:12px;color:var(--text-2)}
+a{color:var(--s1)}
+.spark{display:block}
+details{margin-top:4px}
+details summary{cursor:pointer;color:var(--text-2);font-size:12px}
+.params{font-size:12px;color:var(--text-2);white-space:normal;max-width:360px;margin-top:4px}
+.scroll{overflow-x:auto}
+.explain{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;font-size:13px}
+.explain div{background:var(--surface-2);border-radius:10px;padding:10px 12px}
+.explain b{display:block;margin-bottom:2px}
+footer{color:var(--muted);font-size:12px;text-align:center;margin-top:20px;line-height:1.6}
+.tip{position:fixed;pointer-events:none;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:7px 10px;font-size:12px;box-shadow:var(--shadow);z-index:50;display:none;white-space:nowrap}
+@media (max-width:860px){.hero{grid-template-columns:minmax(0,1fr)}.explain{grid-template-columns:minmax(0,1fr)}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="logo">Au</div>
+    <div><h1 id="title">Đấu loại phương pháp</h1><p id="sub"></p></div>
+    <button class="btn" id="theme" aria-label="Đổi giao diện sáng/tối">◐</button>
+  </header>
+  <div class="banner" id="demo" hidden><b>⚠ Dữ liệu giả lập.</b> Giá do máy tạo ngẫu nhiên — bảng xếp hạng này chỉ để xem công cụ hoạt động, không nói gì về thị trường thật.</div>
+
+  <div class="hero">
+    <section class="card winner" id="winner"></section>
+    <section class="card timeline">
+      <h2>Cách chia dữ liệu</h2>
+      <p class="sub">Tham số luôn được chọn trên phần quá khứ, rồi chấm điểm trên phần chưa thấy</p>
+      <div id="tl"></div>
+      <div class="tl-legend">
+        <span><i class="sw" style="background:var(--s1);opacity:.35"></i>Dữ liệu dùng để chọn tham số</span>
+        <span><i class="sw" style="background:var(--s1)"></i>Ngoài mẫu (chấm điểm)</span>
+        <span><i class="sw" style="background:var(--hold)"></i>Giữ lại (kiểm tra cuối)</span>
+      </div>
+    </section>
+  </div>
+
+  <section class="card">
+    <h2>Bảng xếp hạng</h2>
+    <p class="sub">Xếp theo kết quả <b>ngoài mẫu</b> (tổng R ÷ sụt giảm tối đa). 1R = số tiền rủi ro của một lệnh.</p>
+    <div class="scroll"><table id="tbl"></table></div>
+  </section>
+
+  <section class="card">
+    <h2>Đọc bảng này thế nào</h2>
+    <div class="explain">
+      <div><b>R ngoài mẫu</b>Lãi/lỗ cộng dồn trên các đoạn mà tham số chưa từng thấy. Đây là con số đáng tin nhất.</div>
+      <div><b>R giữ lại</b>Phần dữ liệu cuối không dùng cho bất cứ lựa chọn nào. Nếu ngoài mẫu lãi mà giữ lại lỗ nặng → nghi ngờ.</div>
+      <div><b>Đánh giá</b>CÓ LỢI THẾ = ≥ 30 lệnh ngoài mẫu, PF ≥ 1.15, <b>t ≥ 2</b> (khó là may mắn) và lãi cả phần giữ lại. Thử nhiều phương pháp trên cùng dữ liệu thì dễ gặp "thắng nhờ may", nên tiêu chí cố tình khắt khe.</div>
+    </div>
+  </section>
+
+  <footer id="foot"></footer>
+</div>
+<div class="tip" id="tip"></div>
+<script>
+const D = /*__DATA__*/null;
+(function(){
+"use strict";
+const $ = id => document.getElementById(id), M = D.meta;
+const pad = n => String(n).padStart(2,"0");
+const fD = t => { const d = new Date(t*1000); return d.getUTCFullYear()+"-"+pad(d.getUTCMonth()+1)+"-"+pad(d.getUTCDate()); };
+const fR = v => (v>0?"+":v<0?"−":"")+Math.abs(v).toFixed(1)+"R";
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const icon = v => v>0 ? '<i style="color:var(--up)">▲</i>' : v<0 ? '<i style="color:var(--down)">▼</i>' : '<i>•</i>';
+const VERD = {"CÓ LỢI THẾ":["var(--good)","✓"], "CHƯA CHẮC":["var(--warning)","!"], "KHÔNG":["var(--critical)","✕"], "ÍT LỆNH":["var(--muted)","?"]};
+function chip(v){ const [c,ic] = VERD[v] || ["var(--muted)","?"]; return '<span class="chip"><i style="color:'+c+'">'+ic+'</i>'+esc(v)+'</span>'; }
+
+// theme
+const root = document.documentElement;
+try { const t = localStorage.getItem("ictbot-theme"); if(t) root.dataset.theme = t; } catch(e){}
+$("theme").onclick = () => { const dark = root.dataset.theme ? root.dataset.theme==="dark" : matchMedia("(prefers-color-scheme: dark)").matches; root.dataset.theme = dark ? "light" : "dark"; try { localStorage.setItem("ictbot-theme", root.dataset.theme); } catch(e){} };
+
+$("title").textContent = "Đấu loại phương pháp · " + M.symbol;
+$("sub").textContent = fD(M.first) + " → " + fD(M.last) + " · " + D.rows.length + " phương pháp · dữ liệu: " + M.source;
+$("demo").hidden = !M.demo;
+$("foot").innerHTML = "Tạo lúc " + esc(M.generated) + " (" + M.seconds + " giây) · rủi ro " + M.risk + "%/lệnh khi dựng báo cáo · " + M.folds + " đoạn walk-forward, giữ lại " + Math.round(M.holdout*100) + "% cuối.<br>Kết quả quá khứ, kể cả ngoài mẫu, không đảm bảo lợi nhuận tương lai.";
+
+// winner card
+const best = D.rows.find(r => r.verdict === "CÓ LỢI THẾ");
+const w = $("winner");
+if(best){
+  w.innerHTML = '<div class="t">Ứng viên tốt nhất</div><div class="n">'+esc(best.title)+'</div>'+
+    '<div class="s">'+chip(best.verdict)+' &nbsp;ngoài mẫu <b class="num">'+fR(best.oos.r)+'</b> qua '+best.oos.n+' lệnh, PF '+best.oos.pf.toFixed(2)+
+    ' · giữ lại <b class="num">'+fR(best.hold.r)+'</b></div><p class="s" style="margin-top:10px">Bước tiếp: xem <a href="'+esc(best.report)+'">báo cáo chi tiết</a>, chạy EA trong MT5 Strategy Tester, rồi demo vài tuần.</p>';
+} else {
+  w.innerHTML = '<div class="t">Kết luận</div><div class="n">Chưa có phương pháp đạt</div>'+
+    '<div class="s">Không phương pháp nào đạt đủ: lãi ngoài mẫu có ý nghĩa thống kê (t ≥ 2, PF ≥ 1.15, ≥ 30 lệnh) và lãi cả phần giữ lại. Không nên giao dịch tiền thật với các cấu hình này.</div>';
+}
+
+// timeline diagram
+(function(){
+  const W = 560, H = 20 + (M.edges.length-2)*22 + 26, L = 70, R = 8, pw = W-L-R;
+  const t0 = M.first, t1 = M.last, X = t => L + (t-t0)/(t1-t0)*pw;
+  let s = '<svg viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Sơ đồ chia dữ liệu walk-forward">';
+  for(let k=1;k<M.edges.length-1;k++){
+    const y = 8 + (k-1)*22;
+    s += '<text x="0" y="'+(y+11)+'" font-size="11" fill="var(--text-2)">Đoạn '+k+'</text>';
+    s += '<rect x="'+X(M.edges[0])+'" y="'+y+'" width="'+(X(M.edges[k])-X(M.edges[0]))+'" height="14" rx="3" fill="var(--s1)" opacity=".35"/>';
+    s += '<rect x="'+(X(M.edges[k])+1)+'" y="'+y+'" width="'+(X(M.edges[k+1])-X(M.edges[k])-2)+'" height="14" rx="3" fill="var(--s1)"/>';
+  }
+  const yh = 8 + (M.edges.length-2)*22;
+  s += '<text x="0" y="'+(yh+11)+'" font-size="11" fill="var(--text-2)">Giữ lại</text>';
+  s += '<rect x="'+X(M.hold)+'" y="'+yh+'" width="'+(X(M.last)-X(M.hold))+'" height="14" rx="3" fill="var(--hold)"/>';
+  s += '<text x="'+L+'" y="'+(H-2)+'" font-size="10" fill="var(--muted)">'+fD(M.first)+'</text>';
+  s += '<text x="'+X(M.hold)+'" y="'+(H-2)+'" font-size="10" fill="var(--muted)" text-anchor="middle">'+fD(M.hold)+'</text>';
+  s += '<text x="'+(W-R)+'" y="'+(H-2)+'" font-size="10" fill="var(--muted)" text-anchor="end">'+fD(M.last)+'</text>';
+  $("tl").innerHTML = s + '</svg>';
+})();
+
+// sparkline of cumulative R: out-of-sample then hold-out
+function spark(r){
+  const a = r.oos_curve, last = a.length ? a[a.length-1] : 0, b = r.hold_curve.map(v => v + last);
+  const all = [0].concat(a, b), w = 150, h = 36;
+  let mn = Math.min(...all), mx = Math.max(...all); if(mx-mn < 1){ mx += .5; mn -= .5; }
+  const X = i => i/(Math.max(1, all.length-1))*w, Y = v => 3 + (mx-v)/(mx-mn)*(h-6);
+  const pts = arr => arr.map(([i,v]) => X(i).toFixed(1)+","+Y(v).toFixed(1)).join(" ");
+  const oos = all.slice(0, a.length+1).map((v,i) => [i,v]);
+  const hold = all.slice(a.length).map((v,i) => [i+a.length, v]);
+  return '<svg class="spark" width="'+w+'" height="'+h+'" viewBox="0 0 '+w+' '+h+'" aria-hidden="true">'+
+    '<line x1="0" x2="'+w+'" y1="'+Y(0)+'" y2="'+Y(0)+'" stroke="var(--line)" stroke-dasharray="2 3"/>'+
+    '<polyline points="'+pts(oos)+'" fill="none" stroke="var(--s1)" stroke-width="2" stroke-linejoin="round"/>'+
+    (hold.length > 1 ? '<polyline points="'+pts(hold)+'" fill="none" stroke="var(--hold)" stroke-width="2" stroke-linejoin="round"/>' : '')+
+    '</svg>';
+}
+
+// table
+let h = '<thead><tr><th>#</th><th>Phương pháp</th><th class="n">Lệnh</th><th class="n">R ngoài mẫu</th><th class="n">PF</th><th class="n" title="t-stat: ≥ 2 mới khó là may mắn">t</th><th class="n">Thắng</th><th class="n">Sụt giảm</th><th>Đường R (ngoài mẫu → giữ lại)</th><th class="n">R giữ lại</th><th>Đánh giá</th><th></th></tr></thead><tbody>';
+D.rows.forEach((r, n) => {
+  const params = Object.entries(r.params).map(([k,v]) => esc(k)+"="+esc(v)).join(", ") || "tham số mặc định";
+  h += '<tr data-tip="'+esc(r.why)+'">'+
+    '<td class="rank">'+(n+1)+'</td>'+
+    '<td class="name"><b>'+esc(r.title)+'</b><span>M'+(r.tf/60)+' · '+r.combos+' bộ tham số</span>'+
+      '<details><summary>Tham số được chọn</summary><div class="params">'+params+'</div></details></td>'+
+    '<td class="n num">'+r.oos.n+'</td>'+
+    '<td class="n num">'+icon(r.oos.r)+' '+fR(r.oos.r)+'</td>'+
+    '<td class="n num">'+r.oos.pf.toFixed(2)+'</td>'+
+    '<td class="n num">'+r.oos.t.toFixed(1)+'</td>'+
+    '<td class="n num">'+r.oos.win.toFixed(0)+'%</td>'+
+    '<td class="n num">−'+r.oos.dd.toFixed(1)+'R</td>'+
+    '<td>'+spark(r)+'</td>'+
+    '<td class="n num">'+icon(r.hold.r)+' '+fR(r.hold.r)+' <span style="color:var(--muted)">('+r.hold.n+')</span></td>'+
+    '<td>'+chip(r.verdict)+'</td>'+
+    '<td><a href="'+esc(r.report)+'">Báo cáo</a>'+(r.config ? '<br><a href="'+esc(r.config)+'" style="font-size:12px">config</a>' : '')+'</td></tr>';
+});
+D.skipped.forEach(([k, why]) => { h += '<tr><td class="rank">–</td><td class="name"><b>'+esc(k)+'</b><span>bỏ qua: '+esc(why)+'</span></td><td colspan="10"></td></tr>'; });
+$("tbl").innerHTML = h + '</tbody>';
+
+// tooltips
+const tip = $("tip");
+document.addEventListener("pointermove", e => {
+  const el = e.target.closest && e.target.closest("[data-tip]");
+  if(!el){ tip.style.display = "none"; return; }
+  tip.textContent = el.dataset.tip; tip.style.display = "block";
+  let x = e.clientX + 14, y = e.clientY + 14;
+  if(x + tip.offsetWidth > innerWidth - 8) x = e.clientX - tip.offsetWidth - 14;
+  tip.style.left = x+"px"; tip.style.top = y+"px";
+});
+})();
+</script>
+</body>
+</html>

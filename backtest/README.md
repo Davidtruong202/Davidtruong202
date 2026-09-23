@@ -7,7 +7,8 @@ MT5 khác):
 |---|---|
 | `live_bot.py` | **Bot giao dịch tự động** trên MT5 (mặc định chỉ tài khoản demo) |
 | `run_backtest.py` | Backtest trên dữ liệu tick/nến của sàn, xuất **báo cáo HTML** |
-| `optimize.py` | Tối ưu tham số kiểu **walk-forward** (chống overfitting) |
+| `tournament.py` | **Đấu loại**: test mọi phương pháp trên cùng dữ liệu, xếp hạng theo kết quả ngoài mẫu |
+| `optimize.py` | Tối ưu tham số một phương pháp kiểu **walk-forward** (chống overfitting) |
 | `download_mt5.py` | Tải tick/nến trực tiếp từ MT5 |
 | `compare_ea.py` | So lệnh của EA MT5 với backtest Python |
 | `../MQL5/Experts/GoldBot_SessionBreakout.mq5` | **EA MT5** cùng chiến lược (cách B) |
@@ -42,6 +43,42 @@ File EA: `MQL5/Experts/GoldBot_SessionBreakout.mq5`. Đây là bản MQL5 của
    Muốn chạy 24/7 thì dùng VPS của HFM.
 5. EA từ chối chạy trên tài khoản thật cho tới khi bạn bật
    `InpAllowRealAccount = true`.
+
+## Các phương pháp có sẵn
+
+| Khoá | Phương pháp | Khung | Ý tưởng |
+|---|---|---|---|
+| `breakout` | Session Breakout | M5 | Phá range phiên Á trong giờ London/NY, theo xu hướng H1 |
+| `pullback` | Trend Pullback | M5 | Xu hướng H1 rõ, chờ giá hồi về EMA M5 rồi vào theo xu hướng |
+| `meanrev` | Mean Reversion | M5 | Phiên Á yên, giá vọt ra ngoài Bollinger + RSI cực trị rồi quay lại → đánh về dải giữa |
+| `scalper` | Scalper M1 | M1 | EMA 9/21 cắt nhau theo xu hướng M15, SL/TP ngắn, giữ tối đa 30 phút |
+| `ict` | ICT/SMC | M5 | Port của EA cũ `XAUUSD_ICT_M5.mq5` (chỉ backtest, tham số mặc định) |
+
+Scalper cần file **tick** hoặc nến **M1**. Với vàng, spread chiếm phần lớn
+khoảng SL của scalper, nên nó chỉ sống được nếu tick data cho thấy lợi thế đủ
+lớn để bù chi phí.
+
+## Đấu loại (tournament)
+
+```
+python tournament.py data/XAUUSDr_ticks.csv
+```
+Cho mỗi phương pháp:
+1. Chia dữ liệu: 80% đầu để **nghiên cứu**, 20% cuối **giữ lại** không đụng tới.
+2. Walk-forward trong phần nghiên cứu: chọn tham số trên quá khứ, chấm điểm trên
+   đoạn kế tiếp chưa thấy, rồi ghép các đoạn lại thành kết quả **ngoài mẫu**.
+3. Tham số chọn trên toàn phần nghiên cứu được thử **một lần duy nhất** trên
+   phần giữ lại.
+
+Chỉ phương pháp đủ **≥ 30 lệnh ngoài mẫu, PF ≥ 1.15, t-stat ≥ 2, và lãi cả
+phần giữ lại** mới được đánh giá "CÓ LỢI THẾ". Tiêu chí cố tình khắt khe: thử
+nhiều phương pháp trên cùng dữ liệu thì rất dễ có một cái trông đẹp chỉ nhờ may.
+Trên dữ liệu giả lập ngẫu nhiên, trước khi thêm điều kiện t-stat, đã có 2 phương
+pháp được xếp "có lợi thế" dù thực chất không có.
+
+Kết quả: `reports/tournament/index.html` (bảng xếp hạng có biểu đồ), báo cáo
+HTML từng phương pháp, và `config_<phương pháp>.json` dùng được ngay cho
+`run_backtest.py` / `live_bot.py`.
 
 ## Chiến lược: Session Breakout
 

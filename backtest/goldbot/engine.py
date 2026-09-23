@@ -1,6 +1,6 @@
 """Strategy API shared by the backtester and the live MT5 bot.
 
-A strategy never touches orders directly. On every CLOSED M5 bar it receives
+A strategy never touches orders directly. On every CLOSED bar (M5, or M1 for scalping) it receives
 the bar index, a read-only view of the open position and account facts, and
 returns a list of actions. The backtester (``Backtester``) and the live bot
 (``goldbot.live.LiveTrader``) both execute those actions, so the logic that
@@ -19,7 +19,7 @@ Execution model of the backtester
 
 from dataclasses import dataclass, asdict
 
-from .common import Account, DAY, M5, lot_size
+from .common import Account, DAY, lot_size
 
 # ---------------------------------------------------------------------------
 # Actions a strategy can return
@@ -207,7 +207,7 @@ class Backtester:
         t = b.t[i]
         for k in range(3):
             a0, a1 = path[k], path[k + 1]
-            tt = t + (k + 1) * M5 // 4
+            tt = t + (k + 1) * b.tf // 4
             if a1 == a0:
                 continue
             favourable = (a1 > a0) == p.buy
@@ -281,7 +281,7 @@ class Backtester:
                 p.best = max(p.best, b.c[i]) if p.buy else min(p.best, b.c[i])
             # 3) close of bar i: strategy decides
             pv, av = self._view(i)
-            dec_t = t + M5
+            dec_t = t + b.tf
             acts = s.on_bar(i, pv, av)
             for act in acts:
                 if isinstance(act, Enter):
@@ -309,6 +309,6 @@ class Backtester:
         if self.pos is not None:
             p = self.pos
             px = b.c[-1] if p.buy else b.c[-1] + b.spread[-1]
-            self._close(p.lots, px, "Kết thúc dữ liệu", b.t[-1] + M5, n - 1)
+            self._close(p.lots, px, "Kết thúc dữ liệu", b.t[-1] + b.tf, n - 1)
         self.cnt.update(s.diag)
         return self

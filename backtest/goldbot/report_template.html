@@ -261,7 +261,7 @@ footer{color:var(--muted);font-size:12px;text-align:center;margin-top:24px;line-
 
   <footer>
     Báo cáo tạo bởi <b>Gold Bot</b> · <span id="gen"></span><br>
-    Backtest dùng nến M5 (không phải từng tick), giả định SL khớp trước nếu SL và TP cùng chạm trong một nến. Kết quả quá khứ không đảm bảo lợi nhuận tương lai.
+    Backtest mô phỏng trên nến (không phải từng tick), giả định SL khớp trước nếu SL và TP cùng chạm trong một nến. Kết quả quá khứ không đảm bảo lợi nhuận tương lai.
   </footer>
 </div>
 <div class="ftip" id="ftip"></div>
@@ -271,7 +271,7 @@ const D = /*__DATA__*/null;
 (function(){
 "use strict";
 const $ = id => document.getElementById(id);
-const M = D.meta, B = D.bars, N = B.t.length, PT = M.point;
+const M = D.meta, B = D.bars, N = B.t.length, PT = M.point, TF = M.tf || 300;
 const CONTRACT = D.params.account.contract_size;
 const TR = D.trades, S = D.stats.summary;
 const DIG = Math.max(0, Math.round(-Math.log10(PT)));
@@ -306,12 +306,12 @@ $("themeBtn").onclick = () => {
 matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => redrawAll());
 
 // ---------- header ----------
-$("title").textContent = "Gold Bot · " + M.symbol + " M5 Backtest";
+$("title").textContent = "Gold Bot · " + M.symbol + " M" + (M.tf/60) + " Backtest";
 $("subtitle").textContent = "Chiến lược " + M.strategy + " · dữ liệu: " + M.source;
 $("setupSub").textContent = M.strategy;
 $("chips").innerHTML = [
   ["Giai đoạn", fD(M.first)+" → "+fD(M.last)],
-  ["Nến M5", nf0.format(N)],
+  ["Nến M"+(M.tf/60), nf0.format(N)],
   ["Vốn đầu", money(S.initial)],
   ["Rủi ro/lệnh", M.risk_percent+"%"],
 ].map(([k,v]) => '<span class="chip">'+k+' <b>'+v+'</b></span>').join("");
@@ -533,11 +533,11 @@ function showPriceTip(i, hv, pw){
 
 function drawHud(){
   const t = B.t[st.cursor];
-  const bal = st.cursor >= N-1 ? S.final : balanceAt(t + 300);
+  const bal = st.cursor >= N-1 ? S.final : balanceAt(t + TF);
   let open = null;
   for(let k=TR.length-1;k>=0;k--){ const tr = TR[k]; if(tr.i <= st.cursor && tr.exits[tr.exits.length-1].i > st.cursor){ open = tr; break; } if(tr.exits[tr.exits.length-1].i < st.cursor - 3000) break; }
   let closedN = 0, wins = 0;
-  for(const tr of TR){ const e = tr.exits[tr.exits.length-1]; if(e.t <= t + 300){ closedN++; if(tr.pnl > 0) wins++; } }
+  for(const tr of TR){ const e = tr.exits[tr.exits.length-1]; if(e.t <= t + TF){ closedN++; if(tr.pnl > 0) wins++; } }
   const live = st.cursor < N-1;
   let h = '<div style="color:var(--text-2)">'+(live?"▶ Replay · ":"")+fT(t)+'</div>'+
     '<div class="big num">'+money(bal)+'</div>'+
@@ -645,7 +645,7 @@ function drawEquity(){
   const pw = w - L - R;
   const t0 = EQ[0][0], t1 = EQ[EQ.length-1][0];
   const X = t => L + (t - t0)/(t1 - t0) * pw;
-  const cutT = B.t[st.cursor] + 300;
+  const cutT = B.t[st.cursor] + TF;
   const lastK = st.cursor >= N-1 ? EQ.length-1 : Math.max(0, lowerBound(EQ, cutT, p => p[0]));
   let mn = Infinity, mx = -Infinity; EQ.forEach(p => { mn = Math.min(mn, p[1], p[2]); mx = Math.max(mx, p[1], p[2]); });
   const pad = (mx-mn)*0.08 || 10; mn -= pad; mx += pad;

@@ -3,7 +3,7 @@
 Loop (every ``poll_seconds``):
   1. Watch the open position tick by tick: take the partial profit at TP1 and
      move the stop to breakeven (exactly what the backtester does inside a bar).
-  2. When a new M5 bar starts, rebuild the last ``history_bars`` closed bars,
+  2. When a new bar (strategy timeframe) starts, rebuild the last ``history_bars`` closed bars,
      ask the strategy what to do (``on_bar``) and execute its actions.
 
 Safety
@@ -21,7 +21,7 @@ import os
 import time
 from datetime import datetime, timezone
 
-from .common import M5, lot_size
+from .common import lot_size
 from .data import bars_from_rates
 from .engine import AccountView, Close, Enter, MoveSL, PositionView, RiskGate
 
@@ -43,6 +43,7 @@ class LiveTrader:
         self.strategy = cfg.make_strategy()
         self.gate = RiskGate(cfg.risk, self.strategy.clock)
         self.last_bar = None
+        self.tf = getattr(self.strategy, "timeframe", 300)
         os.makedirs(self.L["log_dir"], exist_ok=True)
         self.state_path = os.path.join(self.L["log_dir"], "state_%s_%d.json" % (self.symbol, self.magic))
         self.journal_path = os.path.join(self.L["log_dir"], "journal_%s.csv" % self.symbol)
@@ -218,7 +219,7 @@ class LiveTrader:
         pv.tp1 = st.get("tp1", 0.0)
         pv.tp1_done = st.get("tp1_done", True)
         pv.tag = st.get("tag", "")
-        bar_t = st.get("open_bar", int(pos.time) - int(pos.time) % M5)
+        bar_t = st.get("open_bar", int(pos.time) - int(pos.time) % self.tf)
         pv.open_t = bar_t
         pv.open_i = next((k for k in range(len(bars) - 1, -1, -1) if bars.t[k] <= bar_t), 0)
         best = pos.price_open
@@ -230,7 +231,7 @@ class LiveTrader:
 
     def on_new_bar(self, rates):
         m = self.mt5
-        bars = bars_from_rates(rates, self.point)
+        bars = bars_from_rates(rates, self.point, tf=self.tf)
         s = self.strategy
         s.prepare(bars)
         i = len(bars) - 1
@@ -251,7 +252,7 @@ class LiveTrader:
                  buys, sells, day_pnl, (" | KHOA: " + av.blocked) if av.blocked else "")
         for act in s.on_bar(i, pv, av):
             if isinstance(act, Enter):
-                self.enter(act, pos, av, bars.t[i] + M5)
+                self.enter(act, pos, av, bars.t[i] + self.tf)
             elif isinstance(act, Close) and pos:
                 self.close(pos, act.reason)
             elif isinstance(act, MoveSL) and pos:
@@ -346,14 +347,15 @@ class LiveTrader:
         if pos is not None:
             self.manage_ticks(pos)
         n = int(self.L["history_bars"])
-        rates = self.mt5.copy_rates_from_pos(self.symbol, self.mt5.TIMEFRAME_M5, 0, n + 1)
+        mt_tf = self.mt5.TIMEFRAME_M1 if self.tf == 60 else self.mt5.TIMEFRAME_M5
+        rates = self.mt5.copy_rates_from_pos(self.symbol, mt_tf, 0, n + 1)
         if rates is None or len(rates) < 50:
             log.warning("Chua lay duoc du lieu nen: %s", self.mt5.last_error())
             return False
         forming = int(rates[-1]["time"])
         if self.last_bar is None:
             self.last_bar = forming  # wait for the next fresh bar before acting
-            log.info("Da nap %d nen lich su, doi nen M5 moi...", len(rates) - 1)
+            log.info("Da nap %d nen lich su, doi nen M%d moi...", len(rates) - 1, self.tf // 60)
             return False
         if forming == self.last_bar:
             return False

@@ -170,7 +170,7 @@ def build_payload(bt, meta):
                         reason=e["reason"]) for e in p.exits],
         ))
     return dict(
-        meta=dict(meta, point=point, kz_names=bt.kz_names, setup_names=bt.setup_names,
+        meta=dict(meta, point=point, tf=getattr(b, "tf", 300), kz_names=bt.kz_names, setup_names=bt.setup_names,
                   strategy=bt.strategy_name, diag=bt.diag_labels, risk_percent=bt.risk_percent,
                   first=b.t[0], last=b.t[-1], generated=datetime.now().strftime("%Y-%m-%d %H:%M")),
         stats=stats, counters=bt.cnt, params=bt.params_dict(),

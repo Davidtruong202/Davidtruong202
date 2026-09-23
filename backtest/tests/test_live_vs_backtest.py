@@ -1,6 +1,6 @@
 """Drive the live bot through a fake MT5 and check it trades like the backtest.
 
-    python tests/test_live_vs_backtest.py [data.csv] [--bars 12000]
+    python tests/test_live_vs_backtest.py [data.csv] [--bars 12000] [--strategy scalper]
 """
 
 import argparse
@@ -25,12 +25,14 @@ def main():
     ap.add_argument("data", nargs="?", default=os.path.join(os.path.dirname(HERE), "data", "DEMO_XAUUSD_M5.csv"))
     ap.add_argument("--bars", type=int, default=12000)
     ap.add_argument("--history", type=int, default=2000)
+    ap.add_argument("--strategy", default="breakout")
     args = ap.parse_args()
     logging.basicConfig(level=logging.WARNING)
 
-    bars = load_bars(args.data, verbose=False).tail(args.bars)
     tmp = tempfile.mkdtemp()
-    cfg = Config(dict(symbol="XAUUSD", live=dict(log_dir=tmp, history_bars=args.history)))
+    cfg = Config(dict(symbol="XAUUSD", strategy=args.strategy, live=dict(log_dir=tmp, history_bars=args.history)))
+    tf = cfg.make_strategy().timeframe
+    bars = load_bars(args.data, verbose=False, tf=tf).tail(args.bars)
 
     # --- live bot on a fake terminal, starting once it has `history` bars of history
     fake = FakeMT5(bars, start=args.history)
@@ -40,7 +42,7 @@ def main():
         bot.step()
         if not fake.advance():
             break
-    live = [(d.time - d.time % 300, d.type) for d in fake.deals if d.entry == 0]
+    live = [(d.time - d.time % tf, d.type) for d in fake.deals if d.entry == 0]
 
     # --- backtest on the same bars, entries only after the same warm-up
     bt = Backtester(bars, cfg.make_strategy(), risk=cfg.risk, trade_from=bars.t[args.history]).run()

@@ -72,6 +72,14 @@ class SessionBreakout:
     name = "Session Breakout"
     key = "breakout"
     Params = BreakoutParams
+    timeframe = 300
+    GRID = {
+        "tp_r": ["1.5", "2", "3"],
+        "buffer_atr": ["0.05", "0.2"],
+        "min_body": ["0.3", "0.5"],
+        "use_trend": ["true", "false"],
+        "trail_atr": ["0", "3"],
+    }
     setup_names = {"BO": "Breakout range phiên Á"}
     kz_names = {0: "Ngoài giờ", 1: "Range phiên Á", 2: "Giờ vào lệnh"}
     diag_labels = [

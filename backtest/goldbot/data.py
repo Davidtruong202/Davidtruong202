@@ -1,4 +1,4 @@
-"""Load price data exported from the broker (MT5) and turn it into M5 bars.
+"""Load price data exported from the broker (MT5) and turn it into M1/M5 bars.
 
 Supported inputs (auto-detected):
   * MT5 "Bars" export   : <DATE> <TIME> <OPEN> <HIGH> <LOW> <CLOSE> <TICKVOL> <VOL> <SPREAD>
@@ -6,7 +6,7 @@ Supported inputs (auto-detected):
   * Generic CSV         : header with time/datetime (or date+time), open, high, low, close[, spread]
   * download_mt5.py CSV : time,open,high,low,close,tick_volume,spread
 
-Bars of any timeframe <= M5 (M1, M5, ticks) are aggregated to M5. All times are
+Ticks and bars are aggregated to the requested timeframe (M1 or M5). All times are
 kept as broker *server* time in epoch seconds (naive, treated as UTC) - exactly
 what the MT5 Strategy Tester sees.
 """
@@ -20,17 +20,19 @@ M5 = 300
 
 
 class Bars:
-    """Column-oriented M5 bar storage. Prices are BID prices; spread is in price units.
+    """Column-oriented bar storage (timeframe in seconds = .tf). Prices are BID prices; spread is in price units.
 
     hf = which extreme printed first inside the bar: 1 high first, -1 low first,
     0 unknown. Known from tick data (and mostly from M1 bars); the backtest uses it
     to decide whether SL or TP filled first when a bar touches both.
     """
 
-    __slots__ = ("t", "o", "h", "l", "c", "spread", "hf")
+    __slots__ = ("t", "o", "h", "l", "c", "spread", "hf", "tf")
+    COLS = ("t", "o", "h", "l", "c", "spread", "hf")
 
-    def __init__(self):
+    def __init__(self, tf=M5):
         self.t, self.o, self.h, self.l, self.c, self.spread, self.hf = [], [], [], [], [], [], []
+        self.tf = tf
 
     def __len__(self):
         return len(self.t)
@@ -40,7 +42,7 @@ class Bars:
         self.l.append(l); self.c.append(c); self.spread.append(spread); self.hf.append(hf)
 
     def slice_time(self, t_from=None, t_to=None):
-        out = Bars()
+        out = Bars(self.tf)
         for i in range(len(self.t)):
             if t_from is not None and self.t[i] < t_from:
                 continue
@@ -50,8 +52,8 @@ class Bars:
         return out
 
     def tail(self, n):
-        out = Bars()
-        for name in self.__slots__:
+        out = Bars(self.tf)
+        for name in self.COLS:
             setattr(out, name, getattr(self, name)[-n:])
         return out
 
@@ -120,8 +122,8 @@ def _f(x):
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
-def load_bars(path, point=0.01, default_spread_points=25, verbose=True):
-    """Read any supported file and return M5 Bars (bid prices, spread in price)."""
+def load_bars(path, point=0.01, default_spread_points=25, verbose=True, tf=M5):
+    """Read any supported file and return Bars of `tf` seconds (bid prices, spread in price)."""
     if not os.path.exists(path):
         raise FileNotFoundError(path)
 
@@ -160,7 +162,7 @@ def load_bars(path, point=0.01, default_spread_points=25, verbose=True):
             return parse_t(r[i_date].strip() + " " + r[i_time].strip())
         return parse_t(r[i_date])
 
-    bars = Bars()
+    bars = Bars(tf)
     default_spread = default_spread_points * point
     cur_key = None
     bo = bh = bl = bc = 0.0
@@ -189,7 +191,7 @@ def load_bars(path, point=0.01, default_spread_points=25, verbose=True):
             if bid is None or b is None:
                 continue  # only bid changes move the (bid-based) chart
             t = row_time(r)
-            key = t - t % M5
+            key = t - t % tf
             seq += 1
             if key != cur_key:
                 flush()
@@ -218,7 +220,7 @@ def load_bars(path, point=0.01, default_spread_points=25, verbose=True):
                 sp = float(r[i_spr]) * point  # MT5 stores spread in points
                 if sp <= 0:
                     sp = None
-            key = t - t % M5
+            key = t - t % tf
             seq += 1
             if key != cur_key:
                 flush()
@@ -236,20 +238,47 @@ def load_bars(path, point=0.01, default_spread_points=25, verbose=True):
     fh.close()
 
     if len(bars) < 2:
-        raise ValueError("Qua it du lieu (%d nen M5)." % len(bars))
+        raise ValueError("Qua it du lieu (%d nen)." % len(bars))
     step = sorted(bars.t[k + 1] - bars.t[k] for k in range(min(len(bars) - 1, 2000)))[0]
-    if step > M5:
-        raise ValueError("Du lieu co khung lon hon M5 (buoc %ds). Hay xuat nen M1/M5 hoac tick." % step)
+    if step > tf:
+        raise ValueError("Du lieu co khung lon hon M%d (buoc %ds). Hay xuat nen M1 hoac tick." % (tf // 60, step))
     if verbose:
         kind = "tick" if is_ticks else "nen"
-        print("Doc %s dong %s -> %d nen M5 (%s -> %s)" % (
-            format(n_rows, ","), kind, len(bars), fmt_time(bars.t[0]), fmt_time(bars.t[-1])), file=sys.stderr)
+        print("Doc %s dong %s -> %d nen M%d (%s -> %s)" % (
+            format(n_rows, ","), kind, len(bars), tf // 60, fmt_time(bars.t[0]), fmt_time(bars.t[-1])), file=sys.stderr)
     return bars
 
 
-def bars_from_rates(rates, point, default_spread_points=25):
+def resample(bars, tf):
+    """Aggregate finer bars (e.g. M1) into `tf` seconds, keeping which extreme came first."""
+    out = Bars(tf)
+    cur = None
+    o = h = l = c = 0.0
+    sp, hi_at, lo_at, hf0 = [], 0, 0, 0
+    for i in range(len(bars)):
+        t = bars.t[i]
+        k = t - t % tf
+        if k != cur:
+            if cur is not None:
+                out.append(cur, o, h, l, c, sum(sp) / len(sp), 1 if hi_at < lo_at else (-1 if lo_at < hi_at else hf0))
+            cur, o, h, l, c, sp = k, bars.o[i], bars.h[i], bars.l[i], bars.c[i], [bars.spread[i]]
+            hi_at = lo_at = i
+            hf0 = bars.hf[i]
+        else:
+            if bars.h[i] > h:
+                h, hi_at = bars.h[i], i
+            if bars.l[i] < l:
+                l, lo_at = bars.l[i], i
+            c = bars.c[i]
+            sp.append(bars.spread[i])
+    if cur is not None:
+        out.append(cur, o, h, l, c, sum(sp) / len(sp), 1 if hi_at < lo_at else (-1 if lo_at < hi_at else hf0))
+    return out
+
+
+def bars_from_rates(rates, point, default_spread_points=25, tf=M5):
     """MT5 copy_rates_* result (numpy structured array or list of dicts) -> Bars."""
-    bars = Bars()
+    bars = Bars(tf)
     for r in rates:
         sp = float(r["spread"]) * point if r["spread"] else default_spread_points * point
         bars.append(int(r["time"]), float(r["open"]), float(r["high"]), float(r["low"]), float(r["close"]), sp, 0)

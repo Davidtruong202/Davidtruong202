@@ -1,6 +1,6 @@
 """A tiny in-memory stand-in for the MetaTrader5 package.
 
-It replays M5 bars as 4 ticks each (open, first extreme, second extreme, close),
+It replays bars (M1/M5) as 4 ticks each (open, first extreme, second extreme, close),
 fills market orders at the current tick, and triggers SL/TP server-side - just
 enough to drive ``goldbot.live.LiveTrader`` end to end without a terminal.
 """
@@ -10,7 +10,7 @@ from types import SimpleNamespace as NS
 
 class FakeMT5:
     ACCOUNT_TRADE_MODE_DEMO, ACCOUNT_TRADE_MODE_REAL = 0, 2
-    TIMEFRAME_M5 = 5
+    TIMEFRAME_M1, TIMEFRAME_M5 = 1, 5
     TRADE_ACTION_DEAL, TRADE_ACTION_SLTP = 1, 6
     ORDER_TYPE_BUY, ORDER_TYPE_SELL = 0, 1
     POSITION_TYPE_BUY, POSITION_TYPE_SELL = 0, 1
@@ -61,7 +61,7 @@ class FakeMT5:
                 self._close(p, p.volume, px, "tp")
 
     def _now(self):
-        return self.b.t[self.k] + self.n * 60
+        return self.b.t[self.k] + self.n * (self.b.tf // 4)
 
     def _close(self, p, vol, px, why):
         buy = p.type == 0
