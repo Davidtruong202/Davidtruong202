@@ -19,7 +19,8 @@ from .common import H1, ema, sma_atr, HTF, DAY
 
 @dataclass
 class DCAParams:
-    direction: str = "trend"      # "trend" (H1 EMA filter) or "long" (buy only)
+    direction: str = "trend"      # "trend" (waits for a clear H1 trend), "long" (buy only),
+                                  # "side"/"slope" (always in the market, 24/7: H1 EMA side / slope decides)
     step_atr: float = 1.0         # distance between levels, x ATR(H1) at basket open
     mult: float = 1.5             # lot multiplier per level (1.0 = fixed lot, 2.0 = martingale x2)
     max_levels: int = 6           # positions per basket, including the first
@@ -72,8 +73,12 @@ class DCASim:
             return 1
         k = self.k_of[i]
         if k < p.trend_ema + p.trend_slope_bars:
-            return 0
+            return 1 if p.direction in ("side", "slope") else 0
         e, ep, c = self.h1_ema[k], self.h1_ema[k - p.trend_slope_bars], self.h1_c[k]
+        if p.direction == "side":        # always in the market: above the H1 EMA buy, below sell
+            return 1 if c >= e else -1
+        if p.direction == "slope":       # always in the market: rising H1 EMA buy, falling sell
+            return 1 if e >= ep else -1
         if c > e and e > ep:
             return 1
         if c < e and e < ep:

@@ -66,7 +66,14 @@ def run_setup(s):
 
 
 def main():
-    m1 = load_bars(sys.argv[1], tf=60, verbose=False)
+    import argparse
+    ap = argparse.ArgumentParser()
+    ap.add_argument("data")
+    ap.add_argument("--directions", default="trend,long", help="trend,long,side,slope (side/slope = 24/24)")
+    ap.add_argument("--tag", default="")
+    args = ap.parse_args()
+    GRID["direction"] = args.directions.split(",")
+    m1 = load_bars(args.data, tf=60, verbose=False)
     fd, pkl = tempfile.mkstemp(suffix=".pkl")
     with os.fdopen(fd, "wb") as f:
         pickle.dump(m1, f, protocol=pickle.HIGHEST_PROTOCOL)
@@ -78,7 +85,7 @@ def main():
             res = pool.map(run_setup, setups, chunksize=2)
     finally:
         os.remove(pkl)
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "reports", "dca_setups.json")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "reports", "dca_setups%s.json" % args.tag)
     os.makedirs(os.path.dirname(out), exist_ok=True)
     with open(out, "w") as f:
         json.dump(res, f)
