@@ -44,6 +44,7 @@ ulong    g_loggedDeals[];
 datetime g_lastDealTime = 0;
 datetime g_lastBarsExport = 0;
 bool     g_snapInit = false;
+int      g_waitTicks = 0;
 
 //--- snapshot vi the / lenh cho (mang song song)
 ulong    g_sTicket[];
@@ -108,14 +109,24 @@ int IndIndex(const string sym, const ENUM_TIMEFRAMES tf)
    return n;
   }
 
+string g_notReady = ""; // ly do chua san sang, de in ra tab Experts
+
 bool IndReady(const int k)
   {
    int h[8];
+   string names[8] = {"ATR", "RSI", "EMA20", "EMA50", "EMA200", "BB", "MACD", "STOCH"};
    h[0] = g_ind[k].atr;   h[1] = g_ind[k].rsi;  h[2] = g_ind[k].ema20; h[3] = g_ind[k].ema50;
    h[4] = g_ind[k].ema200; h[5] = g_ind[k].bb;  h[6] = g_ind[k].macd;  h[7] = g_ind[k].stoch;
    for(int i = 0; i < 8; i++)
       if(h[i] == INVALID_HANDLE || BarsCalculated(h[i]) <= 0)
+        {
+         g_notReady = StringFormat("%s %s %s: handle=%d calculated=%d bars=%d synced=%s",
+                                   g_ind[k].sym, EnumToString(g_ind[k].tf), names[i], h[i],
+                                   h[i] == INVALID_HANDLE ? -1 : BarsCalculated(h[i]),
+                                   Bars(g_ind[k].sym, g_ind[k].tf),
+                                   SeriesInfoInteger(g_ind[k].sym, g_ind[k].tf, SERIES_SYNCHRONIZED) ? "yes" : "no");
          return false;
+        }
    return true;
   }
 
@@ -705,6 +716,16 @@ int OnInit()
   {
    string dir = InpUseCommonFolder ? TerminalInfoString(TERMINAL_COMMONDATA_PATH) + "\\Files"
                                    : TerminalInfoString(TERMINAL_DATA_PATH) + "\\MQL5\\Files";
+   // EA co the duoc khoi dong lai (doi tham so/khung) ma bien toan cuc van giu gia tri cu
+   ArrayResize(g_ind, 0);
+   ArrayResize(g_loggedDeals, 0);
+   ArrayResize(g_sTicket, 0); ArrayResize(g_sIsOrder, 0); ArrayResize(g_sSym, 0); ArrayResize(g_sType, 0);
+   ArrayResize(g_sVol, 0); ArrayResize(g_sPrice, 0); ArrayResize(g_sSL, 0); ArrayResize(g_sTP, 0);
+   g_initialDone = false;
+   g_snapInit = false;
+   g_lastDealTime = 0;
+   g_lastBarsExport = 0;
+   g_waitTicks = 0;
    PrintFormat("[TradeLogger] Tai khoan %I64d (%s), trade_allowed=%s. File se ghi vao %s",
                AccountInfoInteger(ACCOUNT_LOGIN), AccountInfoString(ACCOUNT_SERVER),
                AccountInfoInteger(ACCOUNT_TRADE_ALLOWED) ? "true" : "false (investor)", dir);
@@ -729,11 +750,17 @@ void OnTimer()
    if(!g_initialDone)
      {
       // Lan dau: doi chi bao cua moi symbol tinh xong roi moi dump toan bo
-      if(!AllSymbolsReady())
+      // Doi toi da ~5 phut; qua thoi gian do van ghi file (dac trung nao chua co se de trong)
+      int maxWait = MathMax(1, 300 / MathMax(1, InpTimerSeconds));
+      if(!AllSymbolsReady() && g_waitTicks < maxWait)
         {
-         Print("[TradeLogger] Dang cho chi bao/du lieu lich su tai xong...");
+         if(g_waitTicks % 12 == 0)
+            PrintFormat("[TradeLogger] Dang cho du lieu (%d/%d): %s", g_waitTicks, maxWait, g_notReady);
+         g_waitTicks++;
          return;
         }
+      if(g_waitTicks >= maxWait)
+         PrintFormat("[TradeLogger] Het thoi gian cho, van ghi file. Con thieu: %s", g_notReady);
       DumpSymbols();
       DumpAllDeals();
       DumpOrders();
