@@ -94,6 +94,11 @@ EA tự vào lệnh sẵn). Để tự động hoá, mình đã lược bỏ/đ�
    các ngưỡng (PivLen, DispATR, EqTolATR, ICT Score threshold...) theo dữ
    liệu thực tế của Gold M5 trên tài khoản của bạn.
 
+## Bot backtest Python + báo cáo đẹp
+
+Thư mục `backtest/` có bot Python chạy lại logic EA này trên dữ liệu bạn
+tải từ sàn, xuất báo cáo HTML có replay từng nến. Xem `backtest/README.md`.
+
 ## Cảnh báo rủi ro
 
 Đây là bản tự động hoá theo tài liệu, không phải bản sao chính xác của

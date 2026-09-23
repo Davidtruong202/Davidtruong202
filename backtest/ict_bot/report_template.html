@@ -1,0 +1,835 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ICT Bot Backtest</title>
+<style>
+:root{
+  color-scheme: light;
+  --bg:#f4f3ef; --surface:#fcfcfb; --surface-2:#f0efec; --line:#e2e0da; --grid:#ecebe6;
+  --text:#0b0b0b; --text-2:#52514e; --muted:#8a8983;
+  --accent:#a8740a; --accent-soft:#f6ebd2;
+  --up:#1baf7a; --down:#e34948; --buy:#2a78d6; --sell:#eb6834;
+  --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s4:#eda100;
+  --kz1:#4a3aa7; --kz2:#2a78d6; --kz3:#eda100; --kz4:#e87ba4; --kz5:#008300;
+  --neutral:#f0efec; --shadow:0 1px 2px rgba(0,0,0,.04),0 4px 16px rgba(0,0,0,.05);
+  --warn-bg:#fff4dc; --warn-line:#f0cf85;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme: dark;
+    --bg:#0f0f0e; --surface:#1a1a19; --surface-2:#222220; --line:#2f2f2c; --grid:#262624;
+    --text:#ffffff; --text-2:#c3c2b7; --muted:#8b8a82;
+    --accent:#e2b54e; --accent-soft:#2c2513;
+    --up:#199e70; --down:#e66767; --buy:#3987e5; --sell:#d95926;
+    --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500;
+    --kz1:#9085e9; --kz2:#3987e5; --kz3:#c98500; --kz4:#d55181; --kz5:#008300;
+    --neutral:#383835; --shadow:0 1px 2px rgba(0,0,0,.3),0 6px 24px rgba(0,0,0,.25);
+    --warn-bg:#2c2513; --warn-line:#6b5516;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme: dark;
+  --bg:#0f0f0e; --surface:#1a1a19; --surface-2:#222220; --line:#2f2f2c; --grid:#262624;
+  --text:#ffffff; --text-2:#c3c2b7; --muted:#8b8a82;
+  --accent:#e2b54e; --accent-soft:#2c2513;
+  --up:#199e70; --down:#e66767; --buy:#3987e5; --sell:#d95926;
+  --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500;
+  --kz1:#9085e9; --kz2:#3987e5; --kz3:#c98500; --kz4:#d55181; --kz5:#008300;
+  --neutral:#383835; --shadow:0 1px 2px rgba(0,0,0,.3),0 6px 24px rgba(0,0,0,.25);
+  --warn-bg:#2c2513; --warn-line:#6b5516;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--text);font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;-webkit-font-smoothing:antialiased}
+.num,td.n,.mono{font-variant-numeric:tabular-nums}
+.wrap{max-width:1360px;margin:0 auto;padding:20px 16px 48px}
+header.top{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:16px}
+.brand{display:flex;align-items:center;gap:12px;min-width:0}
+.logo{width:40px;height:40px;border-radius:10px;background:linear-gradient(135deg,var(--accent),#7a5406);display:grid;place-items:center;color:#fff;font-weight:800;letter-spacing:-.5px;flex:none}
+.brand h1{font-size:19px;margin:0;letter-spacing:-.2px}
+.brand p{margin:0;color:var(--text-2);font-size:13px}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-left:auto;align-items:center}
+.chip{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:4px 10px;font-size:12px;color:var(--text-2);white-space:nowrap}
+.chip b{color:var(--text);font-weight:600}
+button,select,input{font:inherit;color:inherit}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:6px 10px;cursor:pointer;line-height:1;display:inline-flex;align-items:center;gap:6px;min-height:32px}
+.btn:hover{background:var(--surface-2)}
+.btn.on{border-color:var(--accent);background:var(--accent-soft)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+.btn.primary:hover{filter:brightness(1.07)}
+select.btn{padding-right:8px}
+.banner{border:1px solid var(--warn-line);background:var(--warn-bg);border-radius:12px;padding:10px 14px;margin-bottom:16px;font-size:13px}
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:16px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px 16px;box-shadow:var(--shadow);min-width:0;position:relative;overflow:hidden}
+.kpi .l{font-size:12px;color:var(--text-2);display:flex;justify-content:space-between;gap:8px}
+.kpi .v{font-size:26px;font-weight:700;letter-spacing:-.5px;margin-top:4px;white-space:nowrap}
+.kpi .s{font-size:12px;color:var(--muted);margin-top:2px}
+.kpi.hero{grid-column:span 2}
+.kpi.hero .v{font-size:34px}
+.kpi canvas{position:absolute;right:0;bottom:0;width:55%;height:70%;opacity:.95;pointer-events:none}
+.tag{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:600;padding:1px 7px;border-radius:999px;background:var(--surface-2);color:var(--text)}
+.tag i{font-style:normal}
+.tag.pos i{color:var(--up)} .tag.neg i{color:var(--down)}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);padding:14px 16px;margin-bottom:16px;min-width:0}
+.card h2{font-size:15px;margin:0;letter-spacing:-.1px}
+.card .sub{color:var(--text-2);font-size:12px;margin:2px 0 0}
+.card-h{display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:10px}
+.card-h .grow{flex:1;min-width:180px}
+.toolbar{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.sep{width:1px;height:22px;background:var(--line);margin:0 4px}
+.chart-wrap{position:relative;height:min(62vh,560px);min-height:320px;border-radius:10px;overflow:hidden;touch-action:none;cursor:crosshair}
+.chart-wrap canvas{position:absolute;inset:0;width:100%;height:100%}
+.eq-wrap{position:relative;height:300px}
+.eq-wrap canvas{position:absolute;inset:0;width:100%;height:100%}
+.tip{position:absolute;pointer-events:none;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-size:12px;box-shadow:var(--shadow);white-space:nowrap;z-index:5;display:none}
+.tip .r{display:flex;justify-content:space-between;gap:14px}
+.tip .k{color:var(--text-2)}
+.hud{position:absolute;left:10px;top:10px;background:color-mix(in srgb,var(--surface) 88%,transparent);backdrop-filter:blur(6px);border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-size:12px;pointer-events:none;min-width:190px}
+.hud .big{font-size:18px;font-weight:700}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--text-2);margin-top:10px}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.sw{width:10px;height:10px;border-radius:3px;display:inline-block;flex:none}
+.replay{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:10px;padding-top:10px;border-top:1px solid var(--line)}
+.replay input[type=range]{flex:1;min-width:160px;accent-color:var(--accent)}
+.replay .time{font-size:12px;color:var(--text-2);min-width:130px;text-align:right}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.grid2 > .card{margin-bottom:0}
+.grid2 + *{margin-top:16px}
+table{border-collapse:collapse;width:100%}
+th,td{padding:7px 8px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
+th{font-size:12px;color:var(--text-2);font-weight:600}
+td.n,th.n{text-align:right}
+tbody tr:hover{background:var(--surface-2)}
+.tbl-scroll{overflow:auto;max-height:520px;border:1px solid var(--line);border-radius:10px}
+.tbl-scroll thead th{position:sticky;top:0;background:var(--surface);z-index:1;cursor:pointer;user-select:none}
+.tbl-scroll tbody tr{cursor:pointer}
+.pos{color:var(--text)} .neg{color:var(--text)}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:1px}
+.dir{font-weight:600;font-size:12px}
+.dir.buy{color:var(--buy)} .dir.sell{color:var(--sell)}
+.ic-up{color:var(--up)} .ic-dn{color:var(--down)}
+.divbar{position:relative;height:8px;background:var(--surface-2);border-radius:4px;min-width:90px}
+.divbar b{position:absolute;top:0;height:8px;border-radius:4px}
+.divbar:after{content:"";position:absolute;left:50%;top:-3px;bottom:-3px;width:1px;background:var(--muted)}
+.heat{width:100%;border-collapse:separate;border-spacing:3px}
+.heat td,.heat th{border:0;text-align:center;padding:0}
+.heat td.c{height:38px;border-radius:6px;font-size:11px;font-weight:600;min-width:36px;padding:0 2px}
+.heat th{font-weight:500;color:var(--muted);font-size:11px;padding:2px}
+.hist{display:flex;align-items:flex-end;gap:4px;height:190px;padding-top:18px}
+.hist .col{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;min-width:0}
+.hist .bar{width:100%;border-radius:4px 4px 0 0;min-height:1px}
+.hist .cnt{font-size:11px;color:var(--text-2);margin-bottom:3px}
+.hist-x{display:flex;gap:4px;margin-top:4px;border-top:1px solid var(--line);padding-top:4px}
+.hist-x span{flex:1;text-align:center;font-size:10.5px;color:var(--muted);min-width:0;overflow:hidden}
+.hbar{display:grid;grid-template-columns:140px 1fr 40px;gap:10px;align-items:center;margin:6px 0;font-size:13px}
+.hbar .track{height:10px;background:var(--surface-2);border-radius:5px;overflow:hidden}
+.hbar .track b{display:block;height:100%;background:var(--s1);border-radius:0 5px 5px 0}
+.kv{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:2px 20px;font-size:12.5px}
+.kv div{display:flex;justify-content:space-between;border-bottom:1px dashed var(--line);padding:4px 0;gap:10px}
+.kv span:first-child{color:var(--text-2)}
+.diag{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.diag div{background:var(--surface-2);border-radius:10px;padding:10px 12px}
+.diag b{display:block;font-size:20px}
+.diag span{font-size:12px;color:var(--text-2)}
+details summary{cursor:pointer;font-weight:600}
+.filters{display:flex;gap:6px;flex-wrap:wrap}
+footer{color:var(--muted);font-size:12px;text-align:center;margin-top:24px;line-height:1.6}
+.ftip{position:fixed;pointer-events:none;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:7px 10px;font-size:12px;box-shadow:var(--shadow);z-index:50;display:none;white-space:nowrap}
+.empty{color:var(--muted);font-size:13px;padding:24px;text-align:center}
+@media (max-width:980px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.grid2{grid-template-columns:minmax(0,1fr)}.kpi.hero{grid-column:span 2}}
+@media (max-width:560px){.kpi .v{font-size:21px}.kpi.hero .v{font-size:27px}.hbar{grid-template-columns:100px 1fr 32px}.replay .time{min-width:0;text-align:left}.chips{margin-left:0}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <div class="logo">Au</div>
+      <div>
+        <h1 id="title">ICT Bot · Backtest</h1>
+        <p id="subtitle"></p>
+      </div>
+    </div>
+    <div class="chips" id="chips"></div>
+    <button class="btn" id="themeBtn" title="Đổi giao diện sáng/tối" aria-label="Đổi giao diện">◐</button>
+  </header>
+
+  <div class="banner" id="demoBanner" hidden>
+    <b>⚠ Dữ liệu giả lập.</b> Báo cáo này chạy trên giá ngẫu nhiên do <code>make_demo_data.py</code> tạo ra — chỉ để xem bot hoạt động thế nào. Kết quả <b>không</b> nói gì về thị trường thật. Hãy chạy lại với file dữ liệu bạn xuất từ sàn.
+  </div>
+
+  <section class="kpis" id="kpis"></section>
+
+  <section class="card">
+    <div class="card-h">
+      <div class="grow">
+        <h2 id="chartTitle">Biểu đồ giá & lệnh</h2>
+        <p class="sub">Cuộn chuột để zoom · kéo để di chuyển · nhấp đúp để về cuối · bấm vào lệnh trong bảng để nhảy tới</p>
+      </div>
+      <div class="toolbar">
+        <button class="btn on" id="tgKZ" title="Tô màu killzone">Killzone</button>
+        <button class="btn on" id="tgTR" title="Hiện vùng SL/TP">SL / TP</button>
+        <span class="sep"></span>
+        <button class="btn" id="zOut" aria-label="Thu nhỏ">−</button>
+        <button class="btn" id="zIn" aria-label="Phóng to">+</button>
+        <button class="btn" id="zFit" title="Xem toàn bộ">Toàn bộ</button>
+      </div>
+    </div>
+    <div class="chart-wrap" id="pwrap">
+      <canvas id="pc"></canvas>
+      <div class="hud" id="hud"></div>
+      <div class="tip" id="ptip"></div>
+    </div>
+    <div class="legend" id="plegend"></div>
+    <div class="replay">
+      <button class="btn primary" id="play" title="Chơi lại (replay) từng nến">▶ Replay</button>
+      <button class="btn" id="stepB" aria-label="Lùi 1 nến">⏪</button>
+      <button class="btn" id="stepF" aria-label="Tiến 1 nến">⏩</button>
+      <select class="btn" id="speed" title="Tốc độ">
+        <option value="4">4 nến/giây</option>
+        <option value="15">15 nến/giây</option>
+        <option value="60" selected>60 nến/giây</option>
+        <option value="240">240 nến/giây</option>
+        <option value="1200">1200 nến/giây</option>
+      </select>
+      <button class="btn" id="toNextTrade" title="Tới lệnh kế tiếp">Lệnh kế ⏭</button>
+      <input type="range" id="scrub" min="0" value="0" aria-label="Vị trí replay">
+      <span class="time mono" id="scrubT"></span>
+      <button class="btn" id="toEnd" title="Hiện toàn bộ kết quả">Kết thúc</button>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="card-h">
+      <div class="grow">
+        <h2>Equity & Drawdown</h2>
+        <p class="sub">Vốn theo giá đóng nến (equity) và số dư đã chốt (balance) · bấm vào biểu đồ để nhảy tới thời điểm đó</p>
+      </div>
+    </div>
+    <div class="eq-wrap" id="ewrap"><canvas id="ec"></canvas><div class="tip" id="etip"></div></div>
+    <div class="legend">
+      <span><i class="sw" style="background:var(--s1)"></i>Equity</span>
+      <span><i class="sw" style="background:var(--muted)"></i>Balance</span>
+      <span><i class="sw" style="background:var(--down)"></i>Drawdown %</span>
+    </div>
+  </section>
+
+  <div class="grid2">
+    <section class="card">
+      <div class="card-h"><div class="grow"><h2>Hiệu quả theo Setup</h2><p class="sub">4 setup ICT của EA</p></div></div>
+      <div style="overflow-x:auto"><table id="setupTbl"></table></div>
+    </section>
+    <section class="card">
+      <div class="card-h"><div class="grow"><h2>Lợi nhuận theo tháng</h2><p class="sub">% so với vốn đầu tháng</p></div></div>
+      <div style="overflow-x:auto" id="heat"></div>
+    </section>
+    <section class="card">
+      <div class="card-h"><div class="grow"><h2>Phân bố R-multiple</h2><p class="sub">Lãi/lỗ mỗi lệnh chia cho rủi ro ban đầu (1R)</p></div></div>
+      <div id="hist"></div>
+    </section>
+    <section class="card">
+      <div class="card-h"><div class="grow"><h2>Cách thoát lệnh</h2><p class="sub">Lý do đóng phần cuối của mỗi lệnh</p></div></div>
+      <div id="exits"></div>
+      <div style="overflow-x:auto;margin-top:12px"><table id="dirTbl"></table></div>
+    </section>
+  </div>
+
+  <section class="card">
+    <div class="card-h">
+      <div class="grow"><h2>Danh sách lệnh</h2><p class="sub" id="tradeCount"></p></div>
+      <div class="filters">
+        <select class="btn" id="fSetup"><option value="">Tất cả setup</option></select>
+        <select class="btn" id="fDir"><option value="">Mua & Bán</option><option value="1">Mua</option><option value="0">Bán</option></select>
+        <select class="btn" id="fRes"><option value="">Thắng & Thua</option><option value="w">Thắng</option><option value="l">Thua / hoà</option></select>
+      </div>
+    </div>
+    <div class="tbl-scroll"><table id="trTbl"></table></div>
+  </section>
+
+  <div class="grid2">
+    <section class="card">
+      <div class="card-h"><div class="grow"><h2>Chẩn đoán tín hiệu</h2><p class="sub">Giống dòng [ICT-EA Summary] của EA — giúp biết vì sao ít/nhiều lệnh</p></div></div>
+      <div class="diag" id="diag"></div>
+    </section>
+    <section class="card">
+      <div class="card-h"><div class="grow"><h2>Tham số đã dùng</h2><p class="sub">Trùng tên với input của EA MT5</p></div></div>
+      <details><summary>Xem tham số</summary><div class="kv" id="params" style="margin-top:10px"></div></details>
+    </section>
+  </div>
+
+  <footer>
+    Báo cáo tạo bởi <b>ICT Bot</b> (port Python của <code>XAUUSD_ICT_M5.mq5</code>) · <span id="gen"></span><br>
+    Backtest dùng nến M5 (không phải từng tick), giả định SL khớp trước nếu SL và TP cùng chạm trong một nến. Kết quả quá khứ không đảm bảo lợi nhuận tương lai.
+  </footer>
+</div>
+<div class="ftip" id="ftip"></div>
+
+<script>
+const D = /*__DATA__*/null;
+(function(){
+"use strict";
+const $ = id => document.getElementById(id);
+const M = D.meta, B = D.bars, N = B.t.length, PT = M.point;
+const CONTRACT = D.params.account.contract_size;
+const TR = D.trades, S = D.stats.summary;
+const DIG = Math.max(0, Math.round(-Math.log10(PT)));
+
+// ---------- formatting ----------
+const pad = n => String(n).padStart(2, "0");
+function fT(t, withYear){ const d = new Date(t*1000); const s = pad(d.getUTCMonth()+1)+"-"+pad(d.getUTCDate())+" "+pad(d.getUTCHours())+":"+pad(d.getUTCMinutes()); return withYear===false ? s : d.getUTCFullYear()+"-"+s; }
+function fD(t){ const d = new Date(t*1000); return d.getUTCFullYear()+"-"+pad(d.getUTCMonth()+1)+"-"+pad(d.getUTCDate()); }
+const nf2 = new Intl.NumberFormat("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
+const nf0 = new Intl.NumberFormat("en-US",{maximumFractionDigits:0});
+const money = v => (v<0?"−":"")+"$"+nf2.format(Math.abs(v));
+const smoney = v => (v>0?"+":v<0?"−":"")+"$"+nf2.format(Math.abs(v));
+const pct = (v,d=1) => (v>0?"+":v<0?"−":"")+Math.abs(v).toFixed(d)+"%";
+const px = p => (p*PT).toFixed(DIG);
+const fr = v => (v>0?"+":v<0?"−":"")+Math.abs(v).toFixed(2)+"R";
+function icon(v){ return v>0 ? '<i class="ic-up">▲</i>' : v<0 ? '<i class="ic-dn">▼</i>' : '<i>•</i>'; }
+function tag(v, text){ return '<span class="tag '+(v>0?"pos":v<0?"neg":"")+'">'+icon(v)+(text)+'</span>'; }
+function css(name){ return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+function alpha(hex, a){ const h = hex.replace("#",""); const n = parseInt(h.length===3?h.split("").map(c=>c+c).join(""):h,16); return "rgba("+(n>>16&255)+","+(n>>8&255)+","+(n&255)+","+a+")"; }
+function esc(s){ return String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+function lowerBound(arr, v, key){ let lo=0, hi=arr.length; while(lo<hi){ const m=(lo+hi)>>1; if((key?key(arr[m]):arr[m]) <= v) lo=m+1; else hi=m; } return lo-1; }
+
+// ---------- theme ----------
+const root = document.documentElement;
+try { const th = localStorage.getItem("ictbot-theme"); if(th) root.dataset.theme = th; } catch(e){}
+$("themeBtn").onclick = () => {
+  const dark = root.dataset.theme ? root.dataset.theme==="dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+  root.dataset.theme = dark ? "light" : "dark";
+  try { localStorage.setItem("ictbot-theme", root.dataset.theme); } catch(e){}
+  redrawAll();
+};
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => redrawAll());
+
+// ---------- header ----------
+$("title").textContent = "ICT Bot · " + M.symbol + " M5 Backtest";
+$("subtitle").textContent = "Port Python của EA XAUUSD_ICT_M5 · nguồn: " + M.source;
+$("chips").innerHTML = [
+  ["Giai đoạn", fD(M.first)+" → "+fD(M.last)],
+  ["Nến M5", nf0.format(N)],
+  ["Vốn đầu", money(S.initial)],
+  ["Rủi ro/lệnh", D.params.strategy.risk_percent+"%"],
+].map(([k,v]) => '<span class="chip">'+k+' <b>'+v+'</b></span>').join("");
+$("demoBanner").hidden = !M.demo;
+$("gen").textContent = "tạo lúc " + M.generated + " · thời gian hiển thị theo giờ server của sàn";
+
+// ---------- KPIs ----------
+function kpi(label, value, sub, cls, extra){ return '<div class="kpi '+(cls||"")+'">'+(extra||"")+'<div class="l"><span>'+label+'</span></div><div class="v num">'+value+'</div><div class="s">'+sub+'</div></div>'; }
+const pfTxt = S.pf >= 999 ? "∞" : S.pf.toFixed(2);
+$("kpis").innerHTML =
+  kpi("Lợi nhuận ròng", smoney(S.net), tag(S.ret_pct, pct(S.ret_pct,2)) + ' &nbsp;vốn cuối ' + money(S.final), "hero", '<canvas id="spark"></canvas>') +
+  kpi("Tỉ lệ thắng", S.win_rate.toFixed(1)+"%", S.wins+" thắng / "+S.trades+" lệnh") +
+  kpi("Profit factor", pfTxt, "lãi gộp "+money(S.gross_win)+" · lỗ gộp "+money(-S.gross_loss)) +
+  kpi("Sụt giảm tối đa", "−"+S.max_dd_pct.toFixed(2)+"%", money(S.max_dd)+" · kéo dài "+S.max_dd_days.toFixed(1)+" ngày") +
+  kpi("Kỳ vọng / lệnh", fr(S.avg_r), smoney(S.expectancy)+" mỗi lệnh") +
+  kpi("Sharpe (năm)", S.sharpe.toFixed(2), "recovery factor "+S.recovery.toFixed(2)) +
+  kpi("Chuỗi thua dài nhất", S.max_loss_streak+" lệnh", "chuỗi thắng dài nhất "+S.max_win_streak+" lệnh");
+
+// ---------- canvas helper ----------
+function prep(canvas){
+  const r = canvas.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
+  const w = Math.max(1, Math.round(r.width)), h = Math.max(1, Math.round(r.height));
+  if(canvas.width !== w*dpr || canvas.height !== h*dpr){ canvas.width = w*dpr; canvas.height = h*dpr; }
+  const ctx = canvas.getContext("2d"); ctx.setTransform(dpr,0,0,dpr,0,0); ctx.clearRect(0,0,w,h);
+  return {ctx, w, h};
+}
+function niceStep(range, target){ const raw = range/Math.max(1,target); const mag = Math.pow(10, Math.floor(Math.log10(raw))); const n = raw/mag; return (n<1.5?1:n<3?2:n<7?5:10)*mag; }
+
+// ---------- equity helpers ----------
+const EQ = D.equity; // [t, balance, equity]
+const exitsFlat = [];
+TR.forEach(t => t.exits.forEach(e => exitsFlat.push([e.t, e.pnl])));
+exitsFlat.sort((a,b) => a[0]-b[0]);
+const cumPnl = []; { let s = 0; exitsFlat.forEach(e => { s += e[1]; cumPnl.push(s); }); }
+function balanceAt(t){ const k = lowerBound(exitsFlat, t, e => e[0]); return S.initial + (k>=0 ? cumPnl[k] : 0); }
+
+function drawSpark(){
+  const c = $("spark"); if(!c) return; const {ctx, w, h} = prep(c);
+  let mn = Infinity, mx = -Infinity; EQ.forEach(p => { mn = Math.min(mn,p[2]); mx = Math.max(mx,p[2]); });
+  if(!(mx>mn)) return;
+  const col = S.net >= 0 ? css("--up") : css("--down");
+  const x = i => i/(EQ.length-1)*w, y = v => h-4-(v-mn)/(mx-mn)*(h-12);
+  ctx.beginPath(); EQ.forEach((p,i) => i ? ctx.lineTo(x(i),y(p[2])) : ctx.moveTo(x(i),y(p[2])));
+  ctx.lineWidth = 2; ctx.strokeStyle = col; ctx.lineJoin = "round"; ctx.stroke();
+  ctx.lineTo(w,h); ctx.lineTo(0,h); ctx.closePath();
+  const g = ctx.createLinearGradient(0,0,0,h); g.addColorStop(0, alpha(col,.22)); g.addColorStop(1, alpha(col,0)); ctx.fillStyle = g; ctx.fill();
+}
+
+// ================= PRICE CHART =================
+const KZC = ["", "--kz1", "--kz2", "--kz3", "--kz4", "--kz5"];
+const kzUsed = new Set(B.kz.split(""));
+$("plegend").innerHTML =
+  '<span><i class="sw" style="border:1.5px solid var(--up);background:transparent"></i>Nến tăng (rỗng)</span>' +
+  '<span><i class="sw" style="background:var(--down)"></i>Nến giảm</span>' +
+  '<span style="color:var(--buy)">▲ <span style="color:var(--text-2)">Vào Mua</span></span>' +
+  '<span style="color:var(--sell)">▼ <span style="color:var(--text-2)">Vào Bán</span></span>' +
+  '<span>◆ Thoát lệnh</span>' +
+  [1,2,3,4,5].filter(k => kzUsed.has(String(k))).map(k => '<span><i class="sw" style="background:var('+KZC[k]+');opacity:.45"></i>'+M.kz_names[k]+'</span>').join("");
+
+const PCv = $("pc"), PW = $("pwrap");
+const st = { start: Math.max(0, N-260), count: 260, cursor: N-1, kz: true, tr: true, hover: null, playing: false };
+const AX_R = 70, AX_B = 24, TOP = 8;
+
+function clampView(){
+  st.count = Math.max(20, Math.min(st.count, Math.max(20, st.cursor+1+8)));
+  const maxStart = st.cursor + 8 - st.count;
+  st.start = Math.max(-4, Math.min(st.start, maxStart));
+}
+
+function drawPrice(){
+  clampView();
+  const {ctx, w, h} = prep(PCv);
+  const pw = w - AX_R, ph = h - AX_B - TOP;
+  const bw = pw / st.count;
+  const i0 = Math.max(0, Math.floor(st.start)), i1 = Math.min(st.cursor, Math.ceil(st.start + st.count));
+  const X = i => (i - st.start + 0.5) * bw;
+  let mn = Infinity, mx = -Infinity;
+  for(let i=i0;i<=i1;i++){ if(B.l[i]<mn) mn=B.l[i]; if(B.h[i]>mx) mx=B.h[i]; }
+  if(!(mx>mn)){ mn = (mn||0)-10; mx = (mx||0)+10; }
+  const padY = (mx-mn)*0.08; mn -= padY; mx += padY;
+  const Y = p => TOP + (mx-p)/(mx-mn)*ph;
+  const cText = css("--text"), cT2 = css("--text-2"), cMut = css("--muted"), cGrid = css("--grid"), cLine = css("--line"), cUp = css("--up"), cDn = css("--down"), cBuy = css("--buy"), cSell = css("--sell"), cSurf = css("--surface");
+
+  // killzone shading
+  if(st.kz){
+    let runK = null, runS = 0;
+    const flush = (end) => { if(runK && runK!=="0"){ ctx.fillStyle = alpha(css(KZC[+runK]), .11); ctx.fillRect(X(runS)-bw/2, TOP, (end-runS)*bw, ph); } };
+    for(let i=i0;i<=i1+1;i++){ const k = i<=i1 ? B.kz[i] : null; if(k!==runK){ flush(i); runK=k; runS=i; } }
+  }
+  // grid + y axis
+  const ystep = niceStep(mx-mn, Math.max(3, ph/60));
+  ctx.font = "11px system-ui,sans-serif"; ctx.textBaseline = "middle";
+  ctx.strokeStyle = cGrid; ctx.lineWidth = 1; ctx.fillStyle = cMut;
+  for(let v = Math.ceil(mn/ystep)*ystep; v <= mx; v += ystep){
+    const y = Math.round(Y(v))+.5; ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(pw,y); ctx.stroke();
+    ctx.fillText(px(v), pw+8, y);
+  }
+  // x axis labels
+  const every = Math.max(1, Math.ceil(110/bw));
+  const nice = [1,2,3,6,12,24,48,72,144,288,576,1152,2016,4032,8640];
+  const ev = nice.find(v => v >= every) || every;
+  ctx.textBaseline = "top"; ctx.textAlign = "center";
+  for(let i = Math.ceil(i0/ev)*ev; i<=i1; i+=ev){
+    const x = Math.round(X(i))+.5; ctx.strokeStyle = cGrid; ctx.beginPath(); ctx.moveTo(x,TOP); ctx.lineTo(x,TOP+ph); ctx.stroke();
+    ctx.fillStyle = cMut; ctx.fillText(ev>=288 ? fD(B.t[i]).slice(5) : fT(B.t[i], false), x, TOP+ph+6);
+  }
+  ctx.textAlign = "left";
+  ctx.strokeStyle = cLine; ctx.beginPath(); ctx.moveTo(pw+.5, TOP); ctx.lineTo(pw+.5, TOP+ph); ctx.moveTo(0, TOP+ph+.5); ctx.lineTo(pw, TOP+ph+.5); ctx.stroke();
+
+  ctx.save(); ctx.beginPath(); ctx.rect(0, 0, pw, TOP+ph); ctx.clip();
+
+  // trade zones (under candles)
+  const visTr = [];
+  for(const t of TR){
+    if(t.i > st.cursor) break;
+    const endI = Math.min(t.exits[t.exits.length-1].i, st.cursor);
+    if(endI < i0-1 || t.i > i1+1) continue;
+    visTr.push([t, endI]);
+    if(!st.tr) continue;
+    const x0 = X(t.i)-bw/2, x1 = X(endI)+bw/2, ye = Y(t.price/PT);
+    ctx.fillStyle = alpha(cUp, .12); const yt = Y(t.tp2/PT); ctx.fillRect(x0, Math.min(ye,yt), x1-x0, Math.abs(yt-ye));
+    ctx.fillStyle = alpha(cDn, .12); const ys = Y(t.sl/PT); ctx.fillRect(x0, Math.min(ye,ys), x1-x0, Math.abs(ys-ye));
+    ctx.setLineDash([4,3]); ctx.lineWidth = 1;
+    ctx.strokeStyle = alpha(cUp,.8); ctx.beginPath(); ctx.moveTo(x0, Math.round(Y(t.tp1/PT))+.5); ctx.lineTo(x1, Math.round(Y(t.tp1/PT))+.5); ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  // candles
+  const body = Math.max(1, bw*0.68);
+  for(let i=i0;i<=i1;i++){
+    const o=B.o[i], c=B.c[i], hi=B.h[i], lo=B.l[i], up = c>=o, x = X(i);
+    const col = up ? cUp : cDn;
+    ctx.strokeStyle = col; ctx.lineWidth = 1;
+    const xc = Math.round(x)+.5;
+    if(bw < 3){ ctx.beginPath(); ctx.moveTo(xc, Y(hi)); ctx.lineTo(xc, Y(lo)); ctx.stroke(); continue; }
+    const yo = Y(o), yc = Y(c), top = Math.min(yo,yc), bh = Math.max(1, Math.abs(yc-yo));
+    ctx.beginPath(); ctx.moveTo(xc, Y(hi)); ctx.lineTo(xc, top); ctx.moveTo(xc, top+bh); ctx.lineTo(xc, Y(lo)); ctx.stroke();
+    if(up){ ctx.fillStyle = cSurf; ctx.fillRect(x-body/2, top, body, bh); ctx.strokeRect(Math.round(x-body/2)+.5, Math.round(top)+.5, Math.max(1,Math.round(body)-1), Math.max(1,Math.round(bh)-1)); }
+    else { ctx.fillStyle = col; ctx.fillRect(x-body/2, top, body, bh); }
+  }
+
+  // trade markers
+  const ms = Math.max(5, Math.min(9, bw*0.9));
+  for(const [t, endI] of visTr){
+    const xe = X(t.i), ye = Y(t.price/PT);
+    const done = t.exits.filter(e => e.i <= st.cursor);
+    const last = done[done.length-1];
+    if(last){
+      ctx.setLineDash([3,3]); ctx.strokeStyle = alpha(last.pnl>=0 ? cUp : cDn, .95); ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(xe, ye); ctx.lineTo(X(last.i), Y(last.price/PT)); ctx.stroke(); ctx.setLineDash([]);
+    }
+    ctx.fillStyle = t.buy ? cBuy : cSell; ctx.strokeStyle = cSurf; ctx.lineWidth = 2;
+    const by = t.buy ? Y(B.l[t.i]) + ms + 4 : Y(B.h[t.i]) - ms - 4;
+    ctx.beginPath();
+    if(t.buy){ ctx.moveTo(xe, by-ms); ctx.lineTo(xe+ms*.85, by+ms*.55); ctx.lineTo(xe-ms*.85, by+ms*.55); }
+    else { ctx.moveTo(xe, by+ms); ctx.lineTo(xe+ms*.85, by-ms*.55); ctx.lineTo(xe-ms*.85, by-ms*.55); }
+    ctx.closePath(); ctx.stroke(); ctx.fill();
+    if(bw > 4){ ctx.fillStyle = cT2; ctx.font = "600 10.5px system-ui,sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = t.buy ? "top" : "bottom"; ctx.fillText(t.setup, xe, t.buy ? by+ms*.7+2 : by-ms*.7-2); ctx.textAlign = "left"; }
+    // entry tick
+    ctx.strokeStyle = t.buy ? cBuy : cSell; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(xe-bw/2-2, ye); ctx.lineTo(xe+bw/2+2, ye); ctx.stroke();
+    for(const e of done){
+      const x = X(e.i), y = Y(e.price/PT), s = Math.max(4, ms*.7);
+      ctx.beginPath(); ctx.moveTo(x, y-s); ctx.lineTo(x+s, y); ctx.lineTo(x, y+s); ctx.lineTo(x-s, y); ctx.closePath();
+      ctx.fillStyle = e.pnl >= 0 ? cUp : cDn; ctx.strokeStyle = cSurf; ctx.lineWidth = 2; ctx.stroke(); ctx.fill();
+    }
+  }
+  ctx.restore();
+
+  // last price line
+  const lc = B.c[st.cursor], ly = Math.round(Y(lc))+.5, lcol = lc >= B.o[st.cursor] ? cUp : cDn;
+  if(ly > TOP && ly < TOP+ph){
+    ctx.setLineDash([2,3]); ctx.strokeStyle = lcol; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(0,ly); ctx.lineTo(pw,ly); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle = lcol; roundRect(ctx, pw+2, ly-9, AX_R-4, 18, 4); ctx.fill();
+    ctx.fillStyle = "#fff"; ctx.font = "600 11px system-ui,sans-serif"; ctx.textBaseline = "middle"; ctx.fillText(px(lc), pw+8, ly);
+  }
+
+  // crosshair
+  const hv = st.hover;
+  if(hv && hv.x < pw && hv.y > TOP && hv.y < TOP+ph){
+    const i = Math.round(st.start + hv.x/bw - 0.5);
+    const xc = Math.round(X(i))+.5, yc = Math.round(hv.y)+.5;
+    ctx.strokeStyle = alpha(cMut === "" ? "#888888" : cMut, .9); ctx.setLineDash([4,4]); ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(xc, TOP); ctx.lineTo(xc, TOP+ph); ctx.moveTo(0, yc); ctx.lineTo(pw, yc); ctx.stroke(); ctx.setLineDash([]);
+    const pv = mx - (hv.y-TOP)/ph*(mx-mn);
+    ctx.fillStyle = cText; roundRect(ctx, pw+2, yc-9, AX_R-4, 18, 4); ctx.fill();
+    ctx.fillStyle = cSurf; ctx.font = "11px system-ui,sans-serif"; ctx.textBaseline = "middle"; ctx.fillText(px(pv), pw+8, yc);
+    showPriceTip(i, hv, pw);
+  } else $("ptip").style.display = "none";
+  drawHud();
+}
+function roundRect(ctx, x, y, w, h, r){ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
+
+function tradeAtBar(i){ for(let k=TR.length-1;k>=0;k--){ const t=TR[k]; if(t.i<=i && t.exits[t.exits.length-1].i>=i && t.i<=st.cursor) return t; if(t.exits[t.exits.length-1].i < i - 3000) break; } return null; }
+
+function showPriceTip(i, hv, pw){
+  const tip = $("ptip");
+  if(i < 0 || i > st.cursor){ tip.style.display = "none"; return; }
+  const up = B.c[i] >= B.o[i];
+  let html = '<div style="font-weight:600;margin-bottom:4px">'+fT(B.t[i])+' <span style="color:var(--muted);font-weight:400">· '+(M.kz_names[B.kz[i]]||"-")+'</span></div>'+
+    '<div class="r"><span class="k">Mở</span><span class="num">'+px(B.o[i])+'</span></div>'+
+    '<div class="r"><span class="k">Cao</span><span class="num">'+px(B.h[i])+'</span></div>'+
+    '<div class="r"><span class="k">Thấp</span><span class="num">'+px(B.l[i])+'</span></div>'+
+    '<div class="r"><span class="k">Đóng</span><span class="num">'+icon(up?1:-1)+' '+px(B.c[i])+'</span></div>';
+  const t = tradeAtBar(i);
+  if(t){
+    const closed = t.exits[t.exits.length-1].i <= st.cursor;
+    html += '<div style="border-top:1px solid var(--line);margin:6px 0 4px"></div>'+
+      '<div class="r"><span class="k">Lệnh #'+t.id+'</span><span class="dir '+(t.buy?"buy":"sell")+'">'+(t.buy?"▲ MUA":"▼ BÁN")+' · Setup '+t.setup+'</span></div>'+
+      '<div class="r"><span class="k">Vào / SL</span><span class="num">'+t.price.toFixed(DIG)+' / '+t.sl.toFixed(DIG)+'</span></div>'+
+      '<div class="r"><span class="k">TP1 / TP2</span><span class="num">'+t.tp1.toFixed(DIG)+' / '+t.tp2.toFixed(DIG)+'</span></div>'+
+      (closed ? '<div class="r"><span class="k">Kết quả</span><span class="num">'+icon(t.pnl)+' '+smoney(t.pnl)+' ('+fr(t.r)+')</span></div>' : '<div class="r"><span class="k">Trạng thái</span><span>đang mở…</span></div>');
+  }
+  tip.innerHTML = html; tip.style.display = "block";
+  const tw = tip.offsetWidth, th = tip.offsetHeight, W = PW.clientWidth;
+  let x = hv.x + 16; if(x + tw > pw) x = hv.x - tw - 16; if(x < 4) x = 4;
+  let y = hv.y + 16; if(y + th > PW.clientHeight - 4) y = hv.y - th - 16; if(y < 4) y = 4;
+  tip.style.left = x+"px"; tip.style.top = y+"px";
+}
+
+function drawHud(){
+  const t = B.t[st.cursor];
+  const bal = st.cursor >= N-1 ? S.final : balanceAt(t + 300);
+  let open = null;
+  for(let k=TR.length-1;k>=0;k--){ const tr = TR[k]; if(tr.i <= st.cursor && tr.exits[tr.exits.length-1].i > st.cursor){ open = tr; break; } if(tr.exits[tr.exits.length-1].i < st.cursor - 3000) break; }
+  let closedN = 0, wins = 0;
+  for(const tr of TR){ const e = tr.exits[tr.exits.length-1]; if(e.t <= t + 300){ closedN++; if(tr.pnl > 0) wins++; } }
+  const live = st.cursor < N-1;
+  let h = '<div style="color:var(--text-2)">'+(live?"▶ Replay · ":"")+fT(t)+'</div>'+
+    '<div class="big num">'+money(bal)+'</div>'+
+    '<div style="color:var(--text-2)">'+closedN+' lệnh đã đóng'+(closedN ? ' · thắng '+(wins/closedN*100).toFixed(0)+'%' : '')+'</div>';
+  if(open){
+    const left = open.lots - open.exits.filter(e => e.i <= st.cursor).reduce((s,e) => s+e.lots, 0);
+    const cl = B.c[st.cursor]*PT;
+    const fl = (cl - open.price) * (open.buy?1:-1) * left * CONTRACT;
+    h += '<div style="margin-top:4px"><span class="dir '+(open.buy?"buy":"sell")+'">'+(open.buy?"▲ MUA":"▼ BÁN")+'</span> #'+open.id+' · '+left.toFixed(2)+' lot · thả nổi <b class="num">'+icon(fl)+' '+smoney(fl)+'</b></div>';
+  }
+  $("hud").innerHTML = h;
+  $("scrub").value = st.cursor;
+  $("scrubT").textContent = fT(t);
+}
+
+// interactions
+$("scrub").max = N-1;
+PW.addEventListener("wheel", e => {
+  e.preventDefault();
+  const r = PCv.getBoundingClientRect(), pw = r.width - AX_R;
+  const mx = Math.min(e.clientX - r.left, pw), anchor = st.start + mx/(pw/st.count);
+  const f = e.deltaY > 0 ? 1.15 : 1/1.15;
+  const nc = Math.max(20, Math.min(N+10, st.count*f));
+  st.start = anchor - (anchor - st.start) * nc/st.count; st.count = nc; drawPrice();
+}, {passive:false});
+let drag = null;
+PW.addEventListener("pointerdown", e => { drag = {x:e.clientX, s:st.start}; PW.setPointerCapture(e.pointerId); });
+PW.addEventListener("pointermove", e => {
+  const r = PCv.getBoundingClientRect();
+  if(drag){ const bw = (r.width-AX_R)/st.count; st.start = drag.s - (e.clientX-drag.x)/bw; }
+  st.hover = {x: e.clientX - r.left, y: e.clientY - r.top};
+  requestDraw();
+});
+PW.addEventListener("pointerup", () => { drag = null; });
+PW.addEventListener("pointercancel", () => { drag = null; });
+PW.addEventListener("pointerleave", () => { st.hover = null; requestDraw(); });
+PW.addEventListener("dblclick", () => { st.count = 260; st.start = st.cursor - 250; drawPrice(); });
+$("zIn").onclick = () => { const c = st.start + st.count/2; st.count = Math.max(20, st.count/1.5); st.start = c - st.count/2; drawPrice(); };
+$("zOut").onclick = () => { const c = st.start + st.count/2; st.count = Math.min(N+10, st.count*1.5); st.start = c - st.count/2; drawPrice(); };
+$("zFit").onclick = () => { st.count = st.cursor + 10; st.start = -4; drawPrice(); };
+$("tgKZ").onclick = e => { st.kz = !st.kz; e.currentTarget.classList.toggle("on", st.kz); drawPrice(); };
+$("tgTR").onclick = e => { st.tr = !st.tr; e.currentTarget.classList.toggle("on", st.tr); drawPrice(); };
+
+let rafPending = false;
+function requestDraw(){ if(rafPending) return; rafPending = true; requestAnimationFrame(() => { rafPending = false; drawPrice(); drawEquity(); }); }
+
+// ---------- replay ----------
+let lastTs = 0, acc = 0;
+function setCursor(c, follow){
+  st.cursor = Math.max(0, Math.min(N-1, Math.round(c)));
+  if(follow !== false){ st.start = st.cursor + 6 - st.count; }
+  requestDraw();
+}
+function loop(ts){
+  if(!st.playing) return;
+  const dt = lastTs ? (ts - lastTs)/1000 : 0; lastTs = ts;
+  acc += dt * +$("speed").value;
+  const step = Math.floor(acc);
+  if(step >= 1){ acc -= step; setCursor(st.cursor + step); }
+  if(st.cursor >= N-1){ stopPlay(); return; }
+  requestAnimationFrame(loop);
+}
+function startPlay(){
+  if(st.cursor >= N-1){ const first = TR.length ? TR[0].i : 300; st.count = Math.min(st.count, 220); setCursor(Math.max(60, first - 150)); }
+  st.playing = true; lastTs = 0; acc = 0; $("play").textContent = "⏸ Tạm dừng"; requestAnimationFrame(loop);
+}
+function stopPlay(){ st.playing = false; $("play").textContent = "▶ Replay"; }
+$("play").onclick = () => st.playing ? stopPlay() : startPlay();
+$("stepF").onclick = () => { stopPlay(); setCursor(st.cursor+1); };
+$("stepB").onclick = () => { stopPlay(); setCursor(st.cursor-1); };
+$("toEnd").onclick = () => { stopPlay(); setCursor(N-1); };
+$("toNextTrade").onclick = () => {
+  const nx = TR.find(t => t.i > st.cursor) || null;
+  if(!nx){ setCursor(N-1); return; }
+  if(st.cursor >= N-1){ setCursor(nx.i); return; }
+  setCursor(nx.i);
+};
+$("scrub").addEventListener("input", e => { stopPlay(); setCursor(+e.target.value); });
+document.addEventListener("keydown", e => {
+  if(e.target.tagName === "INPUT" || e.target.tagName === "SELECT") return;
+  if(e.code === "Space"){ e.preventDefault(); st.playing ? stopPlay() : startPlay(); }
+  else if(e.key === "ArrowRight"){ stopPlay(); setCursor(st.cursor + (e.shiftKey?12:1)); }
+  else if(e.key === "ArrowLeft"){ stopPlay(); setCursor(st.cursor - (e.shiftKey?12:1)); }
+});
+
+function focusTrade(t){
+  stopPlay();
+  const endI = t.exits[t.exits.length-1].i;
+  const span = endI - t.i;
+  st.cursor = N-1;
+  st.count = Math.max(120, span + 140);
+  st.start = t.i - Math.max(50, (st.count - span)/2);
+  drawPrice(); drawEquity();
+  $("pwrap").scrollIntoView({behavior:"smooth", block:"center"});
+}
+
+// ================= EQUITY =================
+const EC = $("ec"), EW = $("ewrap");
+let eHover = null;
+const ddPct = []; { let pk = -Infinity; EQ.forEach(p => { pk = Math.max(pk, p[2]); ddPct.push(pk>0 ? (p[2]-pk)/pk*100 : 0); }); }
+function drawEquity(){
+  const {ctx, w, h} = prep(EC);
+  if(EQ.length < 2) return;
+  const L = 8, R = 70, gap = 18, ddH = Math.round((h-AX_B)*0.28), eqH = h - AX_B - ddH - gap - TOP;
+  const pw = w - L - R;
+  const t0 = EQ[0][0], t1 = EQ[EQ.length-1][0];
+  const X = t => L + (t - t0)/(t1 - t0) * pw;
+  const cutT = B.t[st.cursor] + 300;
+  const lastK = st.cursor >= N-1 ? EQ.length-1 : Math.max(0, lowerBound(EQ, cutT, p => p[0]));
+  let mn = Infinity, mx = -Infinity; EQ.forEach(p => { mn = Math.min(mn, p[1], p[2]); mx = Math.max(mx, p[1], p[2]); });
+  const pad = (mx-mn)*0.08 || 10; mn -= pad; mx += pad;
+  const Y = v => TOP + (mx - v)/(mx - mn)*eqH;
+  let ddMin = Math.min(-0.5, ...ddPct) * 1.1;
+  const y0dd = TOP + eqH + gap;
+  const YD = v => y0dd + (v/ddMin)*ddH;
+  const cMut = css("--muted"), cGrid = css("--grid"), cS1 = css("--s1"), cDn = css("--down"), cLine = css("--line"), cText = css("--text"), cSurf = css("--surface");
+  ctx.font = "11px system-ui,sans-serif"; ctx.textBaseline = "middle"; ctx.lineWidth = 1;
+  const ys = niceStep(mx-mn, Math.max(3, eqH/55));
+  for(let v = Math.ceil(mn/ys)*ys; v <= mx; v += ys){ const y = Math.round(Y(v))+.5; ctx.strokeStyle = cGrid; ctx.beginPath(); ctx.moveTo(L,y); ctx.lineTo(L+pw,y); ctx.stroke(); ctx.fillStyle = cMut; ctx.fillText("$"+nf0.format(v), L+pw+8, y); }
+  // initial balance reference
+  const yi = Math.round(Y(S.initial))+.5; ctx.setLineDash([2,4]); ctx.strokeStyle = cMut; ctx.beginPath(); ctx.moveTo(L,yi); ctx.lineTo(L+pw,yi); ctx.stroke(); ctx.setLineDash([]);
+  const dstep = niceStep(-ddMin, 3);
+  for(let v = 0; v >= ddMin; v -= dstep){ const y = Math.round(YD(v))+.5; ctx.strokeStyle = cGrid; ctx.beginPath(); ctx.moveTo(L,y); ctx.lineTo(L+pw,y); ctx.stroke(); ctx.fillStyle = cMut; ctx.fillText(v.toFixed(v>-10&&dstep<1?1:0)+"%", L+pw+8, y); }
+  // time labels
+  ctx.textAlign = "center"; ctx.textBaseline = "top";
+  const nLab = Math.max(2, Math.floor(pw/110));
+  for(let k=0;k<=nLab;k++){ const t = t0 + (t1-t0)*k/nLab; ctx.fillStyle = cMut; ctx.fillText(fD(t), Math.min(Math.max(X(t), L+30), L+pw-30), h-AX_B+6); }
+  ctx.textAlign = "left";
+  ctx.strokeStyle = cLine; ctx.beginPath(); ctx.moveTo(L, h-AX_B+.5); ctx.lineTo(L+pw, h-AX_B+.5); ctx.stroke();
+  // balance (step) line
+  ctx.beginPath(); for(let k=0;k<=lastK;k++){ const p = EQ[k]; const x = X(p[0]), y = Y(p[1]); if(!k) ctx.moveTo(x,y); else { ctx.lineTo(x, Y(EQ[k-1][1])); ctx.lineTo(x,y); } }
+  ctx.strokeStyle = cMut; ctx.lineWidth = 1.5; ctx.stroke();
+  // equity area + line
+  ctx.beginPath(); for(let k=0;k<=lastK;k++){ const p = EQ[k]; k ? ctx.lineTo(X(p[0]), Y(p[2])) : ctx.moveTo(X(p[0]), Y(p[2])); }
+  ctx.strokeStyle = cS1; ctx.lineWidth = 2; ctx.lineJoin = "round"; ctx.stroke();
+  ctx.lineTo(X(EQ[lastK][0]), TOP+eqH); ctx.lineTo(X(EQ[0][0]), TOP+eqH); ctx.closePath();
+  const g = ctx.createLinearGradient(0,TOP,0,TOP+eqH); g.addColorStop(0, alpha(cS1,.18)); g.addColorStop(1, alpha(cS1,0)); ctx.fillStyle = g; ctx.fill();
+  // drawdown area
+  ctx.beginPath(); ctx.moveTo(X(EQ[0][0]), YD(0)); for(let k=0;k<=lastK;k++) ctx.lineTo(X(EQ[k][0]), YD(ddPct[k])); ctx.lineTo(X(EQ[lastK][0]), YD(0)); ctx.closePath();
+  ctx.fillStyle = alpha(cDn,.28); ctx.fill();
+  ctx.beginPath(); for(let k=0;k<=lastK;k++){ const x = X(EQ[k][0]), y = YD(ddPct[k]); k ? ctx.lineTo(x,y) : ctx.moveTo(x,y); } ctx.strokeStyle = cDn; ctx.lineWidth = 1.5; ctx.stroke();
+  // replay cursor
+  if(st.cursor < N-1){ const x = Math.round(X(EQ[lastK][0]))+.5; ctx.strokeStyle = css("--accent"); ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(x,TOP); ctx.lineTo(x,h-AX_B); ctx.stroke(); }
+  // hover
+  const tip = $("etip");
+  if(eHover && eHover.x >= L && eHover.x <= L+pw){
+    const tt = t0 + (eHover.x - L)/pw*(t1-t0);
+    const k = Math.max(0, Math.min(lastK, lowerBound(EQ, tt, p => p[0])));
+    const p = EQ[k], x = Math.round(X(p[0]))+.5;
+    ctx.strokeStyle = cMut; ctx.setLineDash([4,4]); ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(x,TOP); ctx.lineTo(x,h-AX_B); ctx.stroke(); ctx.setLineDash([]);
+    [[Y(p[2]), cS1], [YD(ddPct[k]), cDn]].forEach(([y,c]) => { ctx.beginPath(); ctx.arc(x, y, 4.5, 0, 7); ctx.fillStyle = c; ctx.fill(); ctx.strokeStyle = cSurf; ctx.lineWidth = 2; ctx.stroke(); });
+    tip.innerHTML = '<div style="font-weight:600;margin-bottom:4px">'+fT(p[0])+'</div>'+
+      '<div class="r"><span class="k"><i class="sw" style="background:var(--s1)"></i> Equity</span><span class="num">'+money(p[2])+'</span></div>'+
+      '<div class="r"><span class="k"><i class="sw" style="background:var(--muted)"></i> Balance</span><span class="num">'+money(p[1])+'</span></div>'+
+      '<div class="r"><span class="k"><i class="sw" style="background:var(--down)"></i> Drawdown</span><span class="num">'+ddPct[k].toFixed(2)+'%</span></div>';
+    tip.style.display = "block";
+    let lx = x + 14; if(lx + tip.offsetWidth > w - 4) lx = x - tip.offsetWidth - 14;
+    tip.style.left = lx+"px"; tip.style.top = "12px";
+  } else tip.style.display = "none";
+  EC._geom = {L, pw, t0, t1};
+}
+EW.addEventListener("pointermove", e => { const r = EC.getBoundingClientRect(); eHover = {x:e.clientX-r.left, y:e.clientY-r.top}; requestDraw(); });
+EW.addEventListener("pointerleave", () => { eHover = null; requestDraw(); });
+EW.addEventListener("click", e => {
+  const g = EC._geom; if(!g) return; const r = EC.getBoundingClientRect();
+  const t = g.t0 + (e.clientX - r.left - g.L)/g.pw*(g.t1-g.t0);
+  const i = Math.max(0, lowerBound(B.t, t));
+  stopPlay(); st.cursor = N-1; st.start = i - st.count/2; drawPrice();
+  $("pwrap").scrollIntoView({behavior:"smooth", block:"center"});
+});
+
+// ================= TABLES =================
+const SETUP_COL = {A:"--s1", B:"--s2", C:"--s3", D:"--s4"};
+(function setupTable(){
+  const bs = D.stats.by_setup; const maxAbs = Math.max(1, ...Object.values(bs).map(s => Math.abs(s.net)));
+  let h = '<thead><tr><th>Setup</th><th class="n">Lệnh</th><th class="n">Thắng</th><th class="n">PF</th><th class="n">R TB</th><th class="n">Lãi / lỗ</th><th style="min-width:110px"></th></tr></thead><tbody>';
+  for(const [k, s] of Object.entries(bs)){
+    const wv = Math.abs(s.net)/maxAbs*50;
+    h += '<tr data-tip="'+esc(s.name)+': '+s.trades+' lệnh, lãi gộp '+money(s.gross_win)+', lỗ gộp '+money(-s.gross_loss)+'">'+
+      '<td><i class="dot" style="background:var('+SETUP_COL[k]+')"></i>'+esc(s.name)+'</td>'+
+      '<td class="n">'+s.trades+'</td><td class="n">'+(s.trades ? s.win_rate.toFixed(0)+'%' : '–')+'</td>'+
+      '<td class="n">'+(s.trades ? (s.pf>=999?"∞":s.pf.toFixed(2)) : '–')+'</td>'+
+      '<td class="n">'+(s.trades ? fr(s.avg_r) : '–')+'</td>'+
+      '<td class="n">'+(s.trades ? icon(s.net)+' '+smoney(s.net) : '–')+'</td>'+
+      '<td><div class="divbar"><b style="'+(s.net>=0 ? 'left:50%;width:'+wv+'%;background:var(--up)' : 'right:50%;width:'+wv+'%;background:var(--down)')+'"></b></div></td></tr>';
+  }
+  $("setupTbl").innerHTML = h + '</tbody>';
+})();
+
+(function heatmap(){
+  const mo = D.stats.monthly; if(!mo.length){ $("heat").innerHTML = '<div class="empty">Chưa có dữ liệu</div>'; return; }
+  const years = [...new Set(mo.map(m => m.y))];
+  const maxAbs = Math.max(0.5, ...mo.map(m => Math.abs(m.pct)));
+  const tone = v => { const a = Math.min(1, Math.abs(v)/maxAbs); return 'background:color-mix(in srgb,var('+(v>=0?'--up':'--down')+') '+Math.round(12+a*70)+'%,var(--neutral));color:'+(a>0.55?'#fff':'var(--text)'); };
+  let h = '<table class="heat"><thead><tr><th></th>'+[1,2,3,4,5,6,7,8,9,10,11,12].map(m => '<th>T'+m+'</th>').join("")+'<th>Năm</th></tr></thead><tbody>';
+  for(const y of years){
+    h += '<tr><th>'+y+'</th>';
+    let comp = 1;
+    for(let m=1;m<=12;m++){
+      const c = mo.find(x => x.y===y && x.m===m);
+      if(!c){ h += '<td class="c" style="background:var(--surface-2)"></td>'; continue; }
+      comp *= 1 + c.pct/100;
+      h += '<td class="c num" style="'+tone(c.pct)+'" data-tip="Tháng '+m+'/'+y+': '+pct(c.pct,2)+' ('+smoney(c.pnl)+')">'+pct(c.pct)+'</td>';
+    }
+    const yp = (comp-1)*100;
+    h += '<td class="c num" style="'+tone(yp)+';outline:1px solid var(--line)" data-tip="Cả năm '+y+': '+pct(yp,2)+'">'+pct(yp)+'</td></tr>';
+  }
+  $("heat").innerHTML = h + '</tbody></table>';
+})();
+
+(function hist(){
+  if(!TR.length){ $("hist").innerHTML = '<div class="empty">Không có lệnh nào</div>'; return; }
+  const edges = [-Infinity,-1.5,-1,-0.5,0,0.5,1,1.5,2,2.5,3,4,Infinity];
+  const lab = ["<−1.5","−1.5","−1","−0.5","0","0.5","1","1.5","2","2.5","3–4","≥4"];
+  const cnt = new Array(edges.length-1).fill(0);
+  TR.forEach(t => { for(let k=0;k<edges.length-1;k++) if(t.r >= edges[k] && t.r < edges[k+1]){ cnt[k]++; break; } });
+  const mx = Math.max(...cnt);
+  let h = '<div class="hist">';
+  cnt.forEach((c,k) => { const neg = edges[k+1] <= 0; h += '<div class="col" data-tip="'+lab[k]+(k&&k<edges.length-2?' → '+(edges[k+1]===Infinity?'':edges[k+1]):'')+'R: '+c+' lệnh"><span class="cnt">'+(c||"")+'</span><div class="bar" style="height:'+(c/mx*100)+'%;background:var('+(neg?'--down':'--up')+')"></div></div>'; });
+  h += '</div><div class="hist-x">'+lab.map(l => '<span>'+l+'</span>').join("")+'</div>';
+  $("hist").innerHTML = h;
+})();
+
+(function exits(){
+  const ex = Object.entries(D.stats.exits).sort((a,b) => b[1]-a[1]); const mx = Math.max(1, ...ex.map(e => e[1]));
+  $("exits").innerHTML = ex.length ? ex.map(([k,v]) => '<div class="hbar" data-tip="'+esc(k)+': '+v+' lệnh ('+(v/TR.length*100).toFixed(0)+'%)"><span>'+esc(k)+'</span><div class="track"><b style="width:'+(v/mx*100)+'%"></b></div><span class="num" style="text-align:right">'+v+'</span></div>').join("") : '<div class="empty">Không có lệnh nào</div>';
+  const row = (name, s) => '<tr><td>'+name+'</td><td class="n">'+s.trades+'</td><td class="n">'+(s.trades?s.win_rate.toFixed(0)+'%':'–')+'</td><td class="n">'+(s.trades?fr(s.avg_r):'–')+'</td><td class="n">'+(s.trades?icon(s.net)+' '+smoney(s.net):'–')+'</td></tr>';
+  let h = '<thead><tr><th>Nhóm</th><th class="n">Lệnh</th><th class="n">Thắng</th><th class="n">R TB</th><th class="n">Lãi / lỗ</th></tr></thead><tbody>';
+  h += row('<span class="dir buy">▲ Mua</span>', D.stats.by_dir.BUY) + row('<span class="dir sell">▼ Bán</span>', D.stats.by_dir.SELL);
+  for(const [k,s] of Object.entries(D.stats.by_kz)) h += row('Killzone ' + esc(k), s);
+  $("dirTbl").innerHTML = h + '</tbody>';
+})();
+
+// trades table
+const fS = $("fSetup"); Object.entries(M.setup_names).forEach(([k,v]) => { const o = document.createElement("option"); o.value = k; o.textContent = v; fS.appendChild(o); });
+let sortKey = "id", sortDir = 1;
+const COLS = [
+  ["id","#",1], ["t","Vào lệnh",0], ["setup","Setup",0], ["buy","Hướng",0], ["lots","Lot",1], ["price","Giá vào",1],
+  ["sl","SL",1], ["tp2","TP2",1], ["xt","Thoát",0], ["reason","Lý do thoát",0], ["r","R",1], ["pnl","Lãi / lỗ",1]
+];
+function renderTrades(){
+  const fs = fS.value, fd = $("fDir").value, fr_ = $("fRes").value;
+  let rows = TR.filter(t => (!fs || t.setup===fs) && (fd==="" || String(+t.buy)===fd) && (!fr_ || (fr_==="w" ? t.pnl>0 : t.pnl<=0)));
+  const val = (t,k) => k==="xt" ? t.exits[t.exits.length-1].t : k==="reason" ? t.exits[t.exits.length-1].reason : (k==="buy" ? +t.buy : t[k]);
+  rows.sort((a,b) => { const x = val(a,sortKey), y = val(b,sortKey); return (x>y?1:x<y?-1:0)*sortDir; });
+  let h = '<thead><tr>'+COLS.map(([k,l,n]) => '<th class="'+(n?"n":"")+'" data-k="'+k+'">'+l+(sortKey===k?(sortDir>0?" ↑":" ↓"):"")+'</th>').join("")+'</tr></thead><tbody>';
+  for(const t of rows){
+    const le = t.exits[t.exits.length-1];
+    h += '<tr data-id="'+t.id+'"><td class="n">'+t.id+'</td><td class="mono">'+fT(t.t)+'</td>'+
+      '<td><i class="dot" style="background:var('+SETUP_COL[t.setup]+')"></i>'+t.setup+'</td>'+
+      '<td><span class="dir '+(t.buy?"buy":"sell")+'">'+(t.buy?"▲ Mua":"▼ Bán")+'</span></td>'+
+      '<td class="n">'+t.lots.toFixed(2)+'</td><td class="n">'+t.price.toFixed(DIG)+'</td><td class="n">'+t.sl.toFixed(DIG)+'</td><td class="n">'+t.tp2.toFixed(DIG)+'</td>'+
+      '<td class="mono">'+fT(le.t)+'</td><td>'+esc(t.exits.map(e => e.reason).join(" → "))+'</td>'+
+      '<td class="n">'+fr(t.r)+'</td><td class="n">'+icon(t.pnl)+' '+smoney(t.pnl)+'</td></tr>';
+  }
+  if(!rows.length) h += '<tr><td colspan="12" class="empty">Không có lệnh phù hợp bộ lọc</td></tr>';
+  $("trTbl").innerHTML = h + '</tbody>';
+  const net = rows.reduce((s,t) => s+t.pnl, 0);
+  $("tradeCount").textContent = rows.length + " / " + TR.length + " lệnh · tổng " + smoney(net) + " · bấm vào dòng để xem trên biểu đồ";
+}
+$("trTbl").addEventListener("click", e => {
+  const th = e.target.closest("th"); if(th){ const k = th.dataset.k; if(sortKey===k) sortDir = -sortDir; else { sortKey = k; sortDir = 1; } renderTrades(); return; }
+  const tr = e.target.closest("tr[data-id]"); if(tr){ const t = TR.find(x => x.id === +tr.dataset.id); if(t) focusTrade(t); }
+});
+[fS, $("fDir"), $("fRes")].forEach(el => el.addEventListener("change", renderTrades));
+renderTrades();
+
+// diagnostics & params
+(function diag(){
+  const c = D.counters;
+  const items = [["bars","Nến đã xét"],["sweeps","Liquidity sweep"],["zones","OB / FVG"],["bos","BOS"],["choch","CHoCH"],["A","Vào Setup A"],["B","Vào Setup B"],["C","Vào Setup C"],["D","Vào Setup D"],["skipped_rr","Bỏ vì R:R/SL-TP"],["blocked_news","Nến chặn bởi tin"],["blocked_pause","Nến tạm dừng (thua liên tiếp)"],["blocked_daily","Nến chặn lỗ ngày"]];
+  $("diag").innerHTML = items.map(([k,l]) => '<div><b class="num">'+nf0.format(c[k]||0)+'</b><span>'+l+'</span></div>').join("");
+  const kv = [];
+  for(const [grp, obj] of Object.entries(D.params)) for(const [k,v] of Object.entries(obj)) kv.push('<div><span>'+(grp==="account"?"acc.":"")+esc(k)+'</span><span class="num">'+esc(v)+'</span></div>');
+  $("params").innerHTML = kv.join("");
+})();
+
+// generic hover tooltip for HTML marks
+const FT = $("ftip");
+document.addEventListener("pointermove", e => {
+  const el = e.target.closest && e.target.closest("[data-tip]");
+  if(!el){ FT.style.display = "none"; return; }
+  FT.textContent = el.dataset.tip; FT.style.display = "block";
+  let x = e.clientX + 14, y = e.clientY + 14;
+  if(x + FT.offsetWidth > innerWidth - 8) x = e.clientX - FT.offsetWidth - 14;
+  if(y + FT.offsetHeight > innerHeight - 8) y = e.clientY - FT.offsetHeight - 14;
+  FT.style.left = x+"px"; FT.style.top = y+"px";
+});
+
+function redrawAll(){ drawSpark(); drawPrice(); drawEquity(); }
+new ResizeObserver(() => redrawAll()).observe(document.body);
+redrawAll();
+})();
+</script>
+</body>
+</html>
