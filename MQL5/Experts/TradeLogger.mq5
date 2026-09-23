@@ -118,6 +118,9 @@ bool IndReady(const int k)
    h[0] = g_ind[k].atr;   h[1] = g_ind[k].rsi;  h[2] = g_ind[k].ema20; h[3] = g_ind[k].ema50;
    h[4] = g_ind[k].ema200; h[5] = g_ind[k].bb;  h[6] = g_ind[k].macd;  h[7] = g_ind[k].stoch;
    for(int i = 0; i < 8; i++)
+     {
+      if(i == 4 && h[i] != INVALID_HANDLE)
+         continue; // EMA200 la tuy chon (can >= 200 nen)
       if(h[i] == INVALID_HANDLE || BarsCalculated(h[i]) <= 0)
         {
          g_notReady = StringFormat("%s %s %s: handle=%d calculated=%d bars=%d synced=%s",
@@ -127,6 +130,7 @@ bool IndReady(const int k)
                                    SeriesInfoInteger(g_ind[k].sym, g_ind[k].tf, SERIES_SYNCHRONIZED) ? "yes" : "no");
          return false;
         }
+     }
    return true;
   }
 
@@ -215,11 +219,13 @@ bool Features(const string sym, const int shift, string &out)
    double mSig  = Buf(g_ind[k].macd, 1, shift);
    double stK   = Buf(g_ind[k].stoch, 0, shift);
    double stD   = Buf(g_ind[k].stoch, 1, shift);
-   if(!Valid(rsi) || !Valid(e20) || !Valid(e20p) || !Valid(e50) || !Valid(e50p) || !Valid(e200) ||
+   if(!Valid(rsi) || !Valid(e20) || !Valid(e20p) || !Valid(e50) || !Valid(e50p) ||
       !Valid(bbu) || !Valid(bbl) || !Valid(mMain) || !Valid(mSig) || !Valid(stK) || !Valid(stD))
       return false;
 
-   int stack = (e20 > e50 && e50 > e200) ? 1 : ((e20 < e50 && e50 < e200) ? -1 : 0);
+   // EMA200 co the chua tinh duoc khi lich su ngan -> de trong thay vi bo ca dong
+   bool has200 = Valid(e200);
+   int stack = !has200 ? 0 : (e20 > e50 && e50 > e200) ? 1 : ((e20 < e50 && e50 < e200) ? -1 : 0);
    double pctb = (bbu > bbl) ? (c - bbl) / (bbu - bbl) : 0.5;
 
    //--- dinh/day 20 nen truoc do (khong tinh nen hien tai)
@@ -267,7 +273,7 @@ bool Features(const string sym, const int shift, string &out)
    double be50p = Buf(g_ind[kb].ema50, 0, bs + 5);
    double be200 = Buf(g_ind[kb].ema200, 0, bs);
    double bcl   = iClose(sym, InpBiasTF, bs);
-   if(!Valid(batr) || batr <= 0 || !Valid(brsi) || !Valid(be50) || !Valid(be50p) || !Valid(be200) || bcl <= 0)
+   if(!Valid(batr) || batr <= 0 || !Valid(brsi) || !Valid(be50) || !Valid(be50p) || bcl <= 0)
       return false;
 
    out = TS(r[0].time) + "," + IntegerToString(mt.hour) + "," + IntegerToString(mt.min) + "," +
@@ -275,7 +281,7 @@ bool Features(const string sym, const int shift, string &out)
          D((c - o) / atr, 4) + "," + D((hi - lo) / atr, 4) + "," +
          D((hi - MathMax(o, c)) / atr, 4) + "," + D((MathMin(o, c) - lo) / atr, 4) + "," +
          IntegerToString(streak) + "," +
-         D(rsi, 2) + "," + D((c - e20) / atr, 4) + "," + D((c - e50) / atr, 4) + "," + D((c - e200) / atr, 4) + "," +
+         D(rsi, 2) + "," + D((c - e20) / atr, 4) + "," + D((c - e50) / atr, 4) + "," + (has200 ? D((c - e200) / atr, 4) : "") + "," +
          D((e20 - e20p) / atr, 4) + "," + D((e50 - e50p) / atr, 4) + "," + IntegerToString(stack) + "," +
          D(pctb, 4) + "," + D((bbu - bbl) / atr, 4) + "," + D((mMain - mSig) / atr, 4) + "," + D(mMain / atr, 4) + "," +
          D(stK, 2) + "," + D(stD, 2) + "," +
@@ -283,7 +289,7 @@ bool Features(const string sym, const int shift, string &out)
          IntegerToString(c < ll ? 1 : 0) + "," +
          D((c - pdh) / atr, 4) + "," + D((c - pdl) / atr, 4) + "," + D((c - dopen) / atr, 4) + "," + D(posDay, 4) + "," +
          D((thi - c) / atr, 4) + "," + D((c - tlo) / atr, 4) + "," +
-         D(brsi, 2) + "," + D((bcl - be50) / batr, 4) + "," + D((bcl - be200) / batr, 4) + "," +
+         D(brsi, 2) + "," + D((bcl - be50) / batr, 4) + "," + (Valid(be200) ? D((bcl - be200) / batr, 4) : "") + "," +
          D((be50 - be50p) / batr, 4);
    return true;
   }
