@@ -1,75 +1,119 @@
-# ICT Bot — backtest demo cho EA XAUUSD_ICT_M5
+# Gold Bot — bot giao dịch vàng MT5 + backtest
 
-Bot Python chạy lại **đúng logic** của `MQL5/Experts/XAUUSD_ICT_M5.mq5` (4 setup
-A/B/C/D, killzone, sweep, BOS/CHoCH, OB/FVG, ICT Score, chốt 50% ở TP1, dời SL
-hoà vốn, lọc tin, giới hạn lỗ ngày...) trên dữ liệu bạn tải từ sàn về, rồi
-xuất **một file HTML báo cáo** mở bằng trình duyệt, không cần mạng:
+Bộ công cụ Python cho XAUUSD khung M5 (viết cho sàn **HFM**, dùng được với sàn
+MT5 khác):
 
-- Biểu đồ nến M5 có zoom/kéo, tô màu killzone, vùng SL/TP của từng lệnh
-- **Replay**: bấm ▶ để "chơi lại" thị trường từng nến, xem bot vào/thoát lệnh
-  và số dư thay đổi theo thời gian thực (phím Space = chạy/dừng, ←/→ = từng nến)
-- Equity + drawdown, heatmap lợi nhuận theo tháng, phân bố R-multiple
-- Thống kê theo setup, theo hướng, theo killzone; bảng lệnh lọc/sắp xếp được,
-  bấm một dòng để nhảy tới lệnh trên biểu đồ
-- Bảng chẩn đoán giống dòng `[ICT-EA Summary]` của EA
-
-Chỉ cần **Python 3.8+**, không phải cài thư viện nào.
-
-## 1. Lấy dữ liệu từ sàn
-
-**Cách A — xuất bằng tay trong MT5** (dễ nhất):
-1. MT5 → `View > Symbols` (Ctrl+U) → chọn XAUUSD (hoặc XAUUSDr/XAUUSDm…).
-2. Tab **Bars**: chọn khung **M1** hoặc **M5**, chọn khoảng ngày → *Request* → *Export Bars*.
-   Hoặc tab **Ticks** → *Request* → *Export Ticks* (chính xác nhất, file nặng).
-3. Lưu file vào thư mục `backtest/data/`.
-
-**Cách B — script tự tải** (Windows, MT5 đang mở và đã đăng nhập):
-```
-pip install MetaTrader5
-python download_mt5.py --symbol XAUUSD --days 180          # nến M1
-python download_mt5.py --symbol XAUUSD --days 30 --ticks   # tick thật
-```
-
-Bot tự nhận dạng: file nến MT5, file tick MT5 (UTF-16), CSV có cột
-time/open/high/low/close. Nến M1 và tick được gộp thành M5.
-
-## 2. Chạy backtest
-
-```
-cd backtest
-python run_backtest.py data/XAUUSD_M1.csv
-```
-Báo cáo được lưu ở `backtest/reports/` và tự mở trong trình duyệt.
-
-Tuỳ chọn hay dùng:
-
-| Tuỳ chọn | Ý nghĩa |
+| File | Việc nó làm |
 |---|---|
-| `--balance 5000` | Vốn ban đầu (mặc định 10 000 USD) |
-| `--risk 1` | % rủi ro mỗi lệnh (mặc định 0.75 như EA) |
-| `--from 2025-01-01 --to 2025-07-01` | Chỉ vào lệnh trong khoảng này |
-| `--spread 25` | Spread (points) khi file không có cột spread |
-| `--commission 7` | Phí hoa hồng USD/lot khứ hồi |
-| `--gmt-offset 0` | Broker giờ GMT cố định (vd Exness). Bỏ trống = server luôn đi trước NY 7 giờ (ICMarkets, Pepperstone…) |
-| `--set piv_len=6 --set enable_setup_d=false` | Đổi bất kỳ input nào của EA (tên xem trong `ict_bot/strategy.py` → `Params`) |
+| `live_bot.py` | **Bot giao dịch tự động** trên MT5 (mặc định chỉ tài khoản demo) |
+| `run_backtest.py` | Backtest trên dữ liệu tick/nến của sàn, xuất **báo cáo HTML** |
+| `optimize.py` | Tối ưu tham số kiểu **walk-forward** (chống overfitting) |
+| `download_mt5.py` | Tải tick/nến trực tiếp từ MT5 |
+| `config.example.json` | Cấu hình **dùng chung** cho backtest và bot live |
 
-## Chưa có dữ liệu? Chạy thử với dữ liệu giả lập
+Bot live và backtest chạy **cùng một đoạn code chiến lược**
+(`goldbot/strategies/`). Bài test `tests/test_live_vs_backtest.py` cho bot live
+chạy trên một MT5 giả lập rồi so với backtest trên cùng dữ liệu: 26/26 lệnh
+trùng khớp.
+
+## Chiến lược: Session Breakout
+
+Vàng thường đi ngang trong phiên Á, rồi phá range khi London/New York mở cửa.
+
+1. **Range**: đỉnh/đáy từ 19:00 → 02:00 giờ New York (phiên Á).
+2. **Lọc range**: chiều cao range phải nằm trong 1–5 × ATR(H1). Ngày quá lặng
+   hoặc đã chạy quá xa từ đêm thì bỏ.
+3. **Tín hiệu**: từ 02:00 → 11:00 NY, một nến M5 **đóng cửa** vượt range
+   (+0.1 ATR), nến trước còn trong range, thân nến ≥ 50% chiều dài nến.
+4. **Xu hướng**: chỉ Mua khi giá trên EMA50 H1 đang dốc lên, chỉ Bán khi ngược lại.
+5. **SL** ở giữa range (giới hạn 1.5–5 × ATR M5). **TP1** = 1R: chốt 50%, dời SL
+   về hoà vốn. Phần còn lại nhắm **2R**, trailing 3 × ATR. Đến 15:00 NY đóng hết.
+6. Tối đa 2 lệnh/ngày, mỗi chiều 1 lệnh.
+
+Mọi con số trên đều là tham số trong `config.json`. **Chưa ai kiểm chứng
+chiến lược này trên dữ liệu thật**: cần chạy `optimize.py` trên tick data HFM,
+và chỉ giao dịch nếu kết quả *ngoài mẫu* tốt.
+
+## Quy trình đề xuất
 
 ```
-python make_demo_data.py
-python run_backtest.py data/DEMO_XAUUSD_M5.csv
+pip install MetaTrader5            # chỉ cần cho live_bot.py và download_mt5.py (Windows)
+cd backtest
+copy config.example.json config.json
 ```
-Giá do máy tạo ngẫu nhiên — chỉ để xem bot và báo cáo hoạt động, kết quả không
-có ý nghĩa về thị trường thật (báo cáo có dán nhãn cảnh báo).
 
-## Khác biệt so với Strategy Tester của MT5
+**1. Lấy dữ liệu HFM**: mở MT5 → Ctrl+U → chọn `XAUUSDr` (hoặc tên vàng trên
+tài khoản của bạn) → tab **Ticks** → chọn khoảng ngày (≥ 6 tháng) → Request →
+**Export Ticks**, lưu vào `backtest/data/`. Hoặc dùng lệnh:
+```
+python download_mt5.py --symbol XAUUSDr --days 180 --ticks
+```
 
-- Mô phỏng trên nến M5, không từng tick: SL/TP kiểm tra bằng high/low của nến;
-  nếu một nến chạm cả SL lẫn TP thì tính **SL trước** (thận trọng). Với dữ liệu
-  tick, spread thật của từng nến được dùng.
-- EA chỉ ra quyết định ở tick đầu tiên của nến mới → bot khớp lệnh ở giá mở
-  nến kế tiếp (Bid, hoặc Ask = Bid + spread), đúng như tester.
-- Không tính swap qua đêm; lệnh chờ/stop level của broker không mô phỏng.
-- Vì vậy số liệu sẽ gần nhưng **không trùng khít** với MT5. Hãy dùng bot để
-  thử ý tưởng/tham số nhanh, rồi xác nhận lại trong MT5 (Every tick based on
-  real ticks) và trên tài khoản demo trước khi nghĩ tới tiền thật.
+**2. Backtest** (tự mở báo cáo trong trình duyệt):
+```
+python run_backtest.py data/XAUUSDr_ticks.csv --config config.json
+```
+
+**3. Tối ưu walk-forward**: chọn tham số trên quá khứ, kiểm tra trên đoạn
+chưa thấy:
+```
+python optimize.py data/XAUUSDr_ticks.csv --config config.json
+```
+Kết quả cuối có dòng *Đánh giá*. Nếu là "CHƯA CÓ LỢI THẾ" thì **đừng** chạy
+tiền thật. File `config.optimized.json` chứa bộ tham số được chọn.
+
+**4. Chạy demo** ít nhất vài tuần:
+```
+python live_bot.py --config config.json --dry-run   # chỉ ghi log tín hiệu, không đặt lệnh
+python live_bot.py --config config.json             # đặt lệnh trên tài khoản demo
+```
+MT5 phải đang mở và đăng nhập, bật nút **Algo Trading**. Log nằm ở
+`logs/bot_<symbol>.log`, nhật ký lệnh ở `logs/journal_<symbol>.csv`. Dừng bot
+bằng Ctrl+C: lệnh đang mở vẫn giữ SL/TP trên sàn. Khởi động lại bot vẫn nhớ
+trạng thái TP1 (`logs/state_*.json`).
+
+**5. Tài khoản thật**: chỉ khi demo khớp với backtest. Phải tự đặt
+`"allow_real_account": true` trong `config.json`. Nếu không, bot sẽ từ chối.
+
+## Cấu hình (`config.json`)
+
+- `symbol`: tên vàng trên sàn (HFM thường là `XAUUSDr` hoặc `XAUUSD`).
+- `strategy_params`: tham số chiến lược. `server_to_ny_hours = 7` đúng cho
+  HFM (giờ server GMT+2/+3 theo DST Mỹ). Sàn GMT cố định: đặt
+  `broker_fixed_ny_offset=false` và `server_gmt_offset_hours`.
+- `risk`: `risk_percent` (% vốn mỗi lệnh), `max_daily_loss_percent` (lỗ ngày
+  tối đa rồi nghỉ tới hôm sau), `max_consec_losses`, `max_spread_points`.
+- `live`: `magic`, `dry_run`, `allow_real_account`, `poll_seconds`,
+  `mt5_path`/`login`/`password`/`server` (để trống = dùng MT5 đang mở).
+
+Đổi nhanh khi backtest: `--set tp_r=2.5 --set use_trend=false --set risk_percent=1`.
+
+## Báo cáo backtest
+
+Một file HTML tự chứa, mở offline được:
+- **Replay**: bấm ▶ để xem bot giao dịch lại từng nến (Space = chạy/dừng, ←/→ = từng nến)
+- Biểu đồ nến zoom/kéo được, tô màu phiên, vùng SL/TP của từng lệnh
+- Equity + drawdown, lợi nhuận theo tháng, phân bố R, cách thoát lệnh
+- Bảng lệnh lọc/sắp xếp được, bấm vào dòng để nhảy tới biểu đồ
+- Bảng chẩn đoán: bộ lọc nào đã chặn bao nhiêu tín hiệu
+
+Chưa có dữ liệu thì chạy thử với giá giả lập:
+`python make_demo_data.py && python run_backtest.py data/DEMO_XAUUSD_M5.csv`.
+
+Chiến lược ICT cũ (port từ `XAUUSD_ICT_M5.mq5`) vẫn backtest được:
+`--strategy ict` (chỉ backtest, không có bản live).
+
+## Độ chính xác của backtest
+
+- Với **tick data**, bot biết trong mỗi nến M5 đỉnh hay đáy đến trước, nên
+  xác định được SL hay TP khớp trước. Spread thật của từng nến cũng được dùng.
+  Với dữ liệu nến, nếu một nến chạm cả SL lẫn TP thì bot giả định giá chạm
+  hướng bất lợi trước (thận trọng).
+- Lệnh vào ở giá mở nến kế tiếp sau tín hiệu, đúng như bot live.
+- Chưa tính swap qua đêm (bot đóng lệnh trong ngày nên ảnh hưởng nhỏ), cũng
+  chưa tính trượt giá khi tin mạnh. Nên đặt `--commission` đúng loại tài khoản HFM.
+
+## Cảnh báo
+
+Không có bot nào đảm bảo lợi nhuận. Kết quả quá khứ, kể cả ngoài mẫu, không
+bảo đảm tương lai. Luôn chạy demo trước và chỉ dùng số vốn bạn chấp nhận mất.

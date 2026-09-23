@@ -7,7 +7,6 @@ import os
 from collections import OrderedDict
 from datetime import datetime, timezone
 
-from .strategy import SETUP_NAMES, KZ_NAMES
 
 TEMPLATE = os.path.join(os.path.dirname(__file__), "report_template.html")
 
@@ -47,7 +46,7 @@ def compute_stats(bt):
     s.update(initial=init, final=final, ret_pct=(final - init) / init * 100)
 
     # drawdown on bar-close equity
-    peak, max_dd, max_dd_pct, dd_start, dd_len, max_dd_len = init, 0.0, 0.0, None, 0, 0
+    peak, max_dd, max_dd_pct, dd_start, max_dd_len = init, 0.0, 0.0, None, 0
     for t, bal, e in eq:
         if e > peak:
             peak = e
@@ -96,8 +95,8 @@ def compute_stats(bt):
              expectancy=(s["net"] / len(trades)) if trades else 0.0)
 
     by_setup = OrderedDict()
-    for k in "ABCD":
-        by_setup[k] = dict(_group_stats([t for t in trades if t.setup == k]), name=SETUP_NAMES[k])
+    for k, name in bt.setup_names.items():
+        by_setup[k] = dict(_group_stats([t for t in trades if t.setup == k]), name=name)
     by_dir = OrderedDict([("BUY", _group_stats([t for t in trades if t.buy])),
                           ("SELL", _group_stats([t for t in trades if not t.buy]))])
     by_kz = OrderedDict()
@@ -171,11 +170,12 @@ def build_payload(bt, meta):
                         reason=e["reason"]) for e in p.exits],
         ))
     return dict(
-        meta=dict(meta, point=point, kz_names=KZ_NAMES, setup_names=SETUP_NAMES,
+        meta=dict(meta, point=point, kz_names=bt.kz_names, setup_names=bt.setup_names,
+                  strategy=bt.strategy_name, diag=bt.diag_labels, risk_percent=bt.risk_percent,
                   first=b.t[0], last=b.t[-1], generated=datetime.now().strftime("%Y-%m-%d %H:%M")),
         stats=stats, counters=bt.cnt, params=bt.params_dict(),
         bars=bars, trades=trades, equity=_downsample_equity(bt.equity),
-        events=[[t, m] for t, m in bt.events[-200:]],
+        events=[[t, m] for t, m in getattr(bt, "events", [])[-200:]],
     )
 
 

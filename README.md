@@ -94,10 +94,12 @@ EA tự vào lệnh sẵn). Để tự động hoá, mình đã lược bỏ/đ�
    các ngưỡng (PivLen, DispATR, EqTolATR, ICT Score threshold...) theo dữ
    liệu thực tế của Gold M5 trên tài khoản của bạn.
 
-## Bot backtest Python + báo cáo đẹp
+## Gold Bot (Python): bot giao dịch MT5 + backtest
 
-Thư mục `backtest/` có bot Python chạy lại logic EA này trên dữ liệu bạn
-tải từ sàn, xuất báo cáo HTML có replay từng nến. Xem `backtest/README.md`.
+Thư mục `backtest/` chứa bot giao dịch Python cho MT5 (chiến lược Session
+Breakout), backtest dùng chung code với bot, báo cáo HTML có replay từng nến
+và bộ tối ưu walk-forward. Backtest cũng chạy được chiến lược ICT của EA này
+(`--strategy ict`). Xem `backtest/README.md`.
 
 ## Cảnh báo rủi ro
 

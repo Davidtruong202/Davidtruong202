@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ICT Bot Backtest</title>
+<title>Gold Bot Backtest</title>
 <style>
 :root{
   color-scheme: light;
@@ -148,7 +148,7 @@ footer{color:var(--muted);font-size:12px;text-align:center;margin-top:24px;line-
     <div class="brand">
       <div class="logo">Au</div>
       <div>
-        <h1 id="title">ICT Bot · Backtest</h1>
+        <h1 id="title">Gold Bot · Backtest</h1>
         <p id="subtitle"></p>
       </div>
     </div>
@@ -169,7 +169,7 @@ footer{color:var(--muted);font-size:12px;text-align:center;margin-top:24px;line-
         <p class="sub">Cuộn chuột để zoom · kéo để di chuyển · nhấp đúp để về cuối · bấm vào lệnh trong bảng để nhảy tới</p>
       </div>
       <div class="toolbar">
-        <button class="btn on" id="tgKZ" title="Tô màu killzone">Killzone</button>
+        <button class="btn on" id="tgKZ" title="Tô màu phiên giao dịch">Phiên</button>
         <button class="btn on" id="tgTR" title="Hiện vùng SL/TP">SL / TP</button>
         <span class="sep"></span>
         <button class="btn" id="zOut" aria-label="Thu nhỏ">−</button>
@@ -218,7 +218,7 @@ footer{color:var(--muted);font-size:12px;text-align:center;margin-top:24px;line-
 
   <div class="grid2">
     <section class="card">
-      <div class="card-h"><div class="grow"><h2>Hiệu quả theo Setup</h2><p class="sub">4 setup ICT của EA</p></div></div>
+      <div class="card-h"><div class="grow"><h2>Hiệu quả theo Setup</h2><p class="sub" id="setupSub"></p></div></div>
       <div style="overflow-x:auto"><table id="setupTbl"></table></div>
     </section>
     <section class="card">
@@ -250,17 +250,17 @@ footer{color:var(--muted);font-size:12px;text-align:center;margin-top:24px;line-
 
   <div class="grid2">
     <section class="card">
-      <div class="card-h"><div class="grow"><h2>Chẩn đoán tín hiệu</h2><p class="sub">Giống dòng [ICT-EA Summary] của EA — giúp biết vì sao ít/nhiều lệnh</p></div></div>
+      <div class="card-h"><div class="grow"><h2>Chẩn đoán tín hiệu</h2><p class="sub">Bộ lọc nào đã chặn tín hiệu — giúp biết vì sao ít/nhiều lệnh</p></div></div>
       <div class="diag" id="diag"></div>
     </section>
     <section class="card">
-      <div class="card-h"><div class="grow"><h2>Tham số đã dùng</h2><p class="sub">Trùng tên với input của EA MT5</p></div></div>
+      <div class="card-h"><div class="grow"><h2>Tham số đã dùng</h2><p class="sub">Copy sang file cấu hình của bot live để giao dịch đúng như backtest</p></div></div>
       <details><summary>Xem tham số</summary><div class="kv" id="params" style="margin-top:10px"></div></details>
     </section>
   </div>
 
   <footer>
-    Báo cáo tạo bởi <b>ICT Bot</b> (port Python của <code>XAUUSD_ICT_M5.mq5</code>) · <span id="gen"></span><br>
+    Báo cáo tạo bởi <b>Gold Bot</b> · <span id="gen"></span><br>
     Backtest dùng nến M5 (không phải từng tick), giả định SL khớp trước nếu SL và TP cùng chạm trong một nến. Kết quả quá khứ không đảm bảo lợi nhuận tương lai.
   </footer>
 </div>
@@ -306,13 +306,14 @@ $("themeBtn").onclick = () => {
 matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => redrawAll());
 
 // ---------- header ----------
-$("title").textContent = "ICT Bot · " + M.symbol + " M5 Backtest";
-$("subtitle").textContent = "Port Python của EA XAUUSD_ICT_M5 · nguồn: " + M.source;
+$("title").textContent = "Gold Bot · " + M.symbol + " M5 Backtest";
+$("subtitle").textContent = "Chiến lược " + M.strategy + " · dữ liệu: " + M.source;
+$("setupSub").textContent = M.strategy;
 $("chips").innerHTML = [
   ["Giai đoạn", fD(M.first)+" → "+fD(M.last)],
   ["Nến M5", nf0.format(N)],
   ["Vốn đầu", money(S.initial)],
-  ["Rủi ro/lệnh", D.params.strategy.risk_percent+"%"],
+  ["Rủi ro/lệnh", M.risk_percent+"%"],
 ].map(([k,v]) => '<span class="chip">'+k+' <b>'+v+'</b></span>').join("");
 $("demoBanner").hidden = !M.demo;
 $("gen").textContent = "tạo lúc " + M.generated + " · thời gian hiển thị theo giờ server của sàn";
@@ -709,7 +710,7 @@ EW.addEventListener("click", e => {
 });
 
 // ================= TABLES =================
-const SETUP_COL = {A:"--s1", B:"--s2", C:"--s3", D:"--s4"};
+const SETUP_COL = {}; Object.keys(M.setup_names).forEach((k,n) => SETUP_COL[k] = "--s"+(n%4+1));
 (function setupTable(){
   const bs = D.stats.by_setup; const maxAbs = Math.max(1, ...Object.values(bs).map(s => Math.abs(s.net)));
   let h = '<thead><tr><th>Setup</th><th class="n">Lệnh</th><th class="n">Thắng</th><th class="n">PF</th><th class="n">R TB</th><th class="n">Lãi / lỗ</th><th style="min-width:110px"></th></tr></thead><tbody>';
@@ -766,7 +767,7 @@ const SETUP_COL = {A:"--s1", B:"--s2", C:"--s3", D:"--s4"};
   const row = (name, s) => '<tr><td>'+name+'</td><td class="n">'+s.trades+'</td><td class="n">'+(s.trades?s.win_rate.toFixed(0)+'%':'–')+'</td><td class="n">'+(s.trades?fr(s.avg_r):'–')+'</td><td class="n">'+(s.trades?icon(s.net)+' '+smoney(s.net):'–')+'</td></tr>';
   let h = '<thead><tr><th>Nhóm</th><th class="n">Lệnh</th><th class="n">Thắng</th><th class="n">R TB</th><th class="n">Lãi / lỗ</th></tr></thead><tbody>';
   h += row('<span class="dir buy">▲ Mua</span>', D.stats.by_dir.BUY) + row('<span class="dir sell">▼ Bán</span>', D.stats.by_dir.SELL);
-  for(const [k,s] of Object.entries(D.stats.by_kz)) h += row('Killzone ' + esc(k), s);
+  for(const [k,s] of Object.entries(D.stats.by_kz)) h += row('Phiên ' + esc(k), s);
   $("dirTbl").innerHTML = h + '</tbody>';
 })();
 
@@ -807,10 +808,10 @@ renderTrades();
 // diagnostics & params
 (function diag(){
   const c = D.counters;
-  const items = [["bars","Nến đã xét"],["sweeps","Liquidity sweep"],["zones","OB / FVG"],["bos","BOS"],["choch","CHoCH"],["A","Vào Setup A"],["B","Vào Setup B"],["C","Vào Setup C"],["D","Vào Setup D"],["skipped_rr","Bỏ vì R:R/SL-TP"],["blocked_news","Nến chặn bởi tin"],["blocked_pause","Nến tạm dừng (thua liên tiếp)"],["blocked_daily","Nến chặn lỗ ngày"]];
+  const items = M.diag;
   $("diag").innerHTML = items.map(([k,l]) => '<div><b class="num">'+nf0.format(c[k]||0)+'</b><span>'+l+'</span></div>').join("");
   const kv = [];
-  for(const [grp, obj] of Object.entries(D.params)) for(const [k,v] of Object.entries(obj)) kv.push('<div><span>'+(grp==="account"?"acc.":"")+esc(k)+'</span><span class="num">'+esc(v)+'</span></div>');
+  for(const [grp, obj] of Object.entries(D.params)) for(const [k,v] of Object.entries(obj)) kv.push('<div><span>'+(grp==="strategy"?"":grp+".")+esc(k)+'</span><span class="num">'+esc(v)+'</span></div>');
   $("params").innerHTML = kv.join("");
 })();
 

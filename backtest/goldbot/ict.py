@@ -1,4 +1,4 @@
-"""Bar-by-bar Python port of MQL5/Experts/XAUUSD_ICT_M5.mq5.
+"""ICT strategy: bar-by-bar Python port of MQL5/Experts/XAUUSD_ICT_M5.mq5.
 
 The simulation reproduces how the MT5 Strategy Tester drives the EA:
 
@@ -17,12 +17,9 @@ The simulation reproduces how the MT5 Strategy Tester drives the EA:
 Function names mirror the MQL5 source so the two can be compared side by side.
 """
 
-from dataclasses import dataclass, field, asdict
-from datetime import datetime, timezone
+from dataclasses import dataclass, asdict
 
-M5 = 300
-H4 = 4 * 3600
-DAY = 86400
+from .common import Account, HTF, M5, H4, DAY, in_hours, is_us_dst, week_key, sma_atr
 
 # Level types
 LVL_PDH, LVL_PDL, LVL_PWH, LVL_PWL = "PDH", "PDL", "PWH", "PWL"
@@ -102,19 +99,6 @@ class Params:
     atr_period: int = 14
 
 
-@dataclass
-class Account:
-    initial_balance: float = 10_000.0
-    contract_size: float = 100.0      # XAUUSD: 1 lot = 100 oz
-    tick_size: float = 0.01
-    tick_value: float = 1.0           # USD per tick per lot (0.01 * 100)
-    volume_min: float = 0.01
-    volume_max: float = 100.0
-    volume_step: float = 0.01
-    commission_per_lot: float = 0.0   # round-turn USD per lot, charged on exit deals
-    point: float = 0.01
-
-
 # ---------------------------------------------------------------------------
 # Small records (plain classes with __slots__ are much faster than dicts here)
 # ---------------------------------------------------------------------------
@@ -153,68 +137,18 @@ class Position:
 
 
 # ---------------------------------------------------------------------------
-# Timezone helpers (port of NthSundayOfMonth / IsUSDaylightSaving / GetNYTime)
-# ---------------------------------------------------------------------------
-def _nth_sunday(year, month, n):
-    first = datetime(year, month, 1, tzinfo=timezone.utc)
-    days_to_sunday = (6 - first.weekday()) % 7  # python: Monday=0 .. Sunday=6
-    return int(first.timestamp()) + (days_to_sunday + (n - 1) * 7) * DAY
-
-
-_dst_cache = {}
-
-
-def _is_us_dst(gmt):
-    y = datetime.fromtimestamp(gmt, tz=timezone.utc).year
-    rng = _dst_cache.get(y)
-    if rng is None:
-        rng = _dst_cache[y] = (_nth_sunday(y, 3, 2), _nth_sunday(y, 11, 1))
-    return rng[0] <= gmt < rng[1]
-
-
-def in_hours(h, start, end):
-    if start == end:
-        return True
-    if start < end:
-        return start <= h < end
-    return h >= start or h < end
-
-
-# ---------------------------------------------------------------------------
-# Higher timeframe buckets built from M5
-# ---------------------------------------------------------------------------
-class HTF:
-    """Completed + forming bars of a higher timeframe, indexed by bucket number."""
-
-    def __init__(self, bars, key_fn):
-        self.key, self.first, self.o, self.h, self.l, self.c = [], [], [], [], [], []
-        self.bucket_of = [0] * len(bars)
-        cur = None
-        for i in range(len(bars)):
-            k = key_fn(bars.t[i])
-            if k != cur:
-                cur = k
-                self.key.append(k); self.first.append(i)
-                self.o.append(bars.o[i]); self.h.append(bars.h[i]); self.l.append(bars.l[i]); self.c.append(bars.c[i])
-            else:
-                b = len(self.key) - 1
-                if bars.h[i] > self.h[b]:
-                    self.h[b] = bars.h[i]
-                if bars.l[i] < self.l[b]:
-                    self.l[b] = bars.l[i]
-                self.c[b] = bars.c[i]
-            self.bucket_of[i] = len(self.key) - 1
-
-
-def _week_key(t):
-    # MT5 weekly bars open on Sunday 00:00. 1970-01-04 (epoch day 3) was a Sunday.
-    return (t // DAY - 3) // 7
-
-
-# ---------------------------------------------------------------------------
 # The engine
 # ---------------------------------------------------------------------------
 class ICTBacktest:
+    strategy_name = "ICT / SMC (EA XAUUSD_ICT_M5)"
+    setup_names = SETUP_NAMES
+    kz_names = KZ_NAMES
+    diag_labels = [("bars", "Nến đã xét"), ("sweeps", "Liquidity sweep"), ("zones", "OB / FVG"), ("bos", "BOS"),
+                   ("choch", "CHoCH"), ("A", "Vào Setup A"), ("B", "Vào Setup B"), ("C", "Vào Setup C"),
+                   ("D", "Vào Setup D"), ("skipped_rr", "Bỏ vì R:R/SL-TP"), ("blocked_news", "Nến chặn bởi tin"),
+                   ("blocked_pause", "Nến tạm dừng (thua liên tiếp)"), ("blocked_daily", "Nến chặn lỗ ngày")]
+    risk_percent = property(lambda self: self.p.risk_percent)
+
     def __init__(self, bars, params=None, account=None, trade_from=None, trade_to=None):
         self.b = bars
         self.p = params or Params()
@@ -225,7 +159,7 @@ class ICTBacktest:
         self.atr = self._compute_atr()
         self.h4 = HTF(bars, lambda t: t // H4)
         self.d1 = HTF(bars, lambda t: t // DAY)
-        self.w1 = HTF(bars, _week_key)
+        self.w1 = HTF(bars, week_key)
         self.kz_by_bar = [0] * n  # killzone for each bar (chart shading)
 
         # EA globals
@@ -271,31 +205,14 @@ class ICTBacktest:
     # ------------------------------------------------------------------ utils
     def _compute_atr(self):
         """MT5 iATR = simple moving average of True Range."""
-        b, per = self.b, self.p.atr_period
-        n = len(b)
-        tr = [0.0] * n
-        for i in range(n):
-            if i == 0:
-                tr[i] = b.h[i] - b.l[i]
-            else:
-                pc = b.c[i - 1]
-                tr[i] = max(b.h[i], pc) - min(b.l[i], pc)
-        atr = [0.0] * n
-        s = 0.0
-        for i in range(n):
-            s += tr[i]
-            if i >= per:
-                s -= tr[i - per]
-            if i >= per - 1:
-                atr[i] = s / per
-        return atr
+        return sma_atr(self.b.h, self.b.l, self.b.c, self.p.atr_period)
 
     def ny_time(self, srv):
         p = self.p
         if p.broker_fixed_ny_offset:
             return srv - int(p.server_to_ny_hours * 3600)
         gmt = srv - int(p.server_gmt_offset_hours * 3600)
-        return gmt - (4 if _is_us_dst(gmt) else 5) * 3600
+        return gmt - (4 if is_us_dst(gmt) else 5) * 3600
 
     def ny_hour(self, srv):
         ny = self.ny_time(srv) % DAY

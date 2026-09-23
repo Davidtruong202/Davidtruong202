@@ -20,19 +20,24 @@ M5 = 300
 
 
 class Bars:
-    """Column-oriented M5 bar storage. Prices are BID prices; spread is in price units."""
+    """Column-oriented M5 bar storage. Prices are BID prices; spread is in price units.
 
-    __slots__ = ("t", "o", "h", "l", "c", "spread")
+    hf = which extreme printed first inside the bar: 1 high first, -1 low first,
+    0 unknown. Known from tick data (and mostly from M1 bars); the backtest uses it
+    to decide whether SL or TP filled first when a bar touches both.
+    """
+
+    __slots__ = ("t", "o", "h", "l", "c", "spread", "hf")
 
     def __init__(self):
-        self.t, self.o, self.h, self.l, self.c, self.spread = [], [], [], [], [], []
+        self.t, self.o, self.h, self.l, self.c, self.spread, self.hf = [], [], [], [], [], [], []
 
     def __len__(self):
         return len(self.t)
 
-    def append(self, t, o, h, l, c, spread):
+    def append(self, t, o, h, l, c, spread, hf=0):
         self.t.append(t); self.o.append(o); self.h.append(h)
-        self.l.append(l); self.c.append(c); self.spread.append(spread)
+        self.l.append(l); self.c.append(c); self.spread.append(spread); self.hf.append(hf)
 
     def slice_time(self, t_from=None, t_to=None):
         out = Bars()
@@ -41,7 +46,13 @@ class Bars:
                 continue
             if t_to is not None and self.t[i] >= t_to:
                 continue
-            out.append(self.t[i], self.o[i], self.h[i], self.l[i], self.c[i], self.spread[i])
+            out.append(self.t[i], self.o[i], self.h[i], self.l[i], self.c[i], self.spread[i], self.hf[i])
+        return out
+
+    def tail(self, n):
+        out = Bars()
+        for name in self.__slots__:
+            setattr(out, name, getattr(self, name)[-n:])
         return out
 
 
@@ -155,10 +166,13 @@ def load_bars(path, point=0.01, default_spread_points=25, verbose=True):
     bo = bh = bl = bc = 0.0
     spr_sum, spr_n = 0.0, 0
     n_rows = 0
+    hi_at = lo_at = 0  # sequence number where the current high / low printed
+    seq = 0
 
     def flush():
         if cur_key is not None:
-            bars.append(cur_key, bo, bh, bl, bc, (spr_sum / spr_n) if spr_n else default_spread)
+            hf = 1 if hi_at < lo_at else (-1 if lo_at < hi_at else 0)
+            bars.append(cur_key, bo, bh, bl, bc, (spr_sum / spr_n) if spr_n else default_spread, hf)
 
     if is_ticks:
         bid = ask = None
@@ -176,11 +190,17 @@ def load_bars(path, point=0.01, default_spread_points=25, verbose=True):
                 continue  # only bid changes move the (bid-based) chart
             t = row_time(r)
             key = t - t % M5
+            seq += 1
             if key != cur_key:
                 flush()
                 cur_key, bo, bh, bl, bc, spr_sum, spr_n = key, bid, bid, bid, bid, 0.0, 0
+                hi_at = lo_at = seq
             else:
-                bh = max(bh, bid); bl = min(bl, bid); bc = bid
+                if bid > bh:
+                    bh, hi_at = bid, seq
+                if bid < bl:
+                    bl, lo_at = bid, seq
+                bc = bid
             if ask is not None and ask >= bid:
                 spr_sum += ask - bid; spr_n += 1
             if verbose and n_rows % 2_000_000 == 0:
@@ -199,11 +219,17 @@ def load_bars(path, point=0.01, default_spread_points=25, verbose=True):
                 if sp <= 0:
                     sp = None
             key = t - t % M5
+            seq += 1
             if key != cur_key:
                 flush()
                 cur_key, bo, bh, bl, bc, spr_sum, spr_n = key, o, h, l, c, 0.0, 0
+                hi_at = lo_at = seq  # unknown inside a single source bar
             else:
-                bh = max(bh, h); bl = min(bl, l); bc = c
+                if h > bh:
+                    bh, hi_at = h, seq
+                if l < bl:
+                    bl, lo_at = l, seq
+                bc = c
             if sp is not None:
                 spr_sum += sp; spr_n += 1
         flush()
@@ -218,6 +244,15 @@ def load_bars(path, point=0.01, default_spread_points=25, verbose=True):
         kind = "tick" if is_ticks else "nen"
         print("Doc %s dong %s -> %d nen M5 (%s -> %s)" % (
             format(n_rows, ","), kind, len(bars), fmt_time(bars.t[0]), fmt_time(bars.t[-1])), file=sys.stderr)
+    return bars
+
+
+def bars_from_rates(rates, point, default_spread_points=25):
+    """MT5 copy_rates_* result (numpy structured array or list of dicts) -> Bars."""
+    bars = Bars()
+    for r in rates:
+        sp = float(r["spread"]) * point if r["spread"] else default_spread_points * point
+        bars.append(int(r["time"]), float(r["open"]), float(r["high"]), float(r["low"]), float(r["close"]), sp, 0)
     return bars
 
 

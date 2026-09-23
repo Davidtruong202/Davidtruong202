@@ -1,0 +1,52 @@
+{
+  "_readme": "Dung chung cho run_backtest.py --config va live_bot.py. Gio la gio New York.",
+  "symbol": "XAUUSDr",
+  "strategy": "breakout",
+  "strategy_params": {
+    "broker_fixed_ny_offset": true,
+    "server_to_ny_hours": 7.0,
+    "server_gmt_offset_hours": 0.0,
+    "day_start_ny": 17.0,
+    "range_start": 19.0,
+    "range_end": 2.0,
+    "trade_start": 2.0,
+    "trade_end": 11.0,
+    "flat_hour": 15.0,
+    "atr_period": 14,
+    "h1_atr_period": 14,
+    "min_range_h1atr": 1.0,
+    "max_range_h1atr": 5.0,
+    "buffer_atr": 0.1,
+    "min_body": 0.5,
+    "use_trend": true,
+    "trend_ema": 50,
+    "trend_slope_bars": 3,
+    "min_sl_atr": 1.5,
+    "max_sl_atr": 5.0,
+    "tp_r": 2.0,
+    "tp1_r": 1.0,
+    "tp1_frac": 0.5,
+    "trail_atr": 3.0,
+    "max_trades_per_day": 2
+  },
+  "risk": {
+    "risk_percent": 0.5,
+    "max_daily_loss_percent": 2.0,
+    "max_consec_losses": 3,
+    "max_spread_points": 60,
+    "day_start_ny_hour": 17.0
+  },
+  "live": {
+    "magic": 26092301,
+    "poll_seconds": 1.0,
+    "history_bars": 3000,
+    "deviation_points": 30,
+    "allow_real_account": false,
+    "dry_run": false,
+    "log_dir": "logs",
+    "mt5_path": "",
+    "login": 0,
+    "password": "",
+    "server": ""
+  }
+}
