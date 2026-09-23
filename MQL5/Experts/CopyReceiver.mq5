@@ -29,6 +29,8 @@ input int           InpMaxSlippagePoints = 1000;            // Bo qua neu gia da
 input int           InpMaxStaleSec       = 10;              // File nguon cu hon N giay -> tam dung (khong dong lenh)
 input int           InpIntervalMs        = 250;             // Chu ky dong bo (ms)
 input ulong         InpMagic             = 26092301;        // Magic cua lenh copy
+input bool          InpHiddenStops       = true;            // An SL/TP: EA tu dong lenh khi gia cham
+input int           InpEmergencySLPoints = 3000;            // SL khan cap tren san, xa hon SL an N point (vang: 3000 = 3$). 0 = khong dat
 
 CTrade g_trade;
 
@@ -49,6 +51,32 @@ string Tag(const ulong t) { return "CP" + IntegerToString((long)t); }
 string GvOpened(const ulong t) { return "CPo_" + IntegerToString((long)t); }
 string GvMInit(const ulong t)  { return "CPm_" + IntegerToString((long)t); }
 string GvLInit(const ulong t)  { return "CPl_" + IntegerToString((long)t); }
+
+//--- SL/TP gui len san. Che do an: khong gui TP, SL lui xa them InpEmergencySLPoints
+void BrokerStops(const string sym, const bool buy, const double sl, const double tp, double &bsl, double &btp)
+  {
+   bsl = sl;
+   btp = tp;
+   if(!InpHiddenStops)
+      return;
+   btp = 0;
+   double point = SymbolInfoDouble(sym, SYMBOL_POINT);
+   if(sl <= 0 || InpEmergencySLPoints <= 0)
+      bsl = 0;
+   else
+      bsl = NormPrice(sym, buy ? sl - InpEmergencySLPoints * point : sl + InpEmergencySLPoints * point);
+  }
+
+//--- SL/TP an: gia cham thi dong lenh
+bool HiddenHit(const string sym, const bool buy, const double sl, const double tp)
+  {
+   if(!InpHiddenStops)
+      return false;
+   double bid = SymbolInfoDouble(sym, SYMBOL_BID), ask = SymbolInfoDouble(sym, SYMBOL_ASK);
+   if(buy)
+      return (sl > 0 && bid <= sl) || (tp > 0 && bid >= tp);
+   return (sl > 0 && ask >= sl) || (tp > 0 && ask <= tp);
+  }
 
 //--- sua SL/TP bi san tu choi -> cho 5 giay moi thu lai (tranh spam)
 string GvFail(const ulong t) { return "CPx_" + IntegerToString((long)t); }
@@ -242,7 +270,9 @@ void SyncPosition(const int i)
          return;
         }
       double lot = ScaleLot(sym, mVol[i]);
-      bool ok = buy ? g_trade.Buy(lot, sym, 0, sl, tp, tag) : g_trade.Sell(lot, sym, 0, sl, tp, tag);
+      double bsl, btp;
+      BrokerStops(sym, buy, sl, tp, bsl, btp);
+      bool ok = buy ? g_trade.Buy(lot, sym, 0, bsl, btp, tag) : g_trade.Sell(lot, sym, 0, bsl, btp, tag);
       if(!ok && g_trade.ResultRetcode() == TRADE_RETCODE_INVALID_STOPS)
          ok = buy ? g_trade.Buy(lot, sym, 0, 0, 0, tag) : g_trade.Sell(lot, sym, 0, 0, 0, tag);
       PrintFormat("[CopyReceiver] Mo %s %s %.2f lot -> %s (%d)", buy ? "BUY" : "SELL", sym, lot,
@@ -261,10 +291,19 @@ void SyncPosition(const int i)
    GlobalVariableSet(GvOpened(st), 3);
    if(!PositionSelectByTicket(lp))
       return;
-   double lsl = PositionGetDouble(POSITION_SL), ltp = PositionGetDouble(POSITION_TP);
-   if((MathAbs(lsl - sl) > point * 0.5 || MathAbs(ltp - tp) > point * 0.5) && CanRetry(st))
+   bool isBuy = (PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY);
+   if(HiddenHit(sym, isBuy, sl, tp))
      {
-      if(!g_trade.PositionModify(lp, sl, tp))
+      bool ok = g_trade.PositionClose(lp);
+      PrintFormat("[CopyReceiver] Cham SL/TP an %s -> dong (%s)", tag, ok ? "OK" : "LOI");
+      return;
+     }
+   double bsl, btp;
+   BrokerStops(sym, isBuy, sl, tp, bsl, btp);
+   double lsl = PositionGetDouble(POSITION_SL), ltp = PositionGetDouble(POSITION_TP);
+   if((MathAbs(lsl - bsl) > point * 0.5 || MathAbs(ltp - btp) > point * 0.5) && CanRetry(st))
+     {
+      if(!g_trade.PositionModify(lp, bsl, btp))
          MarkFailed(st);
       else if(!PositionSelectByTicket(lp))
          return;
@@ -303,7 +342,10 @@ void SyncOrder(const int i)
    if(type != ORDER_TYPE_BUY_LIMIT && type != ORDER_TYPE_SELL_LIMIT &&
       type != ORDER_TYPE_BUY_STOP && type != ORDER_TYPE_SELL_STOP)
       return;
-   double price = NormPrice(sym, mPrice[i]), sl = NormPrice(sym, mSL[i]), tp = NormPrice(sym, mTP[i]);
+   double price = NormPrice(sym, mPrice[i]);
+   bool   buy   = (type == ORDER_TYPE_BUY_LIMIT || type == ORDER_TYPE_BUY_STOP);
+   double sl, tp;
+   BrokerStops(sym, buy, NormPrice(sym, mSL[i]), NormPrice(sym, mTP[i]), sl, tp);
    double point = SymbolInfoDouble(sym, SYMBOL_POINT);
 
    ulong lo = FindLocalOrder(tag);
