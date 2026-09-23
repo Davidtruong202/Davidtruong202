@@ -26,6 +26,11 @@ class DCAParams:
     tp_atr: float = 0.5           # basket take profit beyond the average price, x ATR(H1)
     basket_sl_pct: float = 10.0   # cut the basket when its loss reaches this % of balance (100 = never)
     lot_per_1k: float = 0.01      # first-level lot per 1000 of balance (compounding)
+    base_lot: float = 0.0         # > 0: every basket restarts from this fixed lot (e.g. 0.01)
+    lot_add: float = 0.0          # > 0: level k uses base + k * lot_add (0.01, 0.02, 0.03...) instead of mult
+    rebate_per_lot: float = 0.0   # broker/IB rebate credited per lot when a basket closes
+    mult2: float = 0.0            # > 0: switch to this multiplier from level ``mult2_after`` on (e.g. 1.3 -> 1.2 after 5)
+    mult2_after: int = 5
     trend_ema: int = 50
     trend_slope_bars: int = 3
     atr_period: int = 14
@@ -53,7 +58,12 @@ class DCASim:
 
     def _lots(self, base, level):
         p = self.p
-        v = base * (p.mult ** level)
+        if p.lot_add > 0:
+            v = base + p.lot_add * level
+        elif p.mult2 > 0 and level >= p.mult2_after:
+            v = base * (p.mult ** (p.mult2_after - 1)) * (p.mult2 ** (level - p.mult2_after + 1))
+        else:
+            v = base * (p.mult ** level)
         return max(p.min_lot, round(int(v / p.lot_step + 1e-9) * p.lot_step, 2))
 
     def _dir(self, i):
@@ -118,7 +128,7 @@ class DCASim:
                         eq_low = bal
                         bk = None
                     elif h >= bk.avg + bk.tp_dist:
-                        pnl = bk.tp_dist * bk.lots * C
+                        pnl = bk.tp_dist * bk.lots * C + p.rebate_per_lot * sum(f[1] for f in bk.fills)
                         bal += pnl
                         baskets.append((bk.open_t, t, True, pnl + bk.swap, bk.levels, "TP", bk.max_lots))
                         bk = None
@@ -145,7 +155,7 @@ class DCASim:
                         eq_low = bal
                         bk = None
                     elif l + spr <= bk.avg - bk.tp_dist:
-                        pnl = bk.tp_dist * bk.lots * C
+                        pnl = bk.tp_dist * bk.lots * C + p.rebate_per_lot * sum(f[1] for f in bk.fills)
                         bal += pnl
                         baskets.append((bk.open_t, t, False, pnl + bk.swap, bk.levels, "TP", bk.max_lots))
                         bk = None
@@ -174,7 +184,10 @@ class DCASim:
                     k = self.k_of[i]
                     atr = self.h1_atr[k] if k >= p.atr_period else 0.0
                     if d != 0 and atr > 0:
-                        base = max(p.min_lot, int(bal / 1000.0 * p.lot_per_1k * lot_scale / p.lot_step + 1e-9) * p.lot_step)
+                        if p.base_lot > 0:
+                            base = p.base_lot
+                        else:
+                            base = max(p.min_lot, int(bal / 1000.0 * p.lot_per_1k * lot_scale / p.lot_step + 1e-9) * p.lot_step)
                         bk = Basket()
                         bk.buy = d > 0
                         px = c + spr if bk.buy else c
