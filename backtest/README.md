@@ -9,12 +9,39 @@ MT5 khác):
 | `run_backtest.py` | Backtest trên dữ liệu tick/nến của sàn, xuất **báo cáo HTML** |
 | `optimize.py` | Tối ưu tham số kiểu **walk-forward** (chống overfitting) |
 | `download_mt5.py` | Tải tick/nến trực tiếp từ MT5 |
+| `compare_ea.py` | So lệnh của EA MT5 với backtest Python |
+| `../MQL5/Experts/GoldBot_SessionBreakout.mq5` | **EA MT5** cùng chiến lược (cách B) |
 | `config.example.json` | Cấu hình **dùng chung** cho backtest và bot live |
 
 Bot live và backtest chạy **cùng một đoạn code chiến lược**
 (`goldbot/strategies/`). Bài test `tests/test_live_vs_backtest.py` cho bot live
 chạy trên một MT5 giả lập rồi so với backtest trên cùng dữ liệu: 26/26 lệnh
 trùng khớp.
+
+## Cách B: chạy bằng EA MT5 (không cần Python trên máy giao dịch)
+
+File EA: `MQL5/Experts/GoldBot_SessionBreakout.mq5`. Đây là bản MQL5 của
+đúng chiến lược Python, với tham số trùng tên (`InpTP_R` ↔ `tp_r`...).
+
+1. Copy file vào `MQL5/Experts/` (MT5: File → Open Data Folder), mở
+   MetaEditor và bấm **F7** để biên dịch.
+2. **Kiểm chứng EA trong Strategy Tester** (Ctrl+R): chọn EA, symbol
+   `XAUUSDr`, khung M5, Modelling = **Every tick based on real ticks**, và
+   khoảng thời gian trùng với dữ liệu đã backtest. Nhập tham số giống
+   `config.json`.
+3. EA ghi mọi lệnh vào file `GoldBot_<symbol>_<magic>.csv` trong thư mục
+   **Common\Files** (File → Open Data Folder → lùi lên 2 cấp → Common → Files).
+   Gửi file này cho Claude, hoặc tự so bằng:
+   ```
+   python compare_ea.py GoldBot_XAUUSDr_26092301.csv data/XAUUSDr_ticks.csv --config config.json
+   ```
+   Nếu khớp khoảng 90% lệnh trở lên (cùng nến, cùng chiều) thì EA chạy đúng
+   chiến lược đã kiểm chứng. Hãy xoá file CSV cũ trước mỗi lần chạy tester.
+4. **Demo**: kéo EA vào chart XAUUSDr M5 trên tài khoản demo và bật Algo
+   Trading. EA vẽ range phiên Á lên chart và hiện trạng thái ở góc trái.
+   Muốn chạy 24/7 thì dùng VPS của HFM.
+5. EA từ chối chạy trên tài khoản thật cho tới khi bạn bật
+   `InpAllowRealAccount = true`.
 
 ## Chiến lược: Session Breakout
 

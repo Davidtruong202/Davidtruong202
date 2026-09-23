@@ -94,7 +94,13 @@ EA tự vào lệnh sẵn). Để tự động hoá, mình đã lược bỏ/đ�
    các ngưỡng (PivLen, DispATR, EqTolATR, ICT Score threshold...) theo dữ
    liệu thực tế của Gold M5 trên tài khoản của bạn.
 
-## Gold Bot (Python): bot giao dịch MT5 + backtest
+## Gold Bot: Session Breakout (EA `GoldBot_SessionBreakout.mq5` + backtest Python)
+
+EA `MQL5/Experts/GoldBot_SessionBreakout.mq5` là bản MT5 của chiến lược Session
+Breakout. Cách kiểm chứng EA bằng Strategy Tester và `backtest/compare_ea.py`
+nằm trong `backtest/README.md`.
+
+### Phần Python
 
 Thư mục `backtest/` chứa bot giao dịch Python cho MT5 (chiến lược Session
 Breakout), backtest dùng chung code với bot, báo cáo HTML có replay từng nến
