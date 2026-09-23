@@ -16,7 +16,8 @@ enum ENUM_LOT_MODE
    LOT_MULTIPLIER    = 0, // Lot nguon x he so (1.0 = y het)
    LOT_BALANCE_RATIO = 1, // Theo ti le balance (cung % rui ro)
    LOT_FIXED         = 2, // Lot co dinh
-   LOT_RISK_PERCENT  = 3  // % rui ro theo khoang SL cua tung lenh
+   LOT_RISK_PERCENT  = 3, // % rui ro theo khoang SL cua tung lenh
+   LOT_RISK_MONEY    = 4  // So tien rui ro co dinh moi lenh (don vi tien tai khoan, vd 500 cent)
   };
 
 input string        InpChannel           = "copy1";         // Ten kenh (trung voi CopySender)
@@ -25,7 +26,7 @@ input string        InpSymbolSuffix      = "";              // Hoac chi them hau
 input bool          InpPriceOffset       = true;            // Bu chenh lech gia giua 2 san cho SL/TP/lenh cho
 input int           InpSyncTolerancePts  = 30;              // Chi sua SL/TP/gia lenh cho khi lech hon N point
 input ENUM_LOT_MODE InpLotMode           = LOT_MULTIPLIER;  // Cach tinh lot
-input double        InpLotValue          = 1.0;             // He so (mode 0,1) | lot co dinh (mode 2) | % rui ro moi lenh (mode 3)
+input double        InpLotValue          = 1.0;             // He so (mode 0,1) | lot co dinh (2) | % rui ro (3) | tien rui ro, vd 500 (4)
 input bool          InpCopyPartial       = true;            // Chot tung phan theo nguon (false = chi dong khi nguon dong het)
 input double        InpMaxLot            = 1.0;             // Lot toi da moi lenh
 input bool          InpCopyPending       = true;            // Sao chep ca lenh cho (limit/stop)
@@ -151,9 +152,11 @@ double ScaleLot(const string sym, const double srcLot, const double entry, const
       lot = srcLot * AccountInfoDouble(ACCOUNT_BALANCE) / mBalance * InpLotValue;
    else if(InpLotMode == LOT_FIXED)
       lot = InpLotValue;
-   else if(InpLotMode == LOT_RISK_PERCENT)
+   else if(InpLotMode == LOT_RISK_PERCENT || InpLotMode == LOT_RISK_MONEY)
      {
-      // lot = (balance x %) / (tien lo cho 1 lot neu cham SL)
+      // lot = (so tien chap nhan mat) / (tien lo cho 1 lot neu cham SL)
+      double riskMoney = (InpLotMode == LOT_RISK_MONEY) ? InpLotValue
+                         : AccountInfoDouble(ACCOUNT_BALANCE) * InpLotValue / 100.0;
       double ts = SymbolInfoDouble(sym, SYMBOL_TRADE_TICK_SIZE);
       double tv = SymbolInfoDouble(sym, SYMBOL_TRADE_TICK_VALUE_LOSS);
       if(tv <= 0)
@@ -164,7 +167,7 @@ double ScaleLot(const string sym, const double srcLot, const double entry, const
       else
         {
          double lossPerLot = dist / ts * tv;
-         lot = AccountInfoDouble(ACCOUNT_BALANCE) * InpLotValue / 100.0 / lossPerLot;
+         lot = riskMoney / lossPerLot;
          double step = SymbolInfoDouble(sym, SYMBOL_VOLUME_STEP);
          if(step > 0)
             lot = MathFloor(lot / step) * step; // lam tron xuong de khong vuot % rui ro
