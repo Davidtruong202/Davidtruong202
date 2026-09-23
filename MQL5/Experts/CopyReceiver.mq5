@@ -27,7 +27,8 @@ input bool          InpPriceOffset       = true;            // Bu chenh lech gia
 input int           InpSyncTolerancePts  = 30;              // Chi sua SL/TP/gia lenh cho khi lech hon N point
 input ENUM_LOT_MODE InpLotMode           = LOT_MULTIPLIER;  // Cach tinh lot
 input double        InpLotValue          = 1.0;             // He so (mode 0,1) | lot co dinh (2) | % rui ro (3) | tien rui ro, vd 500 (4)
-input bool          InpCopyPartial       = true;            // Chot tung phan theo nguon (false = chi dong khi nguon dong het)
+input bool          InpPendingSameLot    = true;            // Lenh cho tang 2 dung CUNG lot voi lenh chinh vua mo (giong bot goc)
+input bool          InpCopyPartial       = true;           // Chot tung phan theo nguon (false = chi dong khi nguon dong het)
 input double        InpMaxLot            = 1.0;             // Lot toi da moi lenh
 input bool          InpCopyPending       = true;            // Sao chep ca lenh cho (limit/stop)
 input bool          InpCopyExisting      = false;           // Sao chep ca lenh dang mo luc bat EA
@@ -51,6 +52,8 @@ double   mBalance = 0;
 datetime mTs = 0;
 
 ulong    g_skip[];          // lenh da co san luc bat EA (khi InpCopyExisting=false)
+double   g_lastMarketLot  = 0;  // lot lenh market vua copy -> dung cho lenh cho tang 2
+datetime g_lastMarketTime = 0;
 bool     g_ready = false;
 datetime g_lastStaleMsg = 0;
 
@@ -352,6 +355,8 @@ void SyncPosition(const int i)
       GlobalVariableSet(GvOpened(st), 1);
       if(ok)
         {
+         g_lastMarketLot  = lot;
+         g_lastMarketTime = TimeLocal();
          if(!GlobalVariableCheck(GvMInit(st)))
             GlobalVariableSet(GvMInit(st), mVol[i]);
          GlobalVariableSet(GvLInit(st), lot);
@@ -431,6 +436,9 @@ void SyncOrder(const int i)
       if(GlobalVariableCheck(GvOpened(st)))
          return; // da dat roi (da khop hoac bi huy)
       double lot = ScaleLot(sym, mVol[i], price, rawSl);
+      // bot goc dat tang 2 ngay sau lenh chinh voi cung lot
+      if(InpPendingSameLot && g_lastMarketLot > 0 && TimeLocal() - g_lastMarketTime <= 60)
+         lot = g_lastMarketLot;
       bool ok = g_trade.OrderOpen(sym, type, lot, 0, price, sl, tp, ORDER_TIME_GTC, 0, tag);
       PrintFormat("[CopyReceiver] Dat %s %s %.2f lot @ %s -> %s (%d)", EnumToString(type), sym, lot,
                   DoubleToString(price, (int)SymbolInfoInteger(sym, SYMBOL_DIGITS)), ok ? "OK" : "LOI", g_trade.ResultRetcode());
