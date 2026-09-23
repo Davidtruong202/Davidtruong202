@@ -88,9 +88,11 @@ def main():
             skipped.append((k, "can file tick hoac nen M1"))
             continue
         base = dict(base_cfg.to_dict(), strategy=k, strategy_params={})
-        for combo in grid_combos(S.GRID) or [{}]:
+        for combo in grid_combos(S.GRID):
             jobs.append((base, combo))
             owners.append(k)
+        jobs.append((base, {}))            # default parameters, fixed before seeing any data
+        owners.append(k + ":default")
     print("Dang chay %d backtest (%d phuong phap) tren %d tien trinh..." % (
         len(jobs), len(set(owners)), args.workers), file=sys.stderr)
     pkl = dump_bars(bars)
@@ -102,28 +104,43 @@ def main():
     for k, res in zip(owners, results):
         by_key.setdefault(k, []).append(res)
 
-    rows = []
+    # Two ways to judge each strategy:
+    #   "mặc định": parameters fixed before seeing the data -> no selection at all, so the
+    #               out-of-sample blocks and the hold-out are scored directly;
+    #   "tối ưu"  : walk-forward re-selection of the grid (tests whether tuning helps).
+    runs = []
     for k in keys:
+        if k == "ict":
+            runs.append((k, "default"))
+        elif k in by_key:
+            runs += [(k, "default"), (k, "opt")]
+    rows = []
+    for k, mode in runs:
         if k == "ict":
             print("Chay ICT (tham so mac dinh cua EA, khong toi uu)...", file=sys.stderr)
             bt, trs = ict_trades(m5, account, base_cfg.risk.risk_percent)
             res = [({}, trs)]
             title, tf = "ICT / SMC (EA cũ)", 300
-        elif k in by_key:
-            res = by_key[k]
-            S = STRATEGIES[k]
-            title, tf = S.name, S.timeframe
         else:
-            continue
-        folds, oos = walk_forward(res, edges, args.min_trades)
+            S = STRATEGIES[k]
+            res = by_key[k] if mode == "opt" else by_key[k + ":default"]
+            title, tf = S.name, S.timeframe
+        mode_label = "tham số mặc định (cố định trước)" if mode == "default" else "tối ưu walk-forward"
+        if mode == "default":
+            final = res[0]
+            folds = [dict(combo={}, is_=score(final[1], edges[0], edges[j]), oos=score(final[1], edges[j], edges[j + 1]),
+                          span=(edges[0], edges[j], edges[j], edges[j + 1])) for j in range(1, len(edges) - 1)]
+            oos = [(t, r) for t, r in final[1] if edges[1] <= t < t_hold]
+        else:
+            folds, oos = walk_forward(res, edges, args.min_trades)
+            final = max(res, key=lambda cr: score(cr[1], t0, t_hold, args.min_trades)["fit"])
         s_oos = score(oos, 0, 1 << 62)
-        final = max(res, key=lambda cr: score(cr[1], t0, t_hold, args.min_trades)["fit"])
         s_hold = score(final[1], t_hold, t1)
         s_full = score(final[1], t0, t1)
         tag, why = verdict(s_oos, s_hold)
 
         # full-period HTML report + ready-to-use config with the final parameters
-        report = "%s.html" % k
+        report = "%s_%s.html" % (k, mode)
         if k == "ict":
             rep_bt = bt
             cfg_file = None
@@ -132,7 +149,7 @@ def main():
             for pk, pv in final[0].items():
                 cfg.set_param(pk, pv)
             rep_bt = Backtester(bars[tf], cfg.make_strategy(), account, cfg.risk).run()
-            cfg_file = "config_%s.json" % k
+            cfg_file = "config_%s_%s.json" % (k, mode)
             with open(os.path.join(args.out, cfg_file), "w", encoding="utf-8") as f:
                 json.dump(dict(cfg.to_dict(), _tournament=dict(oos_R=round(s_oos["r"], 2), oos_pf=round(s_oos["pf"], 2),
                                                                holdout_R=round(s_hold["r"], 2), verdict=tag)),
@@ -141,15 +158,16 @@ def main():
                      dict(symbol=base_cfg.symbol, source=os.path.basename(args.data), demo=demo))
         st = compute_stats(rep_bt)["summary"]
         rows.append(dict(
-            key=k, title=title, tf=tf, combos=len(res), params=final[0], verdict=tag, why=why,
+            key=k, mode=mode, mode_label=mode_label, title=title, tf=tf,
+            combos=len(res), params=final[0], verdict=tag, why=why,
             oos=dict((x, s_oos[x]) for x in ("n", "r", "pf", "win", "dd", "fit", "t")), oos_curve=s_oos["curve"],
             hold=dict((x, s_hold[x]) for x in ("n", "r", "pf", "win", "dd")), hold_curve=s_hold["curve"],
             full=dict(n=s_full["n"], r=s_full["r"], ret=st["ret_pct"], maxdd=st["max_dd_pct"]),
             folds=[dict(combo=f["combo"], oos_n=f["oos"]["n"], oos_r=f["oos"]["r"], is_r=f["is_"]["r"]) for f in folds],
             report=report, config=cfg_file,
         ))
-        print("  %-18s ngoai mau %4d lenh %+7.1fR PF %.2f | giu lai %+6.1fR | %s" % (
-            title, s_oos["n"], s_oos["r"], s_oos["pf"], s_hold["r"], tag), file=sys.stderr)
+        print("  %-18s %-8s ngoai mau %4d lenh %+7.1fR PF %.2f | giu lai %+6.1fR | %s" % (
+            title, mode, s_oos["n"], s_oos["r"], s_oos["pf"], s_hold["r"], tag), file=sys.stderr)
 
     rows.sort(key=lambda r: (r["oos"]["n"] >= 30, r["oos"]["fit"]), reverse=True)
     payload = dict(
@@ -170,11 +188,11 @@ def main():
     print(" BANG XEP HANG  %s  %s -> %s   (giu lai tu %s)" % (base_cfg.symbol, fmt_time(t0)[:10], fmt_time(t1)[:10],
                                                                 fmt_time(t_hold)[:10]))
     print(line)
-    print(" #  %-20s %-4s %6s %8s %6s %5s %6s %9s  %s" % ("Phuong phap", "TF", "Lenh", "R ngoai", "PF", "t", "DD R",
-                                                        "R giu lai", "Danh gia"))
+    print(" #   %-20s %-8s %-4s %6s %8s %6s %5s %6s %9s  %s" % ("Phuong phap", "Tham so", "TF", "Lenh", "R ngoai", "PF",
+                                                             "t", "DD R", "R giu lai", "Danh gia"))
     for n, r in enumerate(rows, 1):
-        print(" %d  %-20s M%-3d %6d %+8.1f %6.2f %5.1f %6.1f %+9.1f  %s" % (
-            n, r["title"][:20], r["tf"] // 60, r["oos"]["n"], r["oos"]["r"], r["oos"]["pf"], r["oos"]["t"],
+        print(" %-3d %-20s %-8s M%-3d %6d %+8.1f %6.2f %5.1f %6.1f %+9.1f  %s" % (
+            n, r["title"][:20], r["mode"], r["tf"] // 60, r["oos"]["n"], r["oos"]["r"], r["oos"]["pf"], r["oos"]["t"],
             r["oos"]["dd"], r["hold"]["r"], r["verdict"]))
     for k, why in skipped:
         print(" -  %-20s bo qua: %s" % (k, why))

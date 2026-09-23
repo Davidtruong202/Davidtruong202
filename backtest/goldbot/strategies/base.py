@@ -9,7 +9,8 @@ DAY_MIN = 24 * 60
 
 @dataclass
 class ClockParams:
-    # broker clock (HFM: server = New York + 7h all year)
+    # broker clock (HFM: server GMT+2/+3 on the EU calendar)
+    broker_eu_dst: bool = True
     broker_fixed_ny_offset: bool = True
     server_to_ny_hours: float = 7.0
     server_gmt_offset_hours: float = 0.0
@@ -27,7 +28,8 @@ class BaseStrategy:
     def __init__(self, params=None):
         self.p = params or self.Params()
         p = self.p
-        self.clock = NYClock(p.broker_fixed_ny_offset, p.server_to_ny_hours, p.server_gmt_offset_hours)
+        self.clock = NYClock(p.broker_fixed_ny_offset, p.server_to_ny_hours, p.server_gmt_offset_hours,
+                             p.broker_eu_dst)
         engine_keys = {"entries", "skipped_spread", "days_blocked", "skipped_risk"}
         self.diag = {k: 0 for k, _ in self.diag_labels if k not in engine_keys}
         self.session_codes = []

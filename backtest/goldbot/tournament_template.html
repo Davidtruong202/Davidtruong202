@@ -113,7 +113,7 @@ footer{color:var(--muted);font-size:12px;text-align:center;margin-top:20px;line-
   <section class="card">
     <h2>Đọc bảng này thế nào</h2>
     <div class="explain">
-      <div><b>R ngoài mẫu</b>Lãi/lỗ cộng dồn trên các đoạn mà tham số chưa từng thấy. Đây là con số đáng tin nhất.</div>
+      <div><b>R ngoài mẫu</b>Lãi/lỗ cộng dồn trên các đoạn mà tham số chưa từng thấy. Mỗi phương pháp được chấm hai cách: <b>tham số mặc định</b> (đặt trước khi có dữ liệu, không chọn lọc gì) và <b>tối ưu walk-forward</b> (xem việc tinh chỉnh có giúp ích không).</div>
       <div><b>R giữ lại</b>Phần dữ liệu cuối không dùng cho bất cứ lựa chọn nào. Nếu ngoài mẫu lãi mà giữ lại lỗ nặng → nghi ngờ.</div>
       <div><b>Đánh giá</b>CÓ LỢI THẾ = ≥ 30 lệnh ngoài mẫu, PF ≥ 1.15, <b>t ≥ 2</b> (khó là may mắn) và lãi cả phần giữ lại. Thử nhiều phương pháp trên cùng dữ liệu thì dễ gặp "thắng nhờ may", nên tiêu chí cố tình khắt khe.</div>
     </div>
@@ -149,7 +149,7 @@ $("foot").innerHTML = "Tạo lúc " + esc(M.generated) + " (" + M.seconds + " gi
 const best = D.rows.find(r => r.verdict === "CÓ LỢI THẾ");
 const w = $("winner");
 if(best){
-  w.innerHTML = '<div class="t">Ứng viên tốt nhất</div><div class="n">'+esc(best.title)+'</div>'+
+  w.innerHTML = '<div class="t">Ứng viên tốt nhất</div><div class="n">'+esc(best.title)+'</div><div class="s" style="margin-bottom:6px">'+esc(best.mode_label)+'</div>'+
     '<div class="s">'+chip(best.verdict)+' &nbsp;ngoài mẫu <b class="num">'+fR(best.oos.r)+'</b> qua '+best.oos.n+' lệnh, PF '+best.oos.pf.toFixed(2)+
     ' · giữ lại <b class="num">'+fR(best.hold.r)+'</b></div><p class="s" style="margin-top:10px">Bước tiếp: xem <a href="'+esc(best.report)+'">báo cáo chi tiết</a>, chạy EA trong MT5 Strategy Tester, rồi demo vài tuần.</p>';
 } else {
@@ -199,7 +199,7 @@ D.rows.forEach((r, n) => {
   const params = Object.entries(r.params).map(([k,v]) => esc(k)+"="+esc(v)).join(", ") || "tham số mặc định";
   h += '<tr data-tip="'+esc(r.why)+'">'+
     '<td class="rank">'+(n+1)+'</td>'+
-    '<td class="name"><b>'+esc(r.title)+'</b><span>M'+(r.tf/60)+' · '+r.combos+' bộ tham số</span>'+
+    '<td class="name"><b>'+esc(r.title)+'</b><span>M'+(r.tf/60)+' · '+esc(r.mode_label)+(r.mode==="opt" ? ' ('+r.combos+' bộ)' : '')+'</span>'+
       '<details><summary>Tham số được chọn</summary><div class="params">'+params+'</div></details></td>'+
     '<td class="n num">'+r.oos.n+'</td>'+
     '<td class="n num">'+icon(r.oos.r)+' '+fR(r.oos.r)+'</td>'+

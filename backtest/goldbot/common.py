@@ -42,6 +42,23 @@ def _nth_sunday(year, month, n):
 
 
 _dst_cache = {}
+_eu_cache = {}
+
+
+def _last_sunday(year, month):
+    nxt = datetime(year + (month == 12), month % 12 + 1, 1, tzinfo=timezone.utc)
+    last = int(nxt.timestamp()) - DAY
+    wd = datetime.fromtimestamp(last, tz=timezone.utc).weekday()  # Monday=0 .. Sunday=6
+    return last - ((wd + 1) % 7) * DAY
+
+
+def is_eu_dst(gmt):
+    """EU summer time: last Sunday of March 01:00 UTC -> last Sunday of October 01:00 UTC."""
+    y = datetime.fromtimestamp(gmt, tz=timezone.utc).year
+    rng = _eu_cache.get(y)
+    if rng is None:
+        rng = _eu_cache[y] = (_last_sunday(y, 3) + 3600, _last_sunday(y, 10) + 3600)
+    return rng[0] <= gmt < rng[1]
 
 
 def is_us_dst(gmt):
@@ -55,16 +72,24 @@ def is_us_dst(gmt):
 class NYClock:
     """Server time -> New York time.
 
-    fixed_offset=True : server is always `server_to_ny` hours ahead of NY
-                        (HFM, ICMarkets, Pepperstone... GMT+2/+3 servers).
+    eu_dst=True       : server is GMT+2 in winter / GMT+3 in EU summer time (HFM and most
+                        "GMT+2/+3" brokers). NY is then 7h behind, except ~3 weeks in March
+                        and 1 week around November when the EU and US switch on different
+                        dates (6h) - checked on HFM XAUUSDc data: the market reopens at
+                        00:00 server instead of 01:00 in exactly those weeks.
+    fixed_offset=True : server is always `server_to_ny` hours ahead of NY.
     fixed_offset=False: server runs a fixed GMT offset (e.g. Exness GMT+0);
                         US daylight saving is applied.
     """
 
-    def __init__(self, fixed_offset=True, server_to_ny=7.0, server_gmt=0.0):
-        self.fixed, self.to_ny, self.gmt = fixed_offset, server_to_ny, server_gmt
+    def __init__(self, fixed_offset=True, server_to_ny=7.0, server_gmt=0.0, eu_dst=False):
+        self.fixed, self.to_ny, self.gmt, self.eu = fixed_offset, server_to_ny, server_gmt, eu_dst
 
     def ny(self, srv):
+        if self.eu:
+            g = srv - 2 * 3600
+            g = srv - (3 if is_eu_dst(g) else 2) * 3600
+            return g - (4 if is_us_dst(g) else 5) * 3600
         if self.fixed:
             return srv - int(self.to_ny * 3600)
         g = srv - int(self.gmt * 3600)

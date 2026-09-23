@@ -37,7 +37,8 @@ DAY_MIN = 24 * 60
 
 @dataclass
 class BreakoutParams:
-    # broker clock (HFM: server = New York + 7h all year)
+    # broker clock (HFM: server GMT+2/+3 on the EU calendar)
+    broker_eu_dst: bool = True
     broker_fixed_ny_offset: bool = True
     server_to_ny_hours: float = 7.0
     server_gmt_offset_hours: float = 0.0
@@ -92,7 +93,8 @@ class SessionBreakout:
     def __init__(self, params=None):
         self.p = params or BreakoutParams()
         p = self.p
-        self.clock = NYClock(p.broker_fixed_ny_offset, p.server_to_ny_hours, p.server_gmt_offset_hours)
+        self.clock = NYClock(p.broker_fixed_ny_offset, p.server_to_ny_hours, p.server_gmt_offset_hours,
+                             p.broker_eu_dst)
         self.diag = dict(breaks=0, f_range=0, f_trend=0, f_body=0, f_side=0, days=0, days_range_ok=0)
         self.session_codes = []
 

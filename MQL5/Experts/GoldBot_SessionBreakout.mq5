@@ -27,7 +27,8 @@ CTrade trade;
 // Inputs (names match config.json -> strategy_params / risk)
 //====================================================================
 input group "=== Gio server -> New York ==="
-input bool   InpBrokerFixedNYOffset  = true;  // HFM: server luon di truoc NY 7 gio
+input bool   InpBrokerEUDST          = true;  // HFM: server GMT+2/+3 doi gio theo lich chau Au
+input bool   InpBrokerFixedNYOffset  = true;  // dung khi InpBrokerEUDST = false
 input double InpServerToNYHours      = 7.0;
 input double InpServerGMTOffsetHours = 0.0;   // dung khi InpBrokerFixedNYOffset = false
 input double InpDayStartNY           = 17.0;  // ngay giao dich vang bat dau 17:00 NY
@@ -103,8 +104,32 @@ bool IsUSDST(datetime gmt)
    return (gmt >= NthSundayOfMonth(dt.year,3,2) && gmt < NthSundayOfMonth(dt.year,11,1));
 }
 
+datetime LastSundayOfMonth(int year, int month)
+{
+   MqlDateTime dt;
+   dt.year = (month==12) ? year+1 : year; dt.mon = (month==12) ? 1 : month+1; dt.day=1;
+   dt.hour=0; dt.min=0; dt.sec=0;
+   datetime last = StructToTime(dt) - 86400;
+   MqlDateTime l;
+   TimeToStruct(last, l);
+   return last - (datetime)(l.day_of_week*86400);   // day_of_week: 0 = Sunday
+}
+
+bool IsEUDST(datetime gmt)
+{
+   MqlDateTime dt;
+   TimeToStruct(gmt, dt);
+   return (gmt >= LastSundayOfMonth(dt.year,3)+3600 && gmt < LastSundayOfMonth(dt.year,10)+3600);
+}
+
 long ToNY(datetime srv)
 {
+   if(InpBrokerEUDST)
+   {
+      long g = (long)srv - 2*3600;
+      g = (long)srv - (IsEUDST((datetime)g) ? 3 : 2)*3600;
+      return g - (IsUSDST((datetime)g) ? 4 : 5)*3600;
+   }
    if(InpBrokerFixedNYOffset) return (long)srv - (long)(InpServerToNYHours*3600);
    long gmt = (long)srv - (long)(InpServerGMTOffsetHours*3600);
    return gmt - (IsUSDST((datetime)gmt) ? 4 : 5)*3600;
