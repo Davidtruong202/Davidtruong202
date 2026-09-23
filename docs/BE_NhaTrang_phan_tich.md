@@ -44,8 +44,11 @@ Mức độ chắc chắn: ✅ chắc chắn · 🟡 khá chắc · ❓ giả th
 3. Phần còn lại chạm TP +10$ (hoặc SL trailing).
 
 **Magic 78 (TP +30$):** 🟡
-- EMA: chưa dời BE khi lãi 7.7$; khi lãi ~10–11$ → chốt ~50–85% (0.07 → 0.03 → 0.01),
-  phần còn lại trailing cách đỉnh/đáy ~5$ (lệnh 10:50: SL cuối 4299.604 ≈ đáy 4294.6 + 5).
+- EMA: chưa dời BE khi lãi 7.7$; khi lãi ~+10$ → bot chốt **50%** (làm tròn lên), cùng giây
+  huỷ lệnh chờ tầng 2 và kéo SL vào vùng lãi; phần còn lại trailing cách đỉnh/đáy ~5$.
+  (Lệnh 10:50: lần chốt 0.04 lúc 11:33 là **chủ tài khoản đóng tay trên điện thoại**
+  – DEAL_REASON_MOBILE, magic 0 – không phải bot; bot chốt 0.02/0.03 lúc 11:36:55.)
+- ⚠️ Chủ tài khoản có can thiệp tay → khi suy luận phải bỏ các thao tác magic 0 / MOBILE.
 - SMC: dời SL về giá vào +0.32$ khá sớm (lãi ~3–5$).
 - TP 30$ gần như chỉ là trần; lệnh thường đóng bằng chốt phần + trailing.
 
@@ -62,6 +65,21 @@ Phân vị so với 706 nến M5 (99% = cực đoan cao).
 | BRK | SELL | sát đỉnh ngày (95%), nến đỏ nhỏ – có thể bán phá vỡ giả |
 
 Nhóm: đảo chiều tại cực trị (RSI, PVT, LQ) · thuận xu hướng (EMA, SMC) · mô hình/phá vỡ (ENG, BRK).
+
+Bối cảnh khung H1 lúc vào lệnh (RSI H1 / giá so EMA50 H1 theo ATR H1 / độ dốc EMA50 H1):
+| Lệnh | H1 | Cùng/ngược xu hướng H1 | Kết quả |
+|---|---|---|---|
+| ENG SELL | 47.6 / −0.50 / giảm | cùng | + |
+| RSI SELL | 56.5 / +0.47 / phẳng | trung tính | + |
+| BRK SELL | 59.2 / +0.91 / tăng | **ngược** | − |
+| PVT BUY | 47.6 / −0.32 / tăng nhẹ | trung tính | + |
+| SMC SELL 02:30 | 47.6 / −0.32 / tăng nhẹ | trung tính | + nhỏ |
+| EMA SELL 07:00 | 43.7 / −1.02 / giảm | cùng | + |
+| SMC SELL 07:42 | 43.7 / −1.02 / giảm | cùng | + nhỏ |
+| LQ BUY | 38.2 / −2.09 / giảm | **ngược** | − |
+| SMC SELL 09:42 | 38.2 / −2.09 / giảm | cùng | + nhỏ |
+| EMA SELL 10:50 | 36.5 / −2.36 / giảm | cùng | + |
+❓ Cả 2 lệnh thua đều **ngược xu hướng H1** → ứng viên bộ lọc H1 (cần thêm mẫu).
 
 ## 7. Kết quả quan sát
 | Tín hiệu | Kết quả |
