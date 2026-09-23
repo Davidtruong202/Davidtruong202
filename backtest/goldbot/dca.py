@@ -80,7 +80,7 @@ class DCASim:
             return -1
         return 0
 
-    def run(self, t_stop_new=None, lot_scale=1.0, stop_at_double=False):
+    def run(self, t_stop_new=None, lot_scale=1.0, stop_at_double=False, withdraw_at=None, withdraw_to=None):
         b, p = self.b, self.p
         C = p.contract
         bal = self.initial
@@ -90,6 +90,7 @@ class DCASim:
         baskets = []
         curve = []                    # (t, balance, equity) every 5 minutes
         blown = False
+        withdrawn = 0.0
         double_t, dd_at_double = None, None
         last_day = b.t[0] // DAY
         n = len(b)
@@ -178,6 +179,10 @@ class DCASim:
             if bk is not None:
                 eq = bal + ((c - bk.avg) if bk.buy else (bk.avg - c - spr)) * bk.lots * C
             else:
+                if withdraw_at is not None and bal >= withdraw_at:   # take profit out of the account
+                    withdrawn += bal - withdraw_to
+                    bal = withdraw_to
+                    peak = bal
                 eq = bal
                 if t_stop_new is None or t < t_stop_new:
                     d = self._dir(i)
@@ -212,7 +217,7 @@ class DCASim:
             pnl = ((c - bk.avg) if bk.buy else (bk.avg - c - b.spread[-1])) * bk.lots * C
             bal += pnl
             baskets.append((bk.open_t, b.t[-1], bk.buy, pnl + bk.swap, bk.levels, "Ket thuc", bk.max_lots))
-        return dict(final=bal, mult=bal / self.initial, max_dd=max_dd * 100, blown=blown, baskets=baskets,
+        return dict(final=bal, withdrawn=withdrawn, end_t=b.t[i] if n else None, mult=bal / self.initial, max_dd=max_dd * 100, blown=blown, baskets=baskets,
                     curve=curve, double_t=double_t, dd_at_double=None if dd_at_double is None else dd_at_double * 100,
                     params=asdict(p))
 
