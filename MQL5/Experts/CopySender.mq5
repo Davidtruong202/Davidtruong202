@@ -28,11 +28,35 @@ void AddUnique(string &arr[], const string s)
    arr[n] = s;
   }
 
+//--- Ghi luan phien 2 file <kenh>_a.csv / <kenh>_b.csv: neu 1 file bi chuong trinh
+//--- khac khoa (Excel, trinh copy...) thi file con lai van duoc cap nhat.
+bool     g_flip   = false;
+datetime g_lastOk = 0;
+datetime g_lastWarn = 0;
+
 void Publish()
   {
-   int h = FileOpen(InpChannel + ".csv", FILE_WRITE | FILE_TXT | FILE_ANSI | FILE_COMMON | FILE_SHARE_READ);
+   g_flip = !g_flip;
+   string first  = InpChannel + (g_flip ? "_a.csv" : "_b.csv");
+   string second = InpChannel + (g_flip ? "_b.csv" : "_a.csv");
+   if(WriteFile(first) || WriteFile(second))
+     {
+      g_lastOk = TimeLocal();
+      return;
+     }
+   if(TimeLocal() - g_lastOk > 10 && TimeLocal() - g_lastWarn > 60)
+     {
+      PrintFormat("[CopySender] LOI: khong ghi duoc %s_a.csv / _b.csv (loi %d). Dong Excel/chuong trinh dang mo file trong Common\\Files!",
+                  InpChannel, GetLastError());
+      g_lastWarn = TimeLocal();
+     }
+  }
+
+bool WriteFile(const string name)
+  {
+   int h = FileOpen(name, FILE_WRITE | FILE_TXT | FILE_ANSI | FILE_COMMON | FILE_SHARE_READ);
    if(h == INVALID_HANDLE)
-      return; // receiver dang doc, lan sau ghi lai
+      return false;
    int n = 0;
    FileWriteString(h, StringFormat("H,%I64d,%.2f,%I64d\r\n", (long)TimeLocal(),
                                    AccountInfoDouble(ACCOUNT_BALANCE), AccountInfoInteger(ACCOUNT_LOGIN)));
@@ -81,11 +105,12 @@ void Publish()
    // dong ket thuc: receiver dung de biet file da ghi xong
    FileWriteString(h, StringFormat("E,%d\r\n", n));
    FileClose(h);
+   return true;
   }
 
 int OnInit()
   {
-   PrintFormat("[CopySender] Tai khoan %I64d, kenh '%s' -> %s\\Files\\%s.csv",
+   PrintFormat("[CopySender] Tai khoan %I64d, kenh '%s' -> %s\\Files\\%s_a.csv / _b.csv",
                AccountInfoInteger(ACCOUNT_LOGIN), InpChannel,
                TerminalInfoString(TERMINAL_COMMONDATA_PATH), InpChannel);
    EventSetMillisecondTimer(MathMax(50, InpIntervalMs));
@@ -95,5 +120,14 @@ int OnInit()
 
 void OnDeinit(const int reason) { EventKillTimer(); }
 void OnTimer()                  { Publish(); }
-void OnTick()                   {}
+void OnTick()
+  {
+   // du phong: neu timer bi dung, moi tick van cap nhat (toi da 4 lan/giay)
+   static uint last = 0;
+   if(GetTickCount() - last >= 250)
+     {
+      last = GetTickCount();
+      Publish();
+     }
+  }
 //+------------------------------------------------------------------+

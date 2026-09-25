@@ -182,9 +182,19 @@ double ScaleLot(const string sym, const double srcLot, const double entry, const
 //+------------------------------------------------------------------+
 //| Doc file nguon; chi chap nhan khi co dong ket thuc E dung so dong |
 //+------------------------------------------------------------------+
+//--- Doc ca <kenh>_a.csv va <kenh>_b.csv (CopySender ghi luan phien), lay ban moi nhat
 bool ReadSource()
   {
-   int h = FileOpen(InpChannel + ".csv", FILE_READ | FILE_TXT | FILE_ANSI | FILE_COMMON |
+   datetime best = 0;
+   bool okA = ReadSourceFile(InpChannel + "_a.csv", best);
+   bool okB = ReadSourceFile(InpChannel + "_b.csv", best);
+   bool okOld = ReadSourceFile(InpChannel + ".csv", best); // CopySender ban cu
+   return okA || okB || okOld;
+  }
+
+bool ReadSourceFile(const string fname, datetime &best)
+  {
+   int h = FileOpen(fname, FILE_READ | FILE_TXT | FILE_ANSI | FILE_COMMON |
                     FILE_SHARE_READ | FILE_SHARE_WRITE);
    if(h == INVALID_HANDLE)
       return false;
@@ -236,7 +246,7 @@ bool ReadSource()
          complete = ((int)StringToInteger(f[1]) == n);
      }
    FileClose(h);
-   if(!complete || ts == 0)
+   if(!complete || ts == 0 || ts <= best)
       return false; // file dang ghi do, lan sau doc lai
 
    ArrayCopy(mKind, kind);  ArrayResize(mKind, n);
@@ -251,6 +261,7 @@ bool ReadSource()
    ArrayCopy(qBid, qb); ArrayResize(qBid, ArraySize(qb));
    mBalance = bal;
    mTs = ts;
+   best = ts;
    return true;
   }
 
