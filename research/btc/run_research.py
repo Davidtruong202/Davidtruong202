@@ -34,12 +34,18 @@ def splits(m1):
 
 
 def search(book, f, name, pgrid, exit_grid, mins, dev_end, val_end,
-           hold_bars=HOLD_BARS, sig_filter=None):
-    """Grid-search one strategy on one timeframe. Returns (all configs, selected config)."""
+           hold_bars=HOLD_BARS, sig_filter=None, builder=None, param_ok=None):
+    """Grid-search one strategy on one timeframe. Returns (all configs, selected config).
+    `builder(f, name, params, exit_params, mins, hold_bars)` overrides the round-1 signal builder."""
     rows = []
     for p in grid(pgrid):
+        if param_ok is not None and not param_ok(name, p):
+            continue
         for ex in grid(exit_grid):
-            sig = build_signals(f, name, p, ex["sl_atr"], ex["rr"], mins, hold_bars)
+            if builder is None:
+                sig = build_signals(f, name, p, ex["sl_atr"], ex["rr"], mins, hold_bars)
+            else:
+                sig = builder(f, name, p, ex, mins, hold_bars)
             if sig_filter is not None:
                 sig["dir"] = sig_filter(f, sig["dir"])
             tr = engine.run(book, sig, mins)

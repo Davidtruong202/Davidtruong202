@@ -10,6 +10,9 @@ Execution model (no look-ahead):
 - A gap through the SL fills at the bar open (worse than SL).
 - `slip` (price units) is added against the trader on entry and on stop exits.
 - Optional break-even: once price moves `be_r` x risk in favour, SL moves to entry + `be_lock` x risk.
+- Optional trailing stop (column `trail` > 0, price units): after each M1 bar CLOSES the stop is
+  raised to (highest bid high since entry - trail) for BUY / lowered to (lowest ask low + trail)
+  for SELL. The new stop only applies from the next bar (no intrabar look-ahead).
 - One position at a time per strategy: signals arriving while a trade is open are skipped.
 """
 import numpy as np
@@ -20,14 +23,14 @@ from data import POINT
 
 
 @njit(cache=True)
-def _simulate(o, h, l, c, sp, ent_idx, dirs, sl_d, tp_d, max_bars, slip, be_r, be_lock):
+def _simulate(o, h, l, c, sp, ent_idx, dirs, sl_d, tp_d, max_bars, slip, be_r, be_lock, trail_d):
     n = len(ent_idx)
     nb = len(o)
     out_entry = np.full(n, -1, np.int64)
     out_exit = np.full(n, -1, np.int64)
     out_pnl = np.zeros(n)
     out_risk = np.zeros(n)
-    out_reason = np.zeros(n, np.int64)  # 1 SL, 2 TP, 3 time, 4 BE-stop
+    out_reason = np.zeros(n, np.int64)  # 1 SL, 2 TP, 3 time, 4 BE/trailing stop
     busy_until = -1
     for k in range(n):
         i = ent_idx[k]
@@ -82,6 +85,18 @@ def _simulate(o, h, l, c, sp, ent_idx, dirs, sl_d, tp_d, max_bars, slip, be_r, b
                 if be_r > 0 and not be_done and px - (l[j] + s) >= be_r * risk:
                     sl = px - be_lock * risk
                     be_done = True
+            tr_ = trail_d[k]
+            if tr_ > 0:
+                if d == 1:
+                    ns = h[j] - tr_
+                    if ns > sl:
+                        sl = ns
+                        be_done = True
+                else:
+                    ns = l[j] + s + tr_
+                    if ns < sl:
+                        sl = ns
+                        be_done = True
             if j >= last:
                 exit_px = c[j] if d == 1 else c[j] + s
                 reason = 3
@@ -124,7 +139,8 @@ def run(book, sig, tf_minutes, slip=0.0, be_r=0.0, be_lock=0.0):
         book.o, book.h, book.l, book.c, book.sp, ent,
         sig["dir"].values.astype(np.int64), sig["sl"].values.astype(np.float64),
         sig["tp"].values.astype(np.float64), sig["max_bars"].values.astype(np.int64),
-        float(slip), float(be_r), float(be_lock))
+        float(slip), float(be_r), float(be_lock),
+        (sig["trail"].values if "trail" in sig else np.zeros(len(sig))).astype(np.float64))
     ok = e >= 0
     tr = pd.DataFrame({
         "signal_time": sig.index[ok],
