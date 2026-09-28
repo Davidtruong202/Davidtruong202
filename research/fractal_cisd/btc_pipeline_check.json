@@ -1,0 +1,637 @@
+{
+  "data": [
+    "2023-01-01 00:00:00",
+    "2026-09-28 00:00:00"
+  ],
+  "cut": "2025-03-30 14:24:00",
+  "tf_pairs": {
+    "15->1": {
+      "IS": {
+        "trades": 290,
+        "net_R": -43.84,
+        "profit_usd_at_risk": -4383.66,
+        "max_dd_R": 45.15,
+        "win_rate": 37.6,
+        "profit_factor": 0.7,
+        "expectancy_R": -0.151,
+        "avg_win_R": 0.94,
+        "avg_loss_R": -0.81,
+        "realized_RR": 1.16,
+        "max_losing_streak": 9,
+        "exits": {
+          "SL": 130,
+          "het_gio": 130,
+          "TP": 30
+        }
+      },
+      "OOS": {
+        "trades": 576,
+        "net_R": -56.91,
+        "profit_usd_at_risk": -5691.48,
+        "max_dd_R": 64.2,
+        "win_rate": 37.0,
+        "profit_factor": 0.82,
+        "expectancy_R": -0.099,
+        "avg_win_R": 1.19,
+        "avg_loss_R": -0.86,
+        "realized_RR": 1.39,
+        "max_losing_streak": 13,
+        "exits": {
+          "SL": 284,
+          "het_gio": 208,
+          "TP": 84
+        }
+      },
+      "rejects": {
+        "huy_dong_qua_cuc_tri_C2": 3847,
+        "SL_qua_rong": 132,
+        "het_han_khong_CISD": 7875,
+        "ngoai_phien": 4668,
+        "spread_so_voi_SL": 1227,
+        "dang_co_lenh": 23,
+        "du_so_lenh_ngay": 16,
+        "SL_qua_hep": 2
+      }
+    },
+    "60->5": {
+      "IS": {
+        "trades": 231,
+        "net_R": -49.33,
+        "profit_usd_at_risk": -4933.35,
+        "max_dd_R": 52.81,
+        "win_rate": 35.1,
+        "profit_factor": 0.61,
+        "expectancy_R": -0.214,
+        "avg_win_R": 0.95,
+        "avg_loss_R": -0.84,
+        "realized_RR": 1.13,
+        "max_losing_streak": 10,
+        "exits": {
+          "SL": 114,
+          "het_gio": 97,
+          "TP": 20
+        }
+      },
+      "OOS": {
+        "trades": 210,
+        "net_R": -19.17,
+        "profit_usd_at_risk": -1917.12,
+        "max_dd_R": 33.0,
+        "win_rate": 35.7,
+        "profit_factor": 0.84,
+        "expectancy_R": -0.091,
+        "avg_win_R": 1.34,
+        "avg_loss_R": -0.89,
+        "realized_RR": 1.51,
+        "max_losing_streak": 8,
+        "exits": {
+          "SL": 112,
+          "het_gio": 58,
+          "TP": 40
+        }
+      },
+      "rejects": {
+        "spread_so_voi_SL": 140,
+        "het_han_khong_CISD": 1898,
+        "huy_dong_qua_cuc_tri_C2": 789,
+        "ngoai_phien": 982,
+        "dang_co_lenh": 17,
+        "SL_qua_rong": 3,
+        "du_so_lenh_ngay": 1
+      }
+    },
+    "240->15": {
+      "IS": {
+        "trades": 65,
+        "net_R": -10.77,
+        "profit_usd_at_risk": -1077.4,
+        "max_dd_R": 12.77,
+        "win_rate": 32.3,
+        "profit_factor": 0.73,
+        "expectancy_R": -0.166,
+        "avg_win_R": 1.38,
+        "avg_loss_R": -0.9,
+        "realized_RR": 1.53,
+        "max_losing_streak": 8,
+        "exits": {
+          "SL": 38,
+          "het_gio": 16,
+          "TP": 11
+        }
+      },
+      "OOS": {
+        "trades": 41,
+        "net_R": -6.12,
+        "profit_usd_at_risk": -611.98,
+        "max_dd_R": 15.22,
+        "win_rate": 29.3,
+        "profit_factor": 0.76,
+        "expectancy_R": -0.149,
+        "avg_win_R": 1.6,
+        "avg_loss_R": -0.87,
+        "realized_RR": 1.83,
+        "max_losing_streak": 7,
+        "exits": {
+          "SL": 24,
+          "TP": 9,
+          "het_gio": 8
+        }
+      },
+      "rejects": {
+        "ngoai_phien": 427,
+        "het_han_khong_CISD": 539,
+        "huy_dong_qua_cuc_tri_C2": 173,
+        "spread_so_voi_SL": 7,
+        "SL_qua_rong": 1,
+        "SL_qua_hep": 1
+      }
+    }
+  },
+  "ablation_H1_M5": {
+    "mac_dinh(fractal,phien,2R)": {
+      "IS": {
+        "trades": 231,
+        "net_R": -49.33,
+        "profit_usd_at_risk": -4933.35,
+        "max_dd_R": 52.81,
+        "win_rate": 35.1,
+        "profit_factor": 0.61,
+        "expectancy_R": -0.214,
+        "avg_win_R": 0.95,
+        "avg_loss_R": -0.84,
+        "realized_RR": 1.13,
+        "max_losing_streak": 10,
+        "exits": {
+          "SL": 114,
+          "het_gio": 97,
+          "TP": 20
+        }
+      },
+      "OOS": {
+        "trades": 210,
+        "net_R": -19.17,
+        "profit_usd_at_risk": -1917.12,
+        "max_dd_R": 33.0,
+        "win_rate": 35.7,
+        "profit_factor": 0.84,
+        "expectancy_R": -0.091,
+        "avg_win_R": 1.34,
+        "avg_loss_R": -0.89,
+        "realized_RR": 1.51,
+        "max_losing_streak": 8,
+        "exits": {
+          "SL": 112,
+          "het_gio": 58,
+          "TP": 40
+        }
+      },
+      "rejects": {
+        "spread_so_voi_SL": 140,
+        "het_han_khong_CISD": 1898,
+        "huy_dong_qua_cuc_tri_C2": 789,
+        "ngoai_phien": 982,
+        "dang_co_lenh": 17,
+        "SL_qua_rong": 3,
+        "du_so_lenh_ngay": 1
+      }
+    },
+    "doi_chung_khong_HTF_sweep": {
+      "IS": {
+        "trades": 1731,
+        "net_R": -174.84,
+        "profit_usd_at_risk": -17484.1,
+        "max_dd_R": 192.1,
+        "win_rate": 36.7,
+        "profit_factor": 0.81,
+        "expectancy_R": -0.101,
+        "avg_win_R": 1.18,
+        "avg_loss_R": -0.84,
+        "realized_RR": 1.4,
+        "max_losing_streak": 11,
+        "exits": {
+          "SL": 829,
+          "het_gio": 630,
+          "TP": 272
+        }
+      },
+      "OOS": {
+        "trades": 1548,
+        "net_R": -36.5,
+        "profit_usd_at_risk": -3650.09,
+        "max_dd_R": 89.79,
+        "win_rate": 38.6,
+        "profit_factor": 0.96,
+        "expectancy_R": -0.024,
+        "avg_win_R": 1.38,
+        "avg_loss_R": -0.9,
+        "realized_RR": 1.53,
+        "max_losing_streak": 17,
+        "exits": {
+          "SL": 814,
+          "het_gio": 408,
+          "TP": 326
+        }
+      },
+      "rejects": {
+        "huy_dong_qua_cuc_tri_C2": 23319,
+        "het_han_khong_CISD": 38850,
+        "spread_so_voi_SL": 1999,
+        "ngoai_phien": 21000,
+        "SL_qua_rong": 82,
+        "dang_co_lenh": 2530,
+        "du_so_lenh_ngay": 1419,
+        "SL_qua_hep": 2
+      }
+    },
+    "liq=C1_thay_fractal": {
+      "IS": {
+        "trades": 829,
+        "net_R": -135.13,
+        "profit_usd_at_risk": -13512.63,
+        "max_dd_R": 137.13,
+        "win_rate": 34.3,
+        "profit_factor": 0.72,
+        "expectancy_R": -0.163,
+        "avg_win_R": 1.19,
+        "avg_loss_R": -0.87,
+        "realized_RR": 1.37,
+        "max_losing_streak": 18,
+        "exits": {
+          "SL": 431,
+          "het_gio": 275,
+          "TP": 123
+        }
+      },
+      "OOS": {
+        "trades": 789,
+        "net_R": -47.51,
+        "profit_usd_at_risk": -4751.26,
+        "max_dd_R": 92.4,
+        "win_rate": 37.1,
+        "profit_factor": 0.89,
+        "expectancy_R": -0.06,
+        "avg_win_R": 1.38,
+        "avg_loss_R": -0.91,
+        "realized_RR": 1.51,
+        "max_losing_streak": 10,
+        "exits": {
+          "SL": 426,
+          "het_gio": 202,
+          "TP": 161
+        }
+      },
+      "rejects": {
+        "ngoai_phien": 5748,
+        "het_han_khong_CISD": 10248,
+        "huy_dong_qua_cuc_tri_C2": 4339,
+        "spread_so_voi_SL": 772,
+        "SL_qua_rong": 27,
+        "dang_co_lenh": 247,
+        "du_so_lenh_ngay": 57,
+        "SL_qua_hep": 2
+      }
+    },
+    "them_FVG": {
+      "IS": {
+        "trades": 31,
+        "net_R": -4.98,
+        "profit_usd_at_risk": -497.93,
+        "max_dd_R": 7.27,
+        "win_rate": 45.2,
+        "profit_factor": 0.6,
+        "expectancy_R": -0.161,
+        "avg_win_R": 0.54,
+        "avg_loss_R": -0.74,
+        "realized_RR": 0.73,
+        "max_losing_streak": 3,
+        "exits": {
+          "het_gio": 20,
+          "SL": 9,
+          "TP": 2
+        }
+      },
+      "OOS": {
+        "trades": 25,
+        "net_R": -2.5,
+        "profit_usd_at_risk": -249.68,
+        "max_dd_R": 3.51,
+        "win_rate": 32.0,
+        "profit_factor": 0.81,
+        "expectancy_R": -0.1,
+        "avg_win_R": 1.36,
+        "avg_loss_R": -0.79,
+        "realized_RR": 1.73,
+        "max_losing_streak": 4,
+        "exits": {
+          "het_gio": 11,
+          "SL": 10,
+          "TP": 4
+        }
+      },
+      "rejects": {
+        "khong_co_FVG": 1408,
+        "het_han_khong_CISD": 2230,
+        "huy_dong_qua_cuc_tri_C2": 842,
+        "ngoai_phien": 142,
+        "spread_so_voi_SL": 1,
+        "dang_co_lenh": 1,
+        "SL_qua_rong": 2
+      }
+    },
+    "bo_loc_phien": {
+      "IS": {
+        "trades": 580,
+        "net_R": -83.47,
+        "profit_usd_at_risk": -8346.94,
+        "max_dd_R": 88.62,
+        "win_rate": 38.8,
+        "profit_factor": 0.71,
+        "expectancy_R": -0.144,
+        "avg_win_R": 0.92,
+        "avg_loss_R": -0.82,
+        "realized_RR": 1.12,
+        "max_losing_streak": 18,
+        "exits": {
+          "SL": 262,
+          "het_gio": 259,
+          "TP": 59
+        }
+      },
+      "OOS": {
+        "trades": 539,
+        "net_R": -85.06,
+        "profit_usd_at_risk": -8505.58,
+        "max_dd_R": 91.92,
+        "win_rate": 34.9,
+        "profit_factor": 0.73,
+        "expectancy_R": -0.158,
+        "avg_win_R": 1.21,
+        "avg_loss_R": -0.89,
+        "realized_RR": 1.36,
+        "max_losing_streak": 11,
+        "exits": {
+          "SL": 288,
+          "het_gio": 174,
+          "TP": 77
+        }
+      },
+      "rejects": {
+        "spread_so_voi_SL": 381,
+        "het_han_khong_CISD": 1275,
+        "huy_dong_qua_cuc_tri_C2": 734,
+        "dang_co_lenh": 21,
+        "du_so_lenh_ngay": 15,
+        "SL_qua_rong": 6,
+        "SL_qua_hep": 2
+      }
+    },
+    "TP=cuc_tri_C2(minRR1.5)": {
+      "IS": {
+        "trades": 34,
+        "net_R": -12.07,
+        "profit_usd_at_risk": -1207.11,
+        "max_dd_R": 15.51,
+        "win_rate": 32.4,
+        "profit_factor": 0.45,
+        "expectancy_R": -0.355,
+        "avg_win_R": 0.91,
+        "avg_loss_R": -0.96,
+        "realized_RR": 0.95,
+        "max_losing_streak": 15,
+        "exits": {
+          "SL": 21,
+          "het_gio": 11,
+          "TP": 2
+        }
+      },
+      "OOS": {
+        "trades": 46,
+        "net_R": 7.48,
+        "profit_usd_at_risk": 747.73,
+        "max_dd_R": 10.94,
+        "win_rate": 34.8,
+        "profit_factor": 1.27,
+        "expectancy_R": 0.163,
+        "avg_win_R": 2.21,
+        "avg_loss_R": -0.93,
+        "realized_RR": 2.38,
+        "max_losing_streak": 9,
+        "exits": {
+          "SL": 27,
+          "TP": 10,
+          "het_gio": 9
+        }
+      },
+      "rejects": {
+        "spread_so_voi_SL": 141,
+        "het_han_khong_CISD": 2218,
+        "huy_dong_qua_cuc_tri_C2": 830,
+        "ngoai_phien": 986,
+        "RR_muc_tieu_thap": 389,
+        "dang_co_lenh": 3,
+        "SL_qua_rong": 3
+      }
+    },
+    "cua_so_2_nen_HTF": {
+      "IS": {
+        "trades": 278,
+        "net_R": -63.48,
+        "profit_usd_at_risk": -6348.35,
+        "max_dd_R": 65.65,
+        "win_rate": 31.7,
+        "profit_factor": 0.63,
+        "expectancy_R": -0.228,
+        "avg_win_R": 1.21,
+        "avg_loss_R": -0.89,
+        "realized_RR": 1.35,
+        "max_losing_streak": 14,
+        "exits": {
+          "SL": 158,
+          "het_gio": 82,
+          "TP": 38
+        }
+      },
+      "OOS": {
+        "trades": 253,
+        "net_R": -30.36,
+        "profit_usd_at_risk": -3036.04,
+        "max_dd_R": 48.78,
+        "win_rate": 31.6,
+        "profit_factor": 0.81,
+        "expectancy_R": -0.12,
+        "avg_win_R": 1.64,
+        "avg_loss_R": -0.93,
+        "realized_RR": 1.76,
+        "max_losing_streak": 12,
+        "exits": {
+          "SL": 155,
+          "TP": 56,
+          "het_gio": 42
+        }
+      },
+      "rejects": {
+        "spread_so_voi_SL": 161,
+        "het_han_khong_CISD": 1511,
+        "huy_dong_qua_cuc_tri_C2": 1086,
+        "ngoai_phien": 1364,
+        "dang_co_lenh": 35,
+        "SL_qua_rong": 11,
+        "du_so_lenh_ngay": 1
+      }
+    }
+  },
+  "spread_stress_H1_M5": {
+    "x1.0": {
+      "IS": {
+        "trades": 231,
+        "net_R": -49.33,
+        "profit_usd_at_risk": -4933.35,
+        "max_dd_R": 52.81,
+        "win_rate": 35.1,
+        "profit_factor": 0.61,
+        "expectancy_R": -0.214,
+        "avg_win_R": 0.95,
+        "avg_loss_R": -0.84,
+        "realized_RR": 1.13,
+        "max_losing_streak": 10,
+        "exits": {
+          "SL": 114,
+          "het_gio": 97,
+          "TP": 20
+        }
+      },
+      "OOS": {
+        "trades": 210,
+        "net_R": -19.17,
+        "profit_usd_at_risk": -1917.12,
+        "max_dd_R": 33.0,
+        "win_rate": 35.7,
+        "profit_factor": 0.84,
+        "expectancy_R": -0.091,
+        "avg_win_R": 1.34,
+        "avg_loss_R": -0.89,
+        "realized_RR": 1.51,
+        "max_losing_streak": 8,
+        "exits": {
+          "SL": 112,
+          "het_gio": 58,
+          "TP": 40
+        }
+      }
+    },
+    "x1.5": {
+      "IS": {
+        "trades": 171,
+        "net_R": -43.93,
+        "profit_usd_at_risk": -4392.89,
+        "max_dd_R": 47.18,
+        "win_rate": 35.1,
+        "profit_factor": 0.54,
+        "expectancy_R": -0.257,
+        "avg_win_R": 0.85,
+        "avg_loss_R": -0.86,
+        "realized_RR": 1.0,
+        "max_losing_streak": 9,
+        "exits": {
+          "SL": 86,
+          "het_gio": 72,
+          "TP": 13
+        }
+      },
+      "OOS": {
+        "trades": 191,
+        "net_R": -26.06,
+        "profit_usd_at_risk": -2606.26,
+        "max_dd_R": 33.2,
+        "win_rate": 34.0,
+        "profit_factor": 0.76,
+        "expectancy_R": -0.136,
+        "avg_win_R": 1.3,
+        "avg_loss_R": -0.88,
+        "realized_RR": 1.48,
+        "max_losing_streak": 11,
+        "exits": {
+          "SL": 102,
+          "het_gio": 56,
+          "TP": 33
+        }
+      }
+    },
+    "x2.0": {
+      "IS": {
+        "trades": 121,
+        "net_R": -34.63,
+        "profit_usd_at_risk": -3462.71,
+        "max_dd_R": 39.49,
+        "win_rate": 33.1,
+        "profit_factor": 0.47,
+        "expectancy_R": -0.286,
+        "avg_win_R": 0.78,
+        "avg_loss_R": -0.81,
+        "realized_RR": 0.96,
+        "max_losing_streak": 9,
+        "exits": {
+          "SL": 58,
+          "het_gio": 56,
+          "TP": 7
+        }
+      },
+      "OOS": {
+        "trades": 176,
+        "net_R": -22.61,
+        "profit_usd_at_risk": -2260.69,
+        "max_dd_R": 29.5,
+        "win_rate": 34.7,
+        "profit_factor": 0.78,
+        "expectancy_R": -0.128,
+        "avg_win_R": 1.31,
+        "avg_loss_R": -0.89,
+        "realized_RR": 1.47,
+        "max_losing_streak": 10,
+        "exits": {
+          "SL": 94,
+          "het_gio": 50,
+          "TP": 32
+        }
+      }
+    },
+    "x3.0": {
+      "IS": {
+        "trades": 51,
+        "net_R": -14.86,
+        "profit_usd_at_risk": -1485.72,
+        "max_dd_R": 15.4,
+        "win_rate": 31.4,
+        "profit_factor": 0.42,
+        "expectancy_R": -0.291,
+        "avg_win_R": 0.66,
+        "avg_loss_R": -0.73,
+        "realized_RR": 0.91,
+        "max_losing_streak": 7,
+        "exits": {
+          "het_gio": 30,
+          "SL": 20,
+          "TP": 1
+        }
+      },
+      "OOS": {
+        "trades": 136,
+        "net_R": -14.22,
+        "profit_usd_at_risk": -1421.82,
+        "max_dd_R": 18.33,
+        "win_rate": 35.3,
+        "profit_factor": 0.81,
+        "expectancy_R": -0.105,
+        "avg_win_R": 1.3,
+        "avg_loss_R": -0.87,
+        "realized_RR": 1.49,
+        "max_losing_streak": 9,
+        "exits": {
+          "SL": 70,
+          "het_gio": 41,
+          "TP": 25
+        }
+      }
+    }
+  }
+}

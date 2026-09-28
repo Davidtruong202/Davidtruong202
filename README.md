@@ -100,3 +100,19 @@ EA tự vào lệnh sẵn). Để tự động hoá, mình đã lược bỏ/đ�
 indicator ICT Full Suite gốc — có nhiều điểm đã đơn giản hoá như liệt kê
 ở trên. EA không đảm bảo lợi nhuận; luôn kiểm thử kỹ trên demo và chỉ
 giao dịch với số vốn bạn chấp nhận rủi ro mất.
+
+---
+
+# EA nghiên cứu riêng: FractalCISD_Research (HTF Candle-2 Sweep → LTF CISD)
+
+EA **độc lập** với EA ICT M5 ở trên (magic riêng 26092801, không dùng chung code).
+Tổng hợp từ TTrades (swing point, Candle-2 closure, CISD), ICT (liquidity, FVG) và SMT
+(tuỳ chọn). Đây là **bản nghiên cứu, chưa compile bằng MetaEditor và chưa backtest trên XAUUSD**.
+
+- Đặc tả, nguồn, bảng quy tắc, sơ đồ BUY/SELL, giả thuyết, kế hoạch backtest:
+  `docs/fractal_cisd/DAC_TA_CHIEN_LUOC.md`
+- EA: `MQL5/Experts/FractalCISD_Research.mq5`
+- Preset: `MQL5/Presets/FractalCISD_XAUUSD_H1_M5.set` (mặc định), `_H4_M15.set`, `_M15_M1.set`
+- Backtest tham chiếu Python (cùng logic): `research/fractal_cisd/fractal_cisd_bt.py`
+- Chạy thử công cụ trên BTCUSDc (không áp dụng cho vàng; kết quả âm):
+  `research/fractal_cisd/KET_QUA_BTC_PIPELINE.md`
