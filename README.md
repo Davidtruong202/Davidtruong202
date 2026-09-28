@@ -6,6 +6,8 @@ trúc thị trường (BOS/CHoCH), Order Block + FVG, Premium/Discount/OTE, ICT
 Score, và 4 setup giao dịch cụ thể (A/B/C/D). File EA:
 `MQL5/Experts/XAUUSD_ICT_M5.mq5`.
 
+Kiến thức giao dịch dùng để viết EA: `docs/kien-thuc/`. Hướng dẫn cho AI: `CLAUDE.md`.
+
 Khung giao dịch chính: **M5** (theo yêu cầu của bạn). Bias lớn: **H4**.
 Thanh khoản ngày/tuần lấy từ **D1/W1**.
 
