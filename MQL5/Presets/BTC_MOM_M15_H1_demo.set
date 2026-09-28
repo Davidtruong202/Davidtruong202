@@ -1,0 +1,22 @@
+; Demo-account preset: 0.5% risk per trade with all protections on
+InpDispATR=2.0
+InpBodyFrac=0.6
+InpBreakBars=20
+InpM15Trend=true
+InpH1Filter=true
+InpH1AdxMin=20.0
+InpSlATR=2.0
+InpRR=2.0
+InpMaxHoldMin=720
+InpRiskPct=0.5
+InpMaxRiskOverMult=1.5
+InpMaxSpreadUSD=20.0
+InpMaxSpreadSLPct=5.0
+InpDailyLossPct=2.0
+InpMaxConsecLosses=8
+InpPauseHours=24
+InpKillDDPct=15.0
+InpMagic=20260928
+InpSlippagePts=300
+InpCalcBars=1500
+InpWriteCsvLog=true

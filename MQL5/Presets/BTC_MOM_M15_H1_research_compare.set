@@ -1,0 +1,22 @@
+; Strategy Tester preset to reproduce the research numbers (protections and spread filter disabled)
+InpDispATR=2.0
+InpBodyFrac=0.6
+InpBreakBars=20
+InpM15Trend=true
+InpH1Filter=true
+InpH1AdxMin=20.0
+InpSlATR=2.0
+InpRR=2.0
+InpMaxHoldMin=720
+InpRiskPct=1.0
+InpMaxRiskOverMult=1.5
+InpMaxSpreadUSD=100000
+InpMaxSpreadSLPct=100
+InpDailyLossPct=100
+InpMaxConsecLosses=100000
+InpPauseHours=24
+InpKillDDPct=100
+InpMagic=20260928
+InpSlippagePts=300
+InpCalcBars=1500
+InpWriteCsvLog=true
