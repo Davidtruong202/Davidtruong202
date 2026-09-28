@@ -1,0 +1,50 @@
+; Passview DCA Replica V1.00 - SET MAU (chi de chay demo / Strategy Tester)
+; CANH BAO: cac gia tri tin hieu, buoc DCA, lot, TP ben duoi la VI DU,
+; CHUA duoc suy ra tu log Passview. Thay bang ket qua phan tich khi co du lieu.
+; Enum: InpEntryMode 0=Tat 1=EMA 2=RSI 3=Mau nen 4=Chi BUY 5=Chi SELL
+;       InpStepMode 0=Gia co dinh 1=ATR | InpTPMode 0=Gia TB+-gia 1=Gia TB+-ATR 2=Tien
+; Timeframe: 5=M5, 15=M15, 16385=H1
+InpMagic=55082601
+InpAllowRealAccount=false
+InpSlippagePoints=50
+InpMaxRetries=3
+InpMaxConsecErrors=5
+InpEntryMode=1
+InpSignalTF=5
+InpEmaPeriod=50
+InpRsiPeriod=14
+InpRsiBuyBelow=30.0
+InpRsiSellAbove=70.0
+InpCooldownSeconds=0
+InpStepMode=0
+InpStepPrice=3.0
+InpStepATRMult=1.0
+InpATRTF=5
+InpATRPeriod=14
+InpStepGrowth=1.0
+InpAddOnBarCloseOnly=false
+InpStartLot=0.01
+InpLotMultiplier=1.5
+InpLotAdd=0.0
+InpMaxLegs=6
+InpMaxLotPerLeg=0.20
+InpMaxTotalLots=0.50
+InpTPMode=0
+InpTPPrice=1.5
+InpTPATRMult=0.5
+InpTPMoney=5.0
+InpTPMoneyPerLot=0.0
+InpSetServerTP=true
+InpBasketSLMoney=0.0
+InpMaxBasketHours=0
+InpCommissionPerLot=0.0
+InpAllowHedge=false
+InpMaxSpreadPrice=0.50
+InpUseSession=false
+InpSessionStartHour=1
+InpSessionEndHour=22
+InpMaxDrawdownPct=30.0
+InpMinMarginLevel=300.0
+InpWriteLog=true
+InpLogCommonFolder=true
+InpLogSkips=true
