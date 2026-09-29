@@ -7,7 +7,7 @@ Breakout → Hedge → giao dịch vùng mới và tỉa lệnh → chu kỳ m�
 
 > **Trạng thái:**
 >
-> - Kế hoạch PG-R0.0 **đã được duyệt ngày 29/09/2026** (tag `pg-r0.0`).
+> - Kế hoạch PG-R0.0 **đã được duyệt ngày 29/09/2026** (commit `47480fe`).
 > - Đang ở **PG-R0.1**: đọc thông số MT5 và kiểm tra dữ liệu. Chờ bạn chạy script trên MT5.
 >
 > Chưa có EA giao dịch, chưa chạy backtest nào. Không có con số hiệu suất nào trong thư mục này.
@@ -61,7 +61,7 @@ nghiên cứu
   - `doc_thong_so.py --tu-kiem-tra` đạt.
 
 **Backtest:** không áp dụng.
-**Rollback:** PG-R0.0 (tag `pg-r0.0`).
+**Rollback:** PG-R0.0 (commit `47480fe`).
 
 ### PG-R0.0 — Kế hoạch nghiên cứu
 

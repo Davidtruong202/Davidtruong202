@@ -6,7 +6,7 @@
 |---|---|
 | Phiên bản tài liệu | **PG-R0.0**, kế hoạch nghiên cứu |
 | Ngày lập | 29/09/2026 |
-| Trạng thái | **ĐÃ PHÊ DUYỆT ngày 29/09/2026** (Mục 21). Nội dung được duyệt đóng băng tại commit `47480fe`, tag `pg-r0.0`. Chưa viết EA giao dịch, chưa chạy backtest nào |
+| Trạng thái | **ĐÃ PHÊ DUYỆT ngày 29/09/2026** (Mục 21). Nội dung được duyệt đóng băng tại commit `47480fe`. Chưa viết EA giao dịch, chưa chạy backtest nào |
 | Sản phẩm | XAUUSD trên Exness Standard Cent (XAUUSDc), MetaTrader 5, vốn nghiên cứu 5.000 USC |
 | Khung | Giao dịch M1, cấu trúc M5, xử lý tín hiệu theo tick |
 | Quan hệ với David Hunter | Dòng sản phẩm **mới, độc lập**. Không đụng tới Baseline V4.52 trong EA-PRO |
@@ -1435,8 +1435,9 @@ Có hai cách lấy TS-01…TS-10:
 Quy tắc chung (theo AGENTS.md):
 
 - Mỗi phiên bản chỉ thay đổi **một nhóm logic chính**.
-- Có tag git `pg-r0.x`, có mục CHANGELOG, kết quả lưu thư mục riêng. Không ghi đè phiên bản trước → rollback bằng
-  tag.
+- Mỗi phiên bản có mã commit (ghi trong nhật ký phiên bản), mục CHANGELOG và thư mục kết quả riêng. Không ghi đè
+  phiên bản trước → rollback bằng mã commit. Tag git `pg-r0.x` do bạn tạo trên GitHub từ mã commit đó, vì phiên làm
+  việc của tôi chỉ được push lên nhánh làm việc, không được đẩy tag.
 - Không có MetaEditor trong môi trường này, nên mọi mã MQL5 (R0.1, R0.9, EA) sẽ được ghi rõ là **chưa compile** cho
   tới khi bạn compile.
 
@@ -1550,7 +1551,7 @@ Bạn trả lời: "đồng ý, phoenix chạy tài khoản riêng". Ghi nhận 
 | 2 | Lỗ ngày 10% theo Equity; tầng DD 5% / 8% / 12%; r_open 3%; r_fail 5%; ML_vào 500%; κ = 1,5 |
 | 3 | Giữ PP1–PP9 và lưới 185 biến thể. PP3 vẫn trong lưới, với tiền nghiệm thấp như đã ghi ở Mục 7 |
 | 4, 5, 6 | Ma trận A–G, state machine, chính sách cuối tuần: theo đúng kế hoạch |
-| 7 | Tiêu chí NT-A0, cổng A, NT-01…NT-30 **đóng băng** theo nội dung tại commit `47480fe` (tag `pg-r0.0`) |
+| 7 | Tiêu chí NT-A0, cổng A, NT-01…NT-30 **đóng băng** theo nội dung tại commit `47480fe` |
 | 8 | Chọn phương án chia dữ liệu khi biết lịch sử tick XAUUSDc tải được bao xa (R0.1) |
 | 9, 10, 12 | Theo đúng kế hoạch |
 | 11 | **Tài khoản riêng** cho Phoenix Grid, Magic riêng |
