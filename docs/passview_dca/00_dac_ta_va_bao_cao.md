@@ -1,5 +1,7 @@
 # Tái dựng bot DCA Passview: báo cáo dữ liệu, đặc tả và EA khung V1.00
 
+> **Cập nhật 29/09/2026:** đã có log Passview. Mô hình DCA ngược giá của V1.00 **bị dữ liệu bác bỏ**. Bot thật là lưới lệnh chờ Stop hai chiều + trailing. Xem `01_bao_cao_tai_dung_V2.md` và EA V2.00. Tài liệu này giữ nguyên để tra cứu.
+
 Ngày lập: 28/09/2026 · EA: `MQL5/Experts/Passview_DCA_Replica_V1_00.mq5` · SET mẫu: `MQL5/Presets/Passview_DCA_Replica_V1_00_mau.set`
 
 > **Tóm tắt trung thực:** chưa có dòng log Passview nào trong môi trường làm việc, nên **chưa suy ra được

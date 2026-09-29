@@ -1,0 +1,33 @@
+; Passview Replica V2.00 - SET AN TOAN (cung co che, lot nho + gioi han rui ro; KHONG con khop Passview khi gioi han kich hoat)
+; Gia tri do tu log KVB XAUUSD.e 25/09 + 28/09/2026 (xem docs/passview_dca/01_bao_cao_tai_dung_V2.md)
+; Buoc 0.21, SL 0.50, lot 0.05, 10 bac, lam moi 5000 ms: khop >= 96% mau.
+; Bac dau 0.21 va trailing 0.50/0.50: suy luan, can tick de xac nhan.
+; Khung gio 15:23-18:32 la GIO SERVER KVB (GMT+3), chi tu 2 phien quan sat. San GMT+0 (vd Exness): 12:23-15:32.
+InpMagic=55082602
+InpAllowRealAccount=false
+InpOrderComment=PVR2
+InpSlippagePoints=30
+InpMaxConsecErrors=5
+InpErrorPauseSec=30
+InpLevels=10
+InpStepPrice=0.21
+InpFirstOffset=0.21
+InpLot=0.01
+InpSLPrice=0.50
+InpRefreshMs=5000
+InpPendingExpirySec=60
+InpTrailStart=0.50
+InpTrailDist=0.50
+InpTrailStep=0.01
+InpUseSession=true
+InpSessionStart=15:23
+InpSessionEnd=18:32
+InpCloseAtSessionEnd=true
+InpMaxPositionsPerSide=15
+InpMaxSpreadPrice=0.30
+InpDailyLossPct=3.0
+InpMaxDrawdownPct=10.0
+InpWriteLog=true
+InpLogCommonFolder=true
+InpLogGrid=true
+InpLogTrail=false

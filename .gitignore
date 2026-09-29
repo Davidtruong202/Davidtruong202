@@ -1,0 +1,6 @@
+# Du lieu giao dich cua tai khoan Passview (tai khoan nguoi khac) - khong dua len repo cong khai
+data/passview/
+docs/passview_dca/ket_qua/vi_the.csv
+docs/passview_dca/ket_qua/chu_ky_luoi.csv
+docs/passview_dca/ket_qua/dot_cung_chieu.csv
+__pycache__/
