@@ -3,13 +3,14 @@
 //|                     DAVID HUNTER – PHOENIX GRID – 0941920986     |
 //|                                                                  |
 //|  Phiên bản nghiên cứu PG-R0.1 — SCRIPT CHỈ ĐỌC.                  |
+//|  0.11: đổi ';' trong nội dung ghi thành ',' (0.10 làm lệch cột).  |
 //|  - Không gọi OrderSend, không mở/đóng/sửa lệnh nào.              |
 //|  - Không ghi số tài khoản, tên chủ tài khoản, Balance, Equity.   |
 //|  Kết quả: 2 file CSV (UTF-8, phân cách ';') trong                |
 //|  <Common>\Files\PhoenixGrid\ và bản sao trong tab Experts.       |
 //+------------------------------------------------------------------+
 #property copyright   "DAVID HUNTER – PHOENIX GRID – 0941920986"
-#property version     "0.10"
+#property version     "0.11"
 #property description "PG-R0.1: đọc thông số tài khoản/symbol và thống kê spread theo tick. Không gửi lệnh."
 #property script_show_inputs
 
@@ -30,9 +31,14 @@ long g_hist[];                                 // histogram spread: hàng = gi�
 //+------------------------------------------------------------------+
 void Ghi(const string khoa, const string gia_tri, const string ghi_chu = "")
   {
+// ';' là ký tự phân cách cột của file CSV → đổi thành ',' để không lệch cột (lỗi của bản 0.10)
+   string g = gia_tri;
+   string c = ghi_chu;
+   StringReplace(g, ";", ",");
+   StringReplace(c, ";", ",");
    if(g_file != INVALID_HANDLE)
-      FileWrite(g_file, khoa, gia_tri, ghi_chu);
-   PrintFormat("%s = %s  %s", khoa, gia_tri, ghi_chu);
+      FileWrite(g_file, khoa, g, c);
+   PrintFormat("%s = %s  %s", khoa, g, c);
   }
 
 string D(const double v, const int so_le = 8) { return DoubleToString(v, so_le); }
@@ -56,7 +62,7 @@ void DocTerminal()
    Ghi("thoi_gian_server", TimeToString(server, TIME_DATE | TIME_SECONDS));
    Ghi("thoi_gian_gmt", TimeToString(gmt, TIME_DATE | TIME_SECONDS));
    Ghi("lech_gio_server_gmt", D(MathRound((double)((long)server - (long)gmt) / 3600.0), 0),
-       "giờ; dựa trên đồng hồ máy tính, cần đồng hồ máy chạy đúng");
+       "giờ, dựa trên đồng hồ máy tính, cần đồng hồ máy chạy đúng");
    Ghi("terminal_build", I(TerminalInfoInteger(TERMINAL_BUILD)));
    Ghi("terminal_ket_noi", B((bool)TerminalInfoInteger(TERMINAL_CONNECTED)));
    Ghi("ping_lan_cuoi_ms", D(TerminalInfoInteger(TERMINAL_PING_LAST) / 1000.0, 1), "độ trễ tới server giao dịch");
@@ -157,7 +163,7 @@ void TinhGiaTriSuyRa(const string sym)
    MqlTick tick;
    if(!SymbolInfoTick(sym, tick) || tick.bid <= 0.0 || tick.ask <= 0.0)
      {
-      Ghi("gia_hien_tai", "khong_co_tick", StringFormat("lỗi %d; mở chart symbol khi thị trường đang mở", GetLastError()));
+      Ghi("gia_hien_tai", "khong_co_tick", StringFormat("lỗi %d, mở chart symbol khi thị trường đang mở", GetLastError()));
       return;
      }
    double point     = SymbolInfoDouble(sym, SYMBOL_POINT);
@@ -175,7 +181,7 @@ void TinhGiaTriSuyRa(const string sym)
       double vpp_loss = tv_loss / tick_size;
       Ghi("vpp_loss", D(vpp_loss, 6), "tiền tài khoản khi 1 lot đi ngược 1,0 giá (1 USD/oz)");
       Ghi("vpp_profit", D(tv_profit / tick_size, 6), "tiền tài khoản khi 1 lot đi thuận 1,0 giá");
-      Ghi("K_theo_tick_value", D(0.01 * vpp_loss, 6), "0,01 lot, 1 USD/oz; giả định H_K = 1 USC");
+      Ghi("K_theo_tick_value", D(0.01 * vpp_loss, 6), "0,01 lot, 1 USD/oz, giả định H_K = 1 USC");
       Ghi("lo_lot_toi_thieu_100_usd", D(vmin * vpp_loss * 100.0, 2), "lot tối thiểu, giá đi ngược 100 USD/oz");
       Ghi("spread_hien_tai_tien_001_lot", D((tick.ask - tick.bid) * 0.01 * vpp_loss, 4), "chi phí spread của 0,01 lot");
 
@@ -219,7 +225,7 @@ void TinhGiaTriSuyRa(const string sym)
       bool usc = (AccountInfoString(ACCOUNT_CURRENCY) == "USC");
       bool dat = usc && MathAbs(-p - 1.0) <= 0.02;
       Ghi("kiem_tra_H_K", dat ? "DAT" : "KHONG_DAT",
-          StringFormat("K = %.6f %s; H_K: 0,01 lot = 1 USC mỗi 1 USD/oz", -p, AccountInfoString(ACCOUNT_CURRENCY)));
+          StringFormat("K = %.6f %s, H_K: 0,01 lot = 1 USC mỗi 1 USD/oz", -p, AccountInfoString(ACCOUNT_CURRENCY)));
      }
   }
 

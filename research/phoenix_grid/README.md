@@ -15,7 +15,8 @@ pip install numpy pandas
 |---|---|
 | `pg_data.py` | Đọc file tick zip của MT5 (có thể chia phần, thiếu phần cuối vẫn đọc được). Làm sạch có đếm bất thường. Dựng nến M1 theo Bid như MT5 |
 | `kiem_tra_tick.py` | Báo cáo chất lượng tick: độ phủ, bất thường, khoảng trống, spread theo tick, bước nhảy giá, đối chiếu nến M1 của MT5, so spread hai bộ tick |
-| `doc_thong_so.py` | Đọc CSV của script MT5 `PG_R01_DocThongSo.mq5`, xác minh H_K, kiểm tra điều kiện kế hoạch |
+| `doc_thong_so.py` | Đọc CSV của script MT5 `PG_R01_DocThongSo.mq5`, xác minh H_K, kiểm tra điều kiện kế hoạch, in nhận định tự động (đòn bẩy, stop out, chế độ khớp…). `--von` nhận nhiều mức vốn |
+| `du_lieu_r01/<server>_<symbol>_<thời điểm>/` | File CSV gốc do script MT5 xuất ra, lưu nguyên văn |
 
 ```bash
 # Kiểm tra tick (đã chạy trên XAUUSDm 01–12/01/2026 → results_r01/)
@@ -29,7 +30,8 @@ python3 kiem_tra_tick.py \
 python3 kiem_tra_tick.py --ticks "<XAUUSDc>/*.zip*" --nhan XAUUSDc --ticks2 "<XAUUSDm>/*.zip*" --nhan2 XAUUSDm
 
 # Đọc thông số do script MT5 xuất ra
-python3 doc_thong_so.py --file PG_R01_thong_so_XAUUSDc_<ngày>.csv --spread-gio PG_R01_spread_theo_gio_XAUUSDc_<ngày>.csv
+python3 doc_thong_so.py --file PG_R01_thong_so_XAUUSDc_<ngày>.csv --spread-gio PG_R01_spread_theo_gio_XAUUSDc_<ngày>.csv \
+  --von 5000 --out results_r01
 python3 doc_thong_so.py --tu-kiem-tra
 ```
 
@@ -40,6 +42,7 @@ python3 doc_thong_so.py --tu-kiem-tra
 | `khoang_trong.csv` | Khoảng trống > 60 giây và loại (nghỉ hằng ngày / cuối tuần / trong phiên) |
 | `buoc_nhay_lon_nhat.csv` | 10 bước nhảy Bid lớn nhất giữa hai tick liên tiếp trong phiên |
 | `doi_chieu_m1_nen_lech.csv` | Nến chỉ có ở một phía khi đối chiếu với MT5 |
+| `results_r01/thong_so_<symbol>_<thời điểm>.md` | Báo cáo thông số do `doc_thong_so.py` sinh ra |
 
 ## PG-R0.0 — thống kê mô tả nến M1 (không phải backtest)
 
