@@ -1,0 +1,286 @@
+[section label="Hero · Cột lọc nước Inox" padding="0px" class="ez ez-hero"]
+
+[row label="Nội dung" style="collapse" width="full-width"]
+
+[col span__sm="12"]
+
+<h1 class="ez-sr-only">Elizer – Thiết bị và giải pháp lọc nước</h1>
+<h2 class="ez-title">Cột lọc nước Inox</h2>
+<p class="ez-sub">Sản xuất trực tiếp. Bền bỉ theo năm tháng.</p>
+<div class="ez-cta"><a class="ez-btn" href="/san-xuat-cot-loc-inox/">Tìm hiểu thêm</a><a class="ez-btn ez-btn--ghost" href="/lien-he/">Nhận báo giá</a></div>
+
+[ux_image image_size="original"]
+
+[/col]
+
+[/row]
+
+[/section]
+[section label="Hero · Màng siêu lọc PVDF UF" padding="0px" class="ez ez-hero ez-gray"]
+
+[row label="Nội dung" style="collapse" width="full-width"]
+
+[col span__sm="12"]
+
+<h2 class="ez-title">Màng siêu lọc PVDF UF</h2>
+<p class="ez-sub">Công nghệ siêu lọc. Do chính Elizer sản xuất.</p>
+<div class="ez-cta"><a class="ez-btn" href="/san-xuat-mang-loc-uf/">Tìm hiểu thêm</a><a class="ez-btn ez-btn--ghost" href="/lien-he/">Nhận báo giá</a></div>
+
+[ux_image image_size="original"]
+
+[/col]
+
+[/row]
+
+[/section]
+[section label="Hero · Máy lọc nước RO công nghiệp" padding="0px" dark="true" class="ez ez-hero ez-dark"]
+
+[row label="Nội dung" style="collapse" width="full-width"]
+
+[col span__sm="12"]
+
+<h2 class="ez-title">Máy lọc nước RO công nghiệp</h2>
+<p class="ez-sub">Nước tinh khiết cho sản xuất và kinh doanh.</p>
+<div class="ez-cta"><a class="ez-btn" href="/he-thong-ro-cong-nghiep/">Tìm hiểu thêm</a><a class="ez-btn ez-btn--ghost" href="/lien-he/">Nhận báo giá</a></div>
+
+[ux_image image_size="original"]
+
+[/col]
+
+[/row]
+
+[/section]
+[section label="Lưới 2 cột" padding="0px" class="ez"]
+
+[row label="Ô sản phẩm" width="full-width" class="ez-grid"]
+
+[col span="6" span__sm="12" class="ez-tile ez-dark"]
+
+<h2 class="ez-title">Máy siêu lọc tổng từ trường</h2>
+<p class="ez-sub">Nước sạch cho cả ngôi nhà.</p>
+<div class="ez-cta"><a class="ez-btn" href="/may-loc-tong-tu-truong/">Tìm hiểu thêm</a><a class="ez-btn ez-btn--ghost" href="/lien-he/">Nhận báo giá</a></div>
+
+[ux_image image_size="original"]
+
+[/col]
+[col span="6" span__sm="12" class="ez-tile"]
+
+<h2 class="ez-title">Hệ thống lọc tổng đầu nguồn</h2>
+<p class="ez-sub">Lọc từ đầu nguồn. Sạch đến mọi vòi nước.</p>
+<div class="ez-cta"><a class="ez-btn" href="/he-thong-loc-tong/">Tìm hiểu thêm</a><a class="ez-btn ez-btn--ghost" href="/lien-he/">Nhận báo giá</a></div>
+
+[ux_image image_size="original"]
+
+[/col]
+[col span="6" span__sm="12" class="ez-tile"]
+
+<h2 class="ez-title">Máy lọc nước RO gia đình</h2>
+<p class="ez-sub">Nước tinh khiết mỗi ngày cho cả nhà.</p>
+<div class="ez-cta"><a class="ez-btn" href="/may-loc-nuoc-ro-gia-dinh/">Tìm hiểu thêm</a><a class="ez-btn ez-btn--ghost" href="/lien-he/">Nhận báo giá</a></div>
+
+[ux_image image_size="original"]
+
+[/col]
+[col span="6" span__sm="12" class="ez-tile ez-dark"]
+
+<h2 class="ez-title">Linh kiện, phụ kiện lọc nước</h2>
+<p class="ez-sub">Lõi lọc, vật liệu lọc và phụ kiện thay thế.</p>
+<div class="ez-cta"><a class="ez-btn" href="/linh-kien-loc-nuoc/">Tìm hiểu thêm</a><a class="ez-btn ez-btn--ghost" href="/lien-he/">Nhận báo giá</a></div>
+
+[ux_image image_size="original"]
+
+[/col]
+
+[/row]
+
+[/section]
+[section label="Banner" padding="56px" padding__sm="36px" class="ez ez-carousel"]
+
+[row label="Slider banner"]
+
+[col span__sm="12"]
+
+[ux_slider timer="5000" nav_color="dark" class="ez-slider"]
+
+[ux_image id="6835" image_size="original" link="/lien-he/"]
+
+[ux_image id="6054" image_size="original"]
+
+[/ux_slider]
+
+[/col]
+
+[/row]
+
+[/section]
+[section label="Khám phá sản phẩm" bg_color="rgb(245, 245, 247)" padding="80px" padding__sm="56px" class="ez ez-store"]
+
+[row label="Tiêu đề" class="ez-head"]
+
+[col span__sm="12"]
+
+<h2 class="ez-heading"><strong>Khám phá sản phẩm.</strong> Giải pháp lọc nước cho gia đình, nhà máy và công trình.</h2>
+
+[/col]
+
+[/row]
+[row label="Tab sản phẩm"]
+
+[col span__sm="12"]
+
+[tabgroup style="pills" align="left" class="ez-tabs"]
+
+[tab title="Cột lọc Inox"]
+
+[ux_products style="normal" type="row" columns="4" columns__md="3" columns__sm="2" show_cat="0" show_rating="0" show_add_to_cart="0" show_quick_view="0" cat="331" products="8" image_size="original" text_align="left"]
+
+<p class="ez-more"><a class="ez-link" href="/san-xuat-cot-loc-inox/">Xem tất cả cột lọc nước Inox</a></p>
+
+[/tab]
+[tab title="Màng UF"]
+
+[ux_products style="normal" type="row" columns="4" columns__md="3" columns__sm="2" show_cat="0" show_rating="0" show_add_to_cart="0" show_quick_view="0" cat="332" products="8" image_size="original" text_align="left"]
+
+<p class="ez-more"><a class="ez-link" href="/san-xuat-mang-loc-uf/">Xem tất cả màng siêu lọc PVDF UF</a></p>
+
+[/tab]
+[tab title="RO công nghiệp"]
+
+[ux_products style="normal" type="row" columns="4" columns__md="3" columns__sm="2" show_cat="0" show_rating="0" show_add_to_cart="0" show_quick_view="0" cat="330" products="8" order="ASC" image_size="original" text_align="left"]
+
+<p class="ez-more"><a class="ez-link" href="/he-thong-ro-cong-nghiep/">Xem tất cả máy lọc nước RO công nghiệp</a></p>
+
+[/tab]
+[tab title="Lọc tổng từ trường"]
+
+[ux_products style="normal" type="row" columns="4" columns__md="3" columns__sm="2" show_cat="0" show_rating="0" show_add_to_cart="0" show_quick_view="0" cat="15" products="8" image_size="original" text_align="left"]
+
+<p class="ez-more"><a class="ez-link" href="/may-loc-tong-tu-truong/">Xem tất cả máy siêu lọc tổng từ trường</a></p>
+
+[/tab]
+[tab title="Lọc tổng đầu nguồn"]
+
+[ux_products style="normal" type="row" columns="4" columns__md="3" columns__sm="2" show_cat="0" show_rating="0" show_add_to_cart="0" show_quick_view="0" cat="328" products="8" image_size="original" text_align="left"]
+
+<p class="ez-more"><a class="ez-link" href="/he-thong-loc-tong/">Xem tất cả hệ thống lọc tổng đầu nguồn</a></p>
+
+[/tab]
+[tab title="RO gia đình"]
+
+[ux_products style="normal" type="row" columns="4" columns__md="3" columns__sm="2" show_cat="0" show_rating="0" show_add_to_cart="0" show_quick_view="0" cat="329" products="8" image_size="original" text_align="left"]
+
+<p class="ez-more"><a class="ez-link" href="/may-loc-nuoc-ro-gia-dinh/">Xem tất cả máy lọc nước RO gia đình</a></p>
+
+[/tab]
+[tab title="Linh kiện"]
+
+[ux_products style="normal" type="row" columns="4" columns__md="3" columns__sm="2" show_cat="0" show_rating="0" show_add_to_cart="0" show_quick_view="0" cat="333" products="8" image_size="original" text_align="left"]
+
+<p class="ez-more"><a class="ez-link" href="/linh-kien-loc-nuoc/">Xem tất cả linh kiện, phụ kiện lọc nước</a></p>
+
+[/tab]
+
+[/tabgroup]
+
+[/col]
+
+[/row]
+
+[/section]
+[section label="Vì sao chọn Elizer" padding="80px" padding__sm="56px" class="ez ez-why"]
+
+[row label="Tiêu đề" class="ez-head"]
+
+[col span__sm="12"]
+
+<h2 class="ez-heading"><strong>Vì sao chọn Elizer.</strong> Từ nhà máy đến từng vòi nước.</h2>
+
+[/col]
+
+[/row]
+[row label="Thẻ lý do"]
+
+[col span="3" span__md="6" span__sm="12" class="ez-card ez-i-factory"]
+
+<h3 class="ez-card-title">Nhà sản xuất trực tiếp</h3>
+<p class="ez-card-text">Elizer tự sản xuất cột lọc nước Inox và màng siêu lọc PVDF UF.</p>
+
+[/col]
+[col span="3" span__md="6" span__sm="12" class="ez-card ez-i-drop"]
+
+<h3 class="ez-card-title">Giải pháp trọn vẹn</h3>
+<p class="ez-card-text">Từ máy lọc RO gia đình, lọc tổng đầu nguồn đến hệ thống RO công nghiệp.</p>
+
+[/col]
+[col span="3" span__md="6" span__sm="12" class="ez-card ez-i-chat"]
+
+<h3 class="ez-card-title">Tư vấn đúng nhu cầu</h3>
+<p class="ez-card-text">Giải pháp xử lý nước cho ăn uống, sinh hoạt và sản xuất, phù hợp với nguồn nước của bạn.</p>
+
+[/col]
+[col span="3" span__md="6" span__sm="12" class="ez-card ez-i-parts"]
+
+<h3 class="ez-card-title">Linh kiện &amp; vật liệu lọc</h3>
+<p class="ez-card-text">Lõi lọc, vật liệu lọc và phụ kiện thay thế cho hệ thống của bạn.</p>
+
+[/col]
+
+[/row]
+
+[/section]
+[section label="Tư vấn" padding="0px" class="ez ez-help"]
+
+[row label="Thẻ tư vấn" v_align="middle" class="ez-help-card"]
+
+[col span="7" span__sm="12" class="ez-help-media"]
+
+[ux_image id="6855" image_size="original" link="/lien-he/"]
+
+[/col]
+[col span="5" span__sm="12" class="ez-help-copy"]
+
+<p class="ez-eyebrow">Tư vấn giải pháp</p>
+<h2 class="ez-title">Chưa tìm được thiết bị phù hợp?</h2>
+<p class="ez-body">Elizer sẽ tư vấn giúp bạn giải pháp xử lý nguồn nước cấp phục vụ ăn uống, sinh hoạt và sản xuất.</p>
+<div class="ez-cta"><a class="ez-btn" href="tel:0949814444">Gọi 0949 814 444</a><a class="ez-link" href="/lien-he/">Gửi yêu cầu tư vấn</a></div>
+
+[/col]
+
+[/row]
+
+[/section]
+[section label="Tin tức" padding="80px" padding__sm="56px" class="ez ez-news"]
+
+[row label="Tiêu đề" class="ez-head"]
+
+[col span__sm="12"]
+
+<h2 class="ez-heading"><strong>Tin tức.</strong> Kiến thức lọc nước từ Elizer.</h2>
+
+[/col]
+
+[/row]
+[row label="Bài viết nổi bật"]
+
+[col span__sm="12"]
+
+<h3 class="ez-subhead">Bài viết nổi bật</h3>
+
+[blog_posts style="normal" type="slider" columns="3" columns__md="2" columns__sm="1" slider_nav_style="circle" ids="6884,6736,6440,6346,6408" excerpt="false" comments="false" post_icon="false" show_date="text" show_category="label" image_height="56.25%" image_size="large" text_align="left"]
+
+[/col]
+
+[/row]
+[row label="Bài viết mới nhất"]
+
+[col span__sm="12"]
+
+<h3 class="ez-subhead">Bài viết mới nhất</h3>
+
+[blog_posts style="normal" type="row" columns="3" columns__md="3" columns__sm="1" posts="3" excerpt="false" comments="false" post_icon="false" show_date="text" show_category="label" image_height="56.25%" image_size="large" text_align="left"]
+
+[/col]
+
+[/row]
+
+[/section]

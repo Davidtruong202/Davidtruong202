@@ -1,0 +1,765 @@
+/* ==========================================================================
+   ELIZER — Giao diện phong cách apple.com cho theme Flatsome
+   --------------------------------------------------------------------------
+   Dán TOÀN BỘ file này vào: Flatsome › Advanced › Custom CSS › ô "All screens"
+   (hoặc Giao diện › Tùy biến › CSS bổ sung).
+
+   - Mục 1–7 áp dụng cho toàn website (chữ, header, nút, thẻ sản phẩm,
+     trang sản phẩm, bài viết, footer). Không muốn phần nào thì xoá cả mục đó.
+   - Mục 8 dành cho các khối trang chủ có class "ez-…"
+     (file trang-chu-ux-builder.txt).
+   - Muốn dùng màu thương hiệu thay cho xanh Apple: sửa --ez-accent ở mục 0.
+   ========================================================================== */
+
+
+/* 0. BIẾN MÀU, FONT, KÍCH THƯỚC ------------------------------------------- */
+:root {
+  --ez-font: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --ez-text: #1d1d1f;           /* chữ chính */
+  --ez-text-2: #6e6e73;         /* chữ phụ */
+  --ez-text-3: #86868b;         /* chữ mờ */
+  --ez-bg-alt: #f5f5f7;         /* nền xám nhạt */
+  --ez-border: #d2d2d7;
+  --ez-accent: #0071e3;         /* màu nút chính */
+  --ez-accent-hover: #0077ed;
+  --ez-link: #0066cc;           /* link trên nền sáng */
+  --ez-link-dark: #2997ff;      /* link trên nền tối */
+  --ez-eyebrow: #b64400;        /* dòng chữ nhỏ phía trên tiêu đề */
+  --ez-radius: 18px;
+  --ez-radius-lg: 28px;
+  --ez-shadow: 2px 4px 12px rgba(0, 0, 0, .08);
+  --ez-shadow-hover: 2px 4px 16px rgba(0, 0, 0, .16);
+  --ez-nav-h: 52px;             /* chiều cao header */
+  --ez-ease: cubic-bezier(0, 0, .5, 1);
+}
+@media (max-width: 849px) {
+  :root { --ez-nav-h: 48px; }
+}
+
+
+/* 1. CHỮ TOÀN TRANG -------------------------------------------------------- */
+body {
+  font-family: var(--ez-font);
+  color: var(--ez-text);
+  letter-spacing: -.01em;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+h1, h2, h3, h4, h5, h6,
+.heading-font, .alt-font,
+.nav > li > a, .nav-dropdown li a,
+.button, button, input, select, textarea,
+.product-title, .price, .widget-title {
+  font-family: var(--ez-font);
+}
+h1, h2, h3, h4, h5, h6, .heading-font {
+  color: var(--ez-text);
+  font-weight: 600;
+  letter-spacing: -.015em;
+}
+
+
+/* 2. HEADER — thanh điều hướng mảnh, nền trắng mờ kiểu Apple --------------- */
+#header .header-wrapper { background-color: transparent !important; }
+#header .header-bg-color {
+  background-color: rgba(251, 251, 253, .8) !important;
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  backdrop-filter: saturate(180%) blur(20px);
+}
+#header .header-main,
+#header .header-bottom {
+  background-color: transparent !important;
+  background-image: none !important;
+  border: 0 !important;
+}
+#header .header-main { height: var(--ez-nav-h); }
+#header #logo img { width: auto; max-height: calc(var(--ez-nav-h) - 18px); }
+#header .header-bottom { min-height: 40px; box-shadow: inset 0 1px 0 rgba(0, 0, 0, .06); }
+#header .header-wrapper.stuck { box-shadow: 0 1px 0 rgba(0, 0, 0, .06); }
+#header .top-divider,
+#header .header-divider { display: none; }
+
+#header .header-main .nav > li > a,
+#header .header-bottom .nav > li > a {
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: -.01em;
+  text-transform: none;
+  color: rgba(0, 0, 0, .8);
+  transition: color .3s var(--ez-ease);
+}
+#header .header-main .nav > li > a:hover,
+#header .header-bottom .nav > li > a:hover,
+#header .nav > li.active > a,
+#header .nav > li.current-menu-item > a,
+#header .nav > li.current-menu-ancestor > a { color: #000; }
+#header .header-nav-main,
+#header .header-bottom-nav { flex-wrap: nowrap; white-space: nowrap; }
+#header .header-nav-main > li,
+#header .header-bottom-nav > li { margin: 0 9px; }
+@media (max-width: 1068px) {
+  #header .header-nav-main > li,
+  #header .header-bottom-nav > li { margin: 0 6px; }
+}
+#header .nav-line > li > a:before,
+#header .nav-line-bottom > li > a:before,
+#header .nav-line-grow > li > a:before,
+#header .nav-divided > li + li > a:after { display: none; }
+#header .header-main .nav > li > a > i,
+#header .header-bottom .nav > li > a > i { color: rgba(0, 0, 0, .8); }
+#header .nav > li > a > .icon-angle-down { font-size: 10px; opacity: .56; margin-left: 4px; }
+
+/* Thanh trên cùng (top bar) thành dải thông báo xám nhạt giống Apple */
+#header .header-top {
+  min-height: 36px;
+  background-color: var(--ez-bg-alt) !important;
+  background-image: none !important;
+}
+#header .header-top,
+#header .header-top a,
+#header .header-top .nav > li > a,
+#header .header-top .html {
+  color: var(--ez-text) !important;
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: -.01em;
+  text-transform: none;
+}
+#header .header-top a:hover { color: var(--ez-link) !important; }
+
+/* Menu xổ xuống */
+#header .nav-dropdown {
+  padding: 12px 0;
+  border: 0 !important;
+  border-radius: var(--ez-radius);
+  background-color: rgba(251, 251, 253, .96);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  backdrop-filter: saturate(180%) blur(20px);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, .12);
+}
+#header .nav-dropdown li a {
+  margin: 0;
+  padding: 7px 22px;
+  border: 0 !important;
+  color: var(--ez-text);
+  font-size: 14px;
+  font-weight: 400;
+  letter-spacing: -.016em;
+  text-transform: none;
+}
+#header .nav-dropdown li a:hover { color: var(--ez-link); background: transparent; }
+#header .nav-dropdown-has-arrow li.has-dropdown:before,
+#header .nav-dropdown-has-arrow li.has-dropdown:after { display: none; }
+
+/* Menu trên điện thoại */
+.off-canvas .nav-sidebar > li { border: 0 !important; }
+.off-canvas .nav-sidebar > li > a {
+  color: var(--ez-text);
+  font-size: 19px;
+  font-weight: 600;
+  letter-spacing: .012em;
+  text-transform: none;
+}
+.off-canvas .nav-sidebar .sub-menu li a,
+.off-canvas .nav-sidebar .children li a {
+  color: var(--ez-text-2);
+  font-size: 15px;
+  letter-spacing: -.016em;
+  text-transform: none;
+}
+
+
+/* 3. NÚT BẤM — dạng viên thuốc, không in hoa -------------------------------- */
+.button:not(.icon):not(.is-form):not(.is-link):not(.is-underline),
+input[type="submit"]:not(.is-form) {
+  border-radius: 980px !important;
+  text-transform: none !important;
+  letter-spacing: -.01em;
+  font-weight: 400;
+  text-shadow: none;
+}
+.button.is-shade:after,
+.button.is-gloss:after,
+.button.is-bevel:after { display: none; }
+
+
+/* 4. THẺ SẢN PHẨM — kiểu Apple Store (mọi trang có lưới sản phẩm) ---------- */
+.product-small.box .box-image {
+  border-radius: var(--ez-radius);
+  background-color: var(--ez-bg-alt);
+  isolation: isolate;
+}
+.product-small.box .box-image > div:first-child { background-color: inherit; }
+/* Ảnh vuông, không bị cắt; nền trắng của ảnh "hoà" vào nền xám */
+.product-small.box .box-image img {
+  aspect-ratio: 1 / 1;
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+  mix-blend-mode: multiply;
+}
+/* Nếu bật "Image height" cho thẻ sản phẩm thì giữ ảnh vừa khung của Flatsome */
+.product-small.box .box-image .image-cover img { height: 100%; aspect-ratio: auto; }
+.product-small.box .box-text { padding: 14px 2px 10px; }
+.product-small.box .product-title,
+.product-small.box .product-title a {
+  color: var(--ez-text);
+  font-size: 15px;
+  line-height: 1.34;
+  font-weight: 600;
+  letter-spacing: -.016em;
+}
+.product-small.box .product-title a:hover { color: var(--ez-link); }
+.product-small.box .category {
+  color: var(--ez-text-2);
+  font-size: 12px;
+  letter-spacing: 0;
+  text-transform: none;
+  opacity: 1;
+}
+.product-small.box .price-wrapper { margin-top: 4px; }
+.product-small.box .price {
+  color: var(--ez-text);
+  font-size: 14px;
+  font-weight: 400;
+}
+.product-small.box .price .amount { color: inherit; font-weight: inherit; }
+.product-small.box .price del { color: var(--ez-text-3); }
+.product-small.box .price ins { font-weight: 600; text-decoration: none; }
+
+
+/* 5. TRANG CHI TIẾT & DANH MỤC SẢN PHẨM ----------------------------------- */
+.product-info .product-title {
+  font-size: 40px;
+  line-height: 1.1;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+.product-info .is-divider { display: none; }
+.product-info .price {
+  color: var(--ez-text);
+  font-size: 17px;
+  font-weight: 400;
+}
+.product-gallery .woocommerce-product-gallery__image,
+.product-gallery .slide { border-radius: var(--ez-radius); overflow: hidden; }
+.product-thumbnails .col a { border-radius: 12px; overflow: hidden; }
+.woocommerce-breadcrumb.breadcrumbs,
+.breadcrumbs.uppercase {
+  color: var(--ez-text-2);
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: -.01em;
+  text-transform: none;
+}
+.breadcrumbs a { color: var(--ez-text-2); }
+.breadcrumbs a:hover { color: var(--ez-link); }
+.woocommerce-tabs .tabs > li > a,
+.product-tabs > li > a {
+  font-size: 17px;
+  letter-spacing: -.022em;
+  text-transform: none;
+}
+h1.shop-page-title,
+.shop-page-title h1 {
+  font-size: clamp(28px, 4vw, 48px);
+  line-height: 1.08;
+  font-weight: 600;
+  letter-spacing: -.003em;
+  text-transform: none;
+}
+@media (max-width: 734px) {
+  .product-info .product-title { font-size: 28px; line-height: 1.14286; letter-spacing: .007em; }
+}
+
+
+/* 6. THẺ BÀI VIẾT ---------------------------------------------------------- */
+.box-blog-post .box-image,
+.box-blog-post .image-cover { border-radius: var(--ez-radius); }
+.box-blog-post .box-image { overflow: hidden; }
+.box-blog-post .is-divider { display: none; }
+.box-blog-post .cat-label {
+  margin-bottom: 6px;
+  padding: 0;
+  background: none;
+  color: var(--ez-text-2);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: uppercase;
+  opacity: 1;
+}
+.box-blog-post .post-title,
+.box-blog-post .post-title a {
+  color: var(--ez-text);
+  font-size: 19px;
+  line-height: 1.26;
+  font-weight: 600;
+  letter-spacing: .012em;
+}
+.box-blog-post .post-title a:hover { color: var(--ez-link); }
+.box-blog-post .post-meta {
+  margin-top: 6px;
+  color: var(--ez-text-2);
+  font-size: 14px;
+  opacity: 1;
+}
+.box-blog-post .from_the_blog_excerpt { color: var(--ez-text-2); font-size: 15px; line-height: 1.47; }
+
+
+/* 7. FOOTER — nền xám nhạt, chữ nhỏ kiểu Apple ----------------------------- */
+html { background-color: var(--ez-bg-alt); }
+.footer-wrapper,
+.footer-wrapper .footer,
+.footer-wrapper .footer-widgets,
+.footer-wrapper .absolute-footer,
+.footer-wrapper .section,
+.footer-wrapper .section-bg {
+  background-color: var(--ez-bg-alt) !important;
+  background-image: none !important;
+}
+.footer-wrapper,
+.footer-wrapper p,
+.footer-wrapper li,
+.footer-wrapper td,
+.footer-wrapper .widget,
+.footer-wrapper .textwidget,
+.footer-wrapper .copyright-footer {
+  color: var(--ez-text-2) !important;
+  font-size: 12px;
+  line-height: 1.5;
+  letter-spacing: -.01em;
+}
+.footer-wrapper a:not(.button) { color: #424245 !important; }
+.footer-wrapper a:not(.button):hover { color: var(--ez-text) !important; text-decoration: underline; }
+.footer-wrapper .widget-title,
+.footer-wrapper h1, .footer-wrapper h2, .footer-wrapper h3,
+.footer-wrapper h4, .footer-wrapper h5, .footer-wrapper h6 {
+  margin-bottom: .8em;
+  color: var(--ez-text) !important;
+  font-size: 12px !important;
+  font-weight: 600;
+  letter-spacing: -.01em;
+  text-transform: none;
+}
+.footer-wrapper .is-divider { display: none; }
+.footer-wrapper .widget li,
+.footer-wrapper ul.menu > li {
+  margin: 0;
+  padding: .3em 0;
+  border: 0 !important;
+}
+.footer-wrapper ul.menu > li > a { padding: 0; }
+.footer-wrapper .absolute-footer { padding: 0 0 22px; }
+.footer-wrapper .absolute-footer .container {
+  padding-top: 16px;
+  border-top: 1px solid var(--ez-border);
+}
+
+
+/* 8. TRANG CHỦ — các khối "ez" --------------------------------------------- */
+.ez { color: var(--ez-text); }
+.ez-sr-only {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* 8.1 Tiêu đề, phụ đề, nút dùng chung */
+.ez .ez-title {
+  margin: 0;
+  color: var(--ez-text);
+  font-size: 56px;
+  line-height: 1.07143;
+  font-weight: 600;
+  letter-spacing: -.005em;
+}
+.ez .ez-sub {
+  margin: 6px 0 0;
+  color: var(--ez-text);
+  font-size: 28px;
+  line-height: 1.14286;
+  font-weight: 400;
+  letter-spacing: .007em;
+}
+.ez .ez-cta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 14px 16px;
+  margin: 20px 0 0;
+}
+.ez .ez-btn {
+  display: inline-block;
+  min-width: 28px;
+  padding: 11px 21px;
+  border: 1px solid var(--ez-accent);
+  border-radius: 980px;
+  background: var(--ez-accent);
+  color: #fff;
+  font-size: 17px;
+  line-height: 1.17648;
+  font-weight: 400;
+  letter-spacing: -.022em;
+  text-align: center;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background-color .3s var(--ez-ease), border-color .3s var(--ez-ease), color .3s var(--ez-ease);
+}
+.ez .ez-btn:hover { border-color: var(--ez-accent-hover); background: var(--ez-accent-hover); color: #fff; }
+.ez .ez-btn--ghost { background: transparent; color: var(--ez-accent); }
+.ez .ez-btn--ghost:hover { border-color: var(--ez-accent); background: var(--ez-accent); color: #fff; }
+.ez .ez-link { color: var(--ez-link); font-size: 17px; letter-spacing: -.022em; }
+.ez .ez-link:hover { color: var(--ez-link); text-decoration: underline; }
+.ez .ez-link::after {
+  content: "";
+  display: inline-block;
+  width: .42em;
+  height: .42em;
+  margin-left: .3em;
+  border: solid currentColor;
+  border-width: .09em .09em 0 0;
+  transform: translateY(-.06em) rotate(45deg);
+}
+.ez .ez-heading {
+  max-width: 840px;
+  margin: 0 0 28px;
+  color: var(--ez-text-2);
+  font-size: 28px;
+  line-height: 1.14286;
+  font-weight: 600;
+  letter-spacing: .007em;
+}
+.ez .ez-heading strong { color: var(--ez-text); font-weight: 600; }
+.ez .ez-subhead {
+  margin: 0 0 18px;
+  color: var(--ez-text);
+  font-size: 21px;
+  line-height: 1.19048;
+  font-weight: 600;
+  letter-spacing: .011em;
+}
+.ez .ez-eyebrow {
+  margin: 0 0 8px;
+  color: var(--ez-eyebrow);
+  font-size: 17px;
+  line-height: 1.23536;
+  font-weight: 600;
+  letter-spacing: -.022em;
+}
+.ez .ez-body {
+  margin: 16px 0 0;
+  color: var(--ez-text);
+  font-size: 17px;
+  line-height: 1.47059;
+  letter-spacing: -.022em;
+}
+.ez-head > .col { padding-bottom: 0; }
+
+/* Khối nền tối */
+.ez-dark .ez-title,
+.ez-dark .ez-sub,
+.ez-dark .ez-heading,
+.ez-dark .ez-body { color: #f5f5f7; }
+.ez-dark .ez-btn--ghost { border-color: var(--ez-link-dark); color: var(--ez-link-dark); }
+.ez-dark .ez-btn--ghost:hover { border-color: var(--ez-link-dark); background: var(--ez-link-dark); color: #fff; }
+.ez-dark .ez-link,
+.ez-dark .ez-link:hover { color: var(--ez-link-dark); }
+
+/* Ô trống khi chưa chọn ảnh trong UX Builder */
+.ez .uxb-no-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: min(560px, 86%);
+  min-height: 280px;
+  margin-left: auto;
+  margin-right: auto;
+  margin-bottom: 48px;
+  border: 2px dashed rgba(0, 0, 0, .16);
+  border-radius: var(--ez-radius);
+  color: var(--ez-text-3);
+  font-size: 0;
+}
+.ez .uxb-no-content::after {
+  content: "Chọn ảnh cho khối này trong UX Builder";
+  padding: 0 20px;
+  font-size: 14px;
+  letter-spacing: -.016em;
+}
+.ez-dark .uxb-no-content { border-color: rgba(255, 255, 255, .24); }
+
+/* 8.2 Hero — khối lớn toàn chiều ngang (nền: mặc định trắng, ez-gray, ez-dark) */
+.ez-hero { margin-bottom: 12px; overflow: hidden; }
+.ez-hero,
+.ez-hero .col-inner { background-color: #fff; }
+.ez-hero.ez-gray,
+.ez-hero.ez-gray .col-inner { background-color: var(--ez-bg-alt); }
+.ez-hero.ez-dark,
+.ez-hero.ez-dark .col-inner { background-color: #000; }
+.ez-hero .col-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 692px;
+  padding: 52px 22px 0;
+  text-align: center;
+  isolation: isolate;
+}
+.ez-hero .img,
+.ez-hero .uxb-no-content { margin-top: auto; }
+.ez-hero .img { width: 100%; padding-top: 32px; }
+.ez-hero .img img {
+  display: block;
+  width: auto;
+  max-width: min(100%, 1180px);
+  max-height: 520px;
+  margin: 0 auto;
+}
+
+/* 8.3 Lưới 2 cột (nền: mặc định xám, ez-dark, ez-white) */
+.ez-grid { padding: 0 6px; }
+.ez-grid > .col { padding: 0 6px 12px !important; }
+.ez-tile > .col-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100%;
+  min-height: 580px;
+  padding: 52px 22px 0;
+  overflow: hidden;
+  background-color: var(--ez-bg-alt);
+  text-align: center;
+  isolation: isolate;
+}
+.ez-tile.ez-dark > .col-inner { background-color: #000; }
+.ez-tile.ez-white > .col-inner { background-color: #fff; }
+.ez-grid .ez-title { font-size: 40px; line-height: 1.1; letter-spacing: 0; }
+.ez-grid .ez-sub { font-size: 21px; line-height: 1.19048; letter-spacing: .011em; }
+.ez-grid .img,
+.ez-grid .uxb-no-content { margin-top: auto; }
+.ez-grid .img { width: 100%; padding-top: 28px; }
+.ez-grid .img img {
+  display: block;
+  width: auto;
+  max-width: 100%;
+  max-height: 340px;
+  margin: 0 auto;
+}
+/* Ảnh nền trắng tự "hoà" vào nền xám; khối tối nên dùng ảnh PNG nền trong suốt */
+.ez-hero:not(.ez-dark) .img-inner,
+.ez-tile:not(.ez-dark) .img-inner { mix-blend-mode: multiply; }
+.ez-dark .img-inner { border-radius: var(--ez-radius); }
+
+/* 8.4 Slider banner */
+.ez-carousel .flickity-viewport { border-radius: var(--ez-radius); }
+.ez-carousel .slider-wrapper { margin-bottom: 36px; }
+.ez-carousel .flickity-page-dots { bottom: -30px; }
+
+/* Nút mũi tên & chấm của mọi slider trong các khối ez */
+.ez .flickity-prev-next-button {
+  top: calc(50% - 22px);
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(210, 210, 215, .64) !important;
+  color: rgba(0, 0, 0, .56) !important;
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  box-shadow: none;
+}
+.ez .flickity-prev-next-button:hover { background: rgba(223, 223, 227, .7) !important; color: rgba(0, 0, 0, .64) !important; }
+.ez .flickity-prev-next-button svg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  padding: 14px !important;
+  border: 0 !important;
+  background: transparent !important;
+  fill: currentColor;
+}
+.ez .flickity-page-dots .dot {
+  width: 8px;
+  height: 8px;
+  margin: 0 5px;
+  border: 0;
+  background: rgba(0, 0, 0, .24);
+  opacity: 1;
+}
+.ez .flickity-page-dots .dot.is-selected { background: rgba(0, 0, 0, .8); }
+
+/* 8.5 Khám phá sản phẩm — tab dạng viên thuốc + thẻ trắng trên nền xám */
+.ez-store .tabbed-content .nav {
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  gap: 8px;
+  margin: 0 0 28px;
+}
+.ez-store .tabbed-content .nav > li { margin: 0 !important; }
+.ez-store .tabbed-content .nav > li > a {
+  display: block;
+  padding: 8px 18px;
+  border-radius: 980px;
+  background: #fff;
+  color: var(--ez-text);
+  font-size: 14px;
+  line-height: 1.42859;
+  font-weight: 400;
+  letter-spacing: -.016em;
+  text-transform: none;
+  transition: background-color .3s var(--ez-ease), color .3s var(--ez-ease);
+}
+.ez-store .tabbed-content .nav > li > a:hover { background: #e8e8ed; color: var(--ez-text); }
+.ez-store .tabbed-content .nav > li.active > a { background: var(--ez-text); color: #fff; }
+.ez-store .tab-panels { padding-top: 0; }
+.ez-store .tab-panels .panel { padding: 0; }
+.ez-store .product-small.col > .col-inner { height: 100%; }
+.ez-store .product-small.box {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  border-radius: var(--ez-radius);
+  background: #fff;
+  box-shadow: var(--ez-shadow);
+  transition: box-shadow .3s var(--ez-ease), transform .3s var(--ez-ease);
+}
+.ez-store .product-small.box:hover { box-shadow: var(--ez-shadow-hover); transform: scale3d(1.01, 1.01, 1.01); }
+.ez-store .product-small.box .box-image { padding: 22px 22px 0; border-radius: 0; background-color: #fff; }
+.ez-store .product-small.box .box-text { flex: 1 0 auto; padding: 16px 22px 22px; }
+.ez-store .product-small.box .product-title,
+.ez-store .product-small.box .product-title a { font-size: 17px; line-height: 1.23536; letter-spacing: -.022em; }
+.ez .ez-more { margin: 10px 0 0; text-align: center; }
+
+/* 8.6 Vì sao chọn Elizer — thẻ xám có biểu tượng */
+.ez .ez-card { padding-bottom: 20px; }
+.ez-card > .col-inner {
+  height: 100%;
+  padding: 30px 24px 32px;
+  border-radius: var(--ez-radius);
+  background: var(--ez-bg-alt);
+}
+.ez-card > .col-inner::before {
+  content: "";
+  display: block;
+  width: 36px;
+  height: 36px;
+  margin-bottom: 18px;
+  background-color: var(--ez-accent);
+  -webkit-mask: var(--ez-icon) center / contain no-repeat;
+  mask: var(--ez-icon) center / contain no-repeat;
+}
+.ez .ez-card-title {
+  margin: 0 0 8px;
+  color: var(--ez-text);
+  font-size: 19px;
+  line-height: 1.21053;
+  font-weight: 600;
+  letter-spacing: .012em;
+}
+.ez .ez-card-text {
+  margin: 0;
+  color: var(--ez-text-2);
+  font-size: 17px;
+  line-height: 1.47059;
+  letter-spacing: -.022em;
+}
+.ez-i-factory { --ez-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 27V14l7 4.5V14l7 4.5V14l7 4.5V5h3v22z'/%3E%3Cpath d='M9 23h2M15 23h2M21 23h2'/%3E%3C/svg%3E"); }
+.ez-i-drop { --ez-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M16 4s-8.5 9.2-8.5 15.2a8.5 8.5 0 0 0 17 0C24.5 13.2 16 4 16 4z'/%3E%3Cpath d='M12.2 20.3a4 4 0 0 0 3.8 3.4'/%3E%3C/svg%3E"); }
+.ez-i-chat { --ez-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 6.5h22a1.5 1.5 0 0 1 1.5 1.5v13a1.5 1.5 0 0 1-1.5 1.5H14l-6 4.5v-4.5H5A1.5 1.5 0 0 1 3.5 21V8A1.5 1.5 0 0 1 5 6.5z'/%3E%3Cpath d='M9.5 12.5h13M9.5 16.5h8'/%3E%3C/svg%3E"); }
+.ez-i-parts { --ez-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='10' y='3.5' width='12' height='25' rx='3'/%3E%3Cpath d='M10 8.5h12M10 23.5h12M14 12v8M18 12v8'/%3E%3C/svg%3E"); }
+
+/* 8.7 Tư vấn — thẻ bo góc lớn nền xám */
+.ez-help .ez-help-card {
+  width: calc(100% - 30px);
+  overflow: hidden;
+  border-radius: var(--ez-radius-lg);
+  background: var(--ez-bg-alt);
+}
+.ez-help .ez-help-card > .col { padding: 0 !important; }
+.ez-help-media .img,
+.ez-help-media .img-inner,
+.ez-help-media img { display: block; width: 100%; }
+.ez-help-copy > .col-inner { padding: 48px 48px 48px 36px; text-align: left; }
+.ez-help .ez-title { font-size: 40px; line-height: 1.1; letter-spacing: 0; }
+.ez-help .ez-cta { justify-content: flex-start; gap: 14px 24px; margin-top: 26px; }
+
+/* 8.8 Tin tức */
+.ez-news .box-blog-post .box-text { padding: 16px 2px 8px; }
+.ez-news .box-blog-post .box-image img { transition: transform .5s var(--ez-ease); }
+.ez-news .box-blog-post:hover .box-image img { transform: scale(1.03); }
+
+/* 8.9 Máy tính bảng */
+@media (max-width: 1068px) {
+  .ez .ez-title { font-size: 48px; line-height: 1.08349; letter-spacing: -.003em; }
+  .ez .ez-sub { font-size: 24px; line-height: 1.16667; letter-spacing: .009em; }
+  .ez-hero .col-inner { min-height: 580px; }
+  .ez-hero .img img { max-height: 420px; }
+  .ez-grid .ez-title,
+  .ez-help .ez-title { font-size: 32px; line-height: 1.125; letter-spacing: .004em; }
+  .ez-grid .ez-sub { font-size: 19px; line-height: 1.21053; letter-spacing: .012em; }
+  .ez-tile > .col-inner { min-height: 500px; }
+  .ez-grid .img img { max-height: 280px; }
+  .ez-help-copy > .col-inner { padding: 36px 32px; }
+}
+
+/* 8.10 Điện thoại */
+@media (max-width: 734px) {
+  .ez .ez-title { font-size: 32px; line-height: 1.125; letter-spacing: .004em; }
+  .ez .ez-sub { font-size: 19px; line-height: 1.21053; letter-spacing: .012em; }
+  .ez .ez-btn { padding: 8px 16px; font-size: 15px; line-height: 1.33338; letter-spacing: -.01em; }
+  .ez .ez-heading { font-size: 24px; line-height: 1.16667; letter-spacing: .009em; }
+  .ez-hero .col-inner { min-height: 0; padding-top: 44px; }
+  .ez-hero .img { padding-top: 28px; }
+  .ez-hero .img img { max-height: 300px; }
+  .ez-grid > .col { flex-basis: 100%; max-width: 100%; }
+  .ez-tile > .col-inner { min-height: 400px; padding-top: 44px; }
+  .ez-grid .img img { max-height: 250px; }
+  .ez-card > .col-inner { padding: 26px 24px 28px; }
+  .ez-help .ez-help-card { border-radius: var(--ez-radius); }
+  .ez-help-copy > .col-inner { padding: 28px 24px 34px; }
+
+  /* Tab và thẻ sản phẩm vuốt ngang */
+  .ez-store .tabbed-content .nav {
+    flex-wrap: nowrap;
+    margin-left: -15px;
+    margin-right: -15px;
+    padding: 0 15px 4px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .ez-store .tabbed-content .nav::-webkit-scrollbar { display: none; }
+  .ez-store .tabbed-content .nav > li { flex: 0 0 auto; }
+  .ez-store .tab-panels .row {
+    flex-wrap: nowrap;
+    padding-top: 6px;
+    padding-bottom: 22px;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .ez-store .tab-panels .row::-webkit-scrollbar { display: none; }
+  .ez-store .tab-panels .row > .col { flex: 0 0 74%; max-width: 74%; scroll-snap-align: center; }
+}
+
+/* 8.11 Người dùng tắt hiệu ứng chuyển động */
+@media (prefers-reduced-motion: reduce) {
+  .ez *,
+  .ez *::before,
+  .ez *::after { transition: none !important; }
+  .ez-store .product-small.box:hover,
+  .ez-news .box-blog-post:hover .box-image img { transform: none; }
+}
