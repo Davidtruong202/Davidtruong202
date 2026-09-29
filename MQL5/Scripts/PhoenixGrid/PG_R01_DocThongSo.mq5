@@ -420,7 +420,9 @@ void OnStart()
    StringReplace(stamp, ":", "");
    StringReplace(stamp, " ", "_");
 
-   FolderCreate(InpThuMuc, FILE_COMMON);
+   ResetLastError();
+   if(!FolderCreate(InpThuMuc, FILE_COMMON))
+      PrintFormat("PG-R0.1: FolderCreate trả về false (lỗi %d), có thể thư mục đã tồn tại", GetLastError());
    string ten = InpThuMuc + "\\PG_R01_thong_so_" + sym + "_" + stamp + ".csv";
    g_file = FileOpen(ten, FILE_WRITE | FILE_CSV | FILE_ANSI | FILE_COMMON, ';', CP_UTF8);
    if(g_file == INVALID_HANDLE)
