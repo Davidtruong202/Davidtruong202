@@ -197,7 +197,11 @@ dữ liệu không đủ để khẳng định PP nào tốt hay xấu (AGENTS.m
    (1) **EMA M1** (12/34, lọc M15) · (2) **PIN M1** (râu/thân 3,4, quét 3) · (3) **LQ M1/M4** ·
    (4) **ICT M1–M2** (bias M30) · (5) SMC M1–M3, PVEMA M4–M10 (cần kiểm tra thêm ở giai đoạn giảm/đi ngang).
 3. **MM:** không đề xuất dùng với logic V4.39. Mọi TF, mọi input đều thua, tệ hơn ngẫu nhiên.
-4. **File SET kiểm chứng cho MT5** (`research/david_hunter_v439/mt5_sets/`), dùng với EA
+4. **Cách nhanh nhất: EA `MQL5/Experts/EA_DAVID_HUNTER_V4_39_MATRIX_7PP.mq5`.** Đây là bản sao V4.39 có
+   thêm input `InpMatrixBoCaiSan` chứa sẵn cả 13 bộ test dưới đây. Mặc định là kiểm chứng 6 PP cùng lúc
+   (214 bộ), chỉ cần bấm Start. Kết quả từng ứng viên nằm ở `ket_qua_ung_vien.csv`. Chọn "Thủ công" thì EA chạy
+   y hệt V4.39 gốc. Logic vào lệnh và quản lý lệnh không đổi. **Chưa biên dịch thử bằng MetaEditor.**
+   Cách tương đương, dùng file SET kiểm chứng cho MT5 (`research/david_hunter_v439/mt5_sets/`) với EA
    `EA_DAVID_HUNTER_V4_39_MATRIX_RECONCILE_2`:
    - `V439_KIEM_CHUNG_<PP>.set` (6 file): cấu hình gốc = ứng viên hạng 1, lưới nhỏ quanh ứng viên
      (24–54 bộ, có trục TF). Chạy nhanh, nên chạy trước.

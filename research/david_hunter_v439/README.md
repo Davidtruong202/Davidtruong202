@@ -21,7 +21,8 @@ Báo cáo kết quả: [`docs/david_hunter_v439/BAO_CAO_BACKTEST_7PP_CHUA_TRIEN_
 | `run_matrix.py` → `analyze.py` → `validate.py` → `null_tournament.py` → `make_sets.py` | Quét → xếp hạng → kiểm định → giải đấu ngẫu nhiên → file SET MT5 |
 | `tests/` | Bản dịch nguyên văn MQL5 (chậm) và bài đối chiếu với bản nhanh |
 | `results/` | Kết quả lần chạy trên dữ liệu 01–12/01/2026 |
-| `mt5_sets/` | File SET cho EA V4.39 MATRIX để kiểm chứng trong MT5 (ghi đủ 197 input của EA) + `HUONG_DAN.txt` |
+| `make_ea_7pp.py` | Tạo `MQL5/Experts/EA_DAVID_HUNTER_V4_39_MATRIX_7PP.mq5`: bản V4.39 có sẵn 13 bộ test trong input "Bộ cài sẵn" (không cần file SET) |
+| `mt5_sets/` | File SET cho EA V4.39 MATRIX gốc (ghi đủ 197 input) + `HUONG_DAN.txt`; bản 7PP ở trên thay thế các file này |
 
 ## Chạy
 
