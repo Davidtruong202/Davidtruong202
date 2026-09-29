@@ -10,6 +10,20 @@ thẻ sản phẩm, footer trên toàn website theo cùng phong cách.
 | `elizer-apple.css` | CSS dán vào Flatsome: toàn website + các khối trang chủ (class `ez-…`) |
 | `preview.html` | Bản xem trước: mở bằng trình duyệt. Hình ảnh và tên sản phẩm chỉ để minh hoạ |
 
+## Cách nhanh: chỉ dán CSS, giữ nguyên trang chủ hiện tại
+
+Không muốn làm trang chủ mới thì chỉ cần làm **Bước 1** (dán CSS). Mục 9 của CSS
+làm đẹp trang chủ đang chạy mà không sửa nội dung trang:
+
+- Nền xám nhạt; mỗi danh mục sản phẩm nằm trong một khung trắng bo góc lớn.
+- Tiêu đề danh mục chữ to, chữ thường (CSS hiển thị lại chữ thay cho chữ IN HOA,
+  mục 9.4). Nếu sau này sửa chữ tiêu đề trong UX Builder thì xoá mục 9.4.
+- "Xem tất cả ›" nằm góc phải ngang hàng tiêu đề; mũi tên slider tròn xám mờ.
+- Khối tư vấn và hai khối bài viết thành khung trắng.
+
+Mục 10–12 đổi thanh tiêu đề trang danh mục sang nền xám nhạt, cột bên (sidebar)
+và ô tìm kiếm trên header.
+
 ## Bố cục trang chủ mới
 
 1. **3 khối hero lớn** (như iPhone / Mac trên apple.com):
@@ -117,8 +131,9 @@ Sau đó xoá cache (plugin cache, Cloudflare nếu có) và xem thử trên đi
 
 ## Những gì đã sửa so với code cũ
 
-- **Link sai**: nút "Xem tất cả" (bản điện thoại) của Máy lọc tổng từ trường đang
-  trỏ sang `nemtrungnguyen.com/nem-cao-su-non/`. Đã sửa về `/may-loc-tong-tu-truong/`.
+- **Nút thừa trỏ sang web khác**: trong khối Máy lọc tổng từ trường có 2 nút "Xem tất cả"
+  trỏ sang `nemtrungnguyen.com/nem-cao-su-non/` (còn sót từ mẫu cũ). Hai nút này đang bị ẩn
+  ở mọi kích thước màn hình nên khách không thấy, bản mới đã bỏ.
 - **Link không thống nhất**: bản điện thoại dùng `/danh-muc/...`, riêng Linh kiện
   trỏ `/danh-muc/vat-lieu-loc-nuoc/`. Nay mọi nút dùng đúng link ở tiêu đề danh mục.
 - **Bỏ các khối đang ẩn** còn sót từ mẫu Nệm Trung Nguyên (Báo chí nói gì về chúng

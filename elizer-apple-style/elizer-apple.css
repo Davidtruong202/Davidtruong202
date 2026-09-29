@@ -765,58 +765,105 @@ html { background-color: var(--ez-bg-alt); }
 }
 
 
-/* 9. TRANG CHỦ HIỆN TẠI (code UX Builder cũ) — làm đẹp mà không cần sửa trang --- */
-/* Nền xám nhạt kiểu Apple Store, thẻ trắng nổi lên */
+/* 9. TRANG CHỦ HIỆN TẠI (code UX Builder cũ) — làm đẹp mà không cần sửa trang ---
+   Nền xám nhạt; mỗi danh mục là một khung trắng bo góc lớn kiểu Apple Store. */
 .home #main,
 .home #content { background-color: var(--ez-bg-alt); }
-.home #content > .row:first-child,
-.home #content > .section:first-child { padding-top: 12px; }
+.home #content { padding-bottom: 40px; }
 
-/* Slider banner đầu trang: bo góc, nằm gọn trong khung */
+/* 9.1 Slider banner đầu trang */
 .home #content .slider-wrapper .flickity-viewport,
-.home #content .slider-wrapper .img-inner { border-radius: var(--ez-radius); }
+.home #content .slider-wrapper .img-inner { border-radius: var(--ez-radius-lg); }
+
+/* 9.2 Mũi tên slider: nút tròn xám mờ (bỏ dải trắng che hai bên thẻ) */
+.home #content .flickity-prev-next-button,
+.home #content .flickity-prev-next-button:hover {
+  top: calc(50% - 40px) !important;
+  bottom: auto !important;
+  width: 40px !important;
+  height: 40px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 50%;
+  background: rgba(210, 210, 215, .64) !important;
+  box-shadow: none !important;
+  color: rgba(0, 0, 0, .56) !important;
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+}
+.home #content .flickity-prev-next-button.previous { left: 8px !important; right: auto !important; }
+.home #content .flickity-prev-next-button.next { right: 8px !important; left: auto !important; }
+.home #content .flickity-prev-next-button svg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100% !important;
+  height: 100% !important;
+  padding: 12px !important;
+  border: 0 !important;
+  background: none !important;
+  fill: currentColor;
+}
 .home #content .flickity-page-dots .dot { width: 8px; height: 8px; margin: 0 5px; border: 0; background: rgba(0, 0, 0, .24); opacity: 1; }
 .home #content .flickity-page-dots .dot.is-selected { background: rgba(0, 0, 0, .8); }
 
-/* Tiêu đề danh mục: bỏ in hoa, bỏ màu xanh đậm, chữ to kiểu Apple */
+/* 9.3 Mỗi danh mục sản phẩm = một khung trắng */
+.home #content .section .row-collapse { margin-bottom: 20px; padding: 0 15px; }
+.home #content .section .row-collapse > .col > .col-inner {
+  padding: 30px 32px 18px;
+  border-radius: var(--ez-radius-lg);
+  background: #fff;
+}
+
+/* 9.4 Tiêu đề danh mục */
 .home #content .text h3 {
-  margin: 56px 0 20px;
-  font-size: 32px !important;
-  line-height: 1.125;
+  margin: 0 0 20px !important;
+  padding-right: 130px;
+  font-size: 28px !important;
+  line-height: 1.14286;
   font-weight: 600;
-  letter-spacing: .004em;
+  letter-spacing: .007em;
   text-align: left !important;
 }
-.home #content .text h3,
 .home #content .text h3 * {
   color: var(--ez-text) !important;
   font-size: inherit !important;
   font-weight: 600 !important;
-  text-decoration: none;
+  text-decoration: none !important;
 }
-.home #content .text h3 a { display: inline-block; text-transform: lowercase; }
-.home #content .text h3 a::first-letter { text-transform: uppercase; }
-.home #content .text h3 a:hover,
-.home #content .text h3 a:hover * { color: var(--ez-link) !important; }
+/* Hiện tiêu đề dạng chữ thường thay cho chữ IN HOA đang có trong nội dung.
+   Nếu sau này sửa chữ tiêu đề trong UX Builder thì xoá phần này. */
+.home #content .text h3 a:is([href*="san-xuat-cot-loc-inox"], [href*="san-xuat-mang-loc-uf"], [href*="he-thong-ro-cong-nghiep"], [href*="may-loc-tong-tu-truong"], [href*="he-thong-loc-tong"], [href*="may-loc-nuoc-ro-gia-dinh"], [href*="linh-kien-loc-nuoc"]),
+.home #content .text h3 a:is([href*="san-xuat-cot-loc-inox"], [href*="san-xuat-mang-loc-uf"], [href*="he-thong-ro-cong-nghiep"], [href*="may-loc-tong-tu-truong"], [href*="he-thong-loc-tong"], [href*="may-loc-nuoc-ro-gia-dinh"], [href*="linh-kien-loc-nuoc"]) * { font-size: 0 !important; letter-spacing: 0 !important; }
+.home #content .text h3 a::after { color: var(--ez-text); font-size: 28px; font-weight: 600; letter-spacing: .007em; }
+.home #content .text h3 a:hover::after { color: var(--ez-link); }
+.home #content .text h3 a[href*="san-xuat-cot-loc-inox"]::after { content: "Sản xuất cột lọc nước Inox"; }
+.home #content .text h3 a[href*="san-xuat-mang-loc-uf"]::after { content: "Sản xuất màng siêu lọc PVDF UF"; }
+.home #content .text h3 a[href*="he-thong-ro-cong-nghiep"]::after { content: "Máy lọc nước RO công nghiệp"; }
+.home #content .text h3 a[href*="may-loc-tong-tu-truong"]::after { content: "Máy siêu lọc tổng từ trường"; }
+.home #content .text h3 a[href*="he-thong-loc-tong"]::after { content: "Hệ thống lọc tổng đầu nguồn"; }
+.home #content .text h3 a[href*="may-loc-nuoc-ro-gia-dinh"]::after { content: "Máy lọc nước RO gia đình"; }
+.home #content .text h3 a[href*="linh-kien-loc-nuoc"]::after { content: "Linh kiện, phụ kiện lọc nước"; }
 
-/* Thẻ sản phẩm: trắng, bo góc, bóng nhẹ, nổi lên khi rê chuột */
-.home .product-small.col > .col-inner { height: 100%; }
-.home .product-small.box {
-  height: 100%;
-  overflow: hidden;
-  border-radius: var(--ez-radius);
-  background: #fff;
-  box-shadow: var(--ez-shadow);
-  transition: box-shadow .3s var(--ez-ease), transform .3s var(--ez-ease);
+/* 9.5 "Xem tất cả": link xanh có mũi tên, nằm góc phải ngang hàng tiêu đề */
+.home #content .section .row-collapse > .col > .col-inner > .row:not(.slider) {
+  position: absolute;
+  top: 34px;
+  right: 32px;
+  z-index: 2;
+  width: auto;
+  max-width: none;
+  margin: 0 !important;
+  padding: 0 !important;
 }
-.home .product-small.box:hover { box-shadow: var(--ez-shadow-hover); transform: scale3d(1.01, 1.01, 1.01); }
-.home .product-small.box .box-image { padding: 20px 20px 0; border-radius: 0; background-color: #fff; }
-.home .product-small.box .box-text { padding: 14px 20px 20px; }
-.home .product-small.box .product-title,
-.home .product-small.box .product-title a { font-size: 16px; line-height: 1.3; }
-.home #content .slider .flickity-viewport { padding: 6px 0 16px; }
-
-/* Nút "Xem tất cả": thành link xanh có mũi tên như apple.com */
+.home #content .section .row-collapse > .col > .col-inner > .row:not(.slider) > .col {
+  flex: 0 0 auto;
+  width: auto;
+  max-width: none;
+  padding: 0 !important;
+}
+.home #content .section .row-collapse > .col > .col-inner > .row:not(.slider) .col-inner { margin: 0 !important; }
 .home #content .button.is-shade {
   min-height: 0;
   margin: 0;
@@ -841,44 +888,183 @@ html { background-color: var(--ez-bg-alt); }
   transform: translateY(-.06em) rotate(45deg);
 }
 
-/* Khối "Bạn chưa tìm được thiết bị phù hợp?": thẻ trắng bo góc lớn */
-.home #content .row-inner.align-middle,
+/* 9.6 Thẻ sản phẩm trong khung: phẳng, ảnh bo góc, phóng nhẹ khi rê chuột */
+.home #content .product-small.box .box-text { padding: 12px 2px 6px; }
+.home #content .product-small.box .box-image img { transition: transform .4s var(--ez-ease); }
+.home #content .product-small.box:hover .box-image img { transform: scale(1.03); }
+
+/* 9.7 Khối "Bạn chưa tìm được thiết bị phù hợp?": khung trắng, ảnh bên trái */
+.home #content .col-inner:has(> .row.align-middle) { margin: 0 !important; }
 .home #content .row .row.align-middle {
-  margin: 64px 0 0 !important;
-  padding: 0;
+  width: auto;
+  margin: 0 !important;
   overflow: hidden;
   border-radius: var(--ez-radius-lg);
   background: #fff;
 }
-.home #content .row .row.align-middle > .col { padding: 0; }
-.home #content .row .row.align-middle > .col:last-child > .col-inner { padding: 36px 40px; font-size: 17px; line-height: 1.47; }
-.home #content .row .row.align-middle strong { display: block; margin-bottom: 10px; font-size: 32px; line-height: 1.125; font-weight: 600; }
-.home #content .button.secondary {
-  padding: 11px 22px;
-  border-color: var(--ez-accent);
-  background: var(--ez-accent);
-  color: #fff;
+.home #content .row .row.align-middle { padding: 16px !important; }
+.home #content .row .row.align-middle > .col { padding: 0 !important; }
+.home #content .row.align-middle > .col:first-child .img-inner { border-radius: var(--ez-radius); }
+.home #content .row.align-middle > .col:last-child > .col-inner {
+  padding: 20px 28px 20px 40px;
+  color: var(--ez-text);
+  font-size: 17px;
+  line-height: 1.47059;
+}
+.home #content .row.align-middle > .col:last-child strong:first-child { display: block; font-size: 0 !important; letter-spacing: 0; }
+.home #content .row.align-middle > .col:last-child strong:first-child br { display: none; }
+.home #content .row.align-middle > .col:last-child strong:first-child::after {
+  content: "Bạn chưa tìm được thiết bị lọc nước phù hợp?";
+  display: block;
+  margin-bottom: 4px;
+  font-size: 32px;
+  line-height: 1.125;
+  font-weight: 600;
+  letter-spacing: .004em;
+}
+.home #content .row.align-middle .button {
+  margin: 12px 0 0;
+  padding: 11px 22px 11px 18px;
+  border: 0;
+  background: var(--ez-accent) !important;
+  color: #fff !important;
   font-size: 17px;
   line-height: 1.17648;
 }
+.home #content .row.align-middle .button:hover { background: var(--ez-accent-hover) !important; }
+.home #content .row.align-middle .button span { font-size: 0; letter-spacing: 0; }
+.home #content .row.align-middle .button span::after { content: "Liên hệ ngay"; font-size: 17px; letter-spacing: -.022em; }
 
-/* Bài viết: tiêu đề mục + thẻ trắng */
-.home #content .section-title-container { margin: 64px 0 20px; }
+/* 9.8 Bài viết: hai khung trắng */
+.home #content .col-inner:has(> .section-title-container) {
+  height: 100%;
+  margin: 0 !important;
+  padding: 28px 28px 8px;
+  border-radius: var(--ez-radius-lg);
+  background: #fff;
+}
+.home #content .section-title-container { margin: 0 0 18px !important; padding: 0 !important; }
+/* bớt khoảng trống thừa giữa khối tư vấn và phần bài viết */
+.home #content .gap-element { display: none; }
+.home #content .section:has(.section-title-container) { padding-top: 0 !important; }
 .home #content .section-title b { display: none; }
 .home #content .section-title,
 .home #content .section-title span {
-  color: var(--ez-text) !important;
-  font-size: 28px;
-  font-weight: 600;
-  letter-spacing: .007em;
-  text-transform: none;
+  padding: 0;
   border: 0;
+  color: var(--ez-text) !important;
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: .009em;
+  text-transform: none;
 }
-.home .box-blog-post { padding: 14px; border-radius: var(--ez-radius); background: #fff; }
-.home .box-blog-post .button { display: none; }
+.home #content .post-item { padding-bottom: 20px; }
+.home #content .box-blog-post .post-title,
+.home #content .box-blog-post .post-title a { font-size: 17px; line-height: 1.3; letter-spacing: -.01em; }
+.home #content .box-blog-post .from_the_blog_excerpt {
+  display: -webkit-box;
+  margin-top: 6px;
+  overflow: hidden;
+  font-size: 14px;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.home #content .box-blog-post .button { display: none; }
 
-@media (max-width: 734px) {
-  .home #content .text h3 { margin-top: 40px; font-size: 24px !important; }
-  .home #content .row .row.align-middle > .col:last-child > .col-inner { padding: 24px; }
-  .home #content .row .row.align-middle strong { font-size: 24px; }
+/* 9.9 Máy tính bảng & điện thoại */
+@media (max-width: 849px) {
+  .home #content .section .row-collapse { margin-bottom: 12px; padding: 0 12px; }
+  .home #content .section .row-collapse > .col > .col-inner { padding: 22px 18px 10px; border-radius: 22px; }
+  .home #content .text h3 { padding-right: 96px; font-size: 22px !important; }
+  .home #content .text h3 a::after { font-size: 22px; }
+  .home #content .section .row-collapse > .col > .col-inner > .row:not(.slider) { top: 23px; right: 18px; }
+  .home #content .button.is-shade { font-size: 15px; }
+  .home #content .row .row.align-middle { padding: 10px !important; }
+  .home #content .row.align-middle > .col:last-child > .col-inner { padding: 22px 12px 16px; }
+  .home #content .row.align-middle > .col:last-child strong:first-child::after { font-size: 24px; }
+  .home #content .col-inner:has(> .section-title-container) { height: auto; padding: 22px 18px 4px; }
 }
+
+
+/* 10. THANH TIÊU ĐỀ TRANG DANH MỤC — nền xám nhạt, chữ tối (thay nền xanh đậm) --- */
+.featured-title,
+.featured-title .page-title-bg,
+.featured-title .title-bg,
+.featured-title .title-overlay {
+  background-color: var(--ez-bg-alt) !important;
+  background-image: none !important;
+}
+.featured-title { text-shadow: none !important; }
+.featured-title .breadcrumbs,
+.featured-title h1 { color: var(--ez-text) !important; text-shadow: none !important; }
+.featured-title .breadcrumbs a,
+.featured-title .breadcrumbs .divider,
+.featured-title .woocommerce-result-count { color: var(--ez-text-2) !important; }
+.featured-title .breadcrumbs a:hover { color: var(--ez-link) !important; }
+.featured-title .breadcrumbs { font-size: 14px; }
+.featured-title select {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 36px;
+  padding: 0 36px 0 16px;
+  border: 1px solid var(--ez-border) !important;
+  border-radius: 980px !important;
+  background-color: #fff !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236e6e73' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") !important;
+  background-position: right 12px center !important;
+  background-repeat: no-repeat !important;
+  background-size: 14px !important;
+  box-shadow: none !important;
+  color: var(--ez-text) !important;
+  font-size: 14px;
+}
+
+
+/* 11. CỘT BÊN (sidebar) — tiêu đề chữ thường, danh sách gọn --------------- */
+.sidebar-inner .widget-title,
+#shop-sidebar .widget-title {
+  color: var(--ez-text) !important;
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -.02em;
+  text-transform: none;
+}
+.sidebar-inner .widget .is-divider,
+#shop-sidebar .widget .is-divider { display: none; }
+.sidebar-inner .widget ul li,
+#shop-sidebar .widget ul li { border-color: #e8e8ed !important; }
+.sidebar-inner .widget ul li a,
+#shop-sidebar .widget ul li a { color: var(--ez-text); font-size: 15px; }
+.sidebar-inner .widget ul li a:hover,
+#shop-sidebar .widget ul li a:hover { color: var(--ez-link); }
+
+
+/* 12. Ô TÌM KIẾM TRÊN HEADER — dạng viên thuốc xám nhạt ----------------------- */
+#header .searchform .flex-row {
+  overflow: hidden;
+  border-radius: 980px;
+  background: var(--ez-bg-alt);
+}
+#header .searchform .search-field {
+  height: 36px;
+  padding: 0 16px;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--ez-text);
+  font-size: 13px;
+}
+#header .searchform .ux-search-submit {
+  height: 36px;
+  min-height: 0;
+  padding: 0 14px;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--ez-text-2) !important;
+}
+
+/* Footer tách khỏi nền xám của trang chủ */
+.footer-wrapper { border-top: 1px solid var(--ez-border); }
