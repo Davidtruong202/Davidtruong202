@@ -60,9 +60,10 @@ Tên mục có thể khác đôi chút tùy phiên bản Flatsome.
 1. **Trang › Thêm trang mới**, đặt tên ví dụ "Trang chủ mới".
 2. Mục **Giao diện trang (Template)** chọn **Page - Full Width**.
 3. Dán toàn bộ `trang-chu-ux-builder.txt`:
-   - Trình soạn thảo cổ điển: tab **Văn bản** (Text) → dán.
+   - Trình soạn thảo cổ điển: tab **Văn bản** (Text) → dán. Không dán ở tab
+     **Trực quan** (Visual), code sẽ bị biến thành chữ thường.
    - Trình soạn thảo khối: menu ⋮ › **Trình soạn thảo mã** (Code editor) → dán.
-4. Bấm **Lưu nháp**.
+4. Bấm **Lưu nháp** (không bấm Đăng).
 
 ### Bước 4 — Chọn ảnh cho 7 khối sản phẩm
 
@@ -85,10 +86,18 @@ trên khối đen sẽ hiện thành một khung trắng bo góc.
 
 Xong bấm **Save** trong UX Builder và xem thử trang nháp (Xem trước).
 
-### Bước 5 — Đặt làm trang chủ
+### Bước 5 — Đưa lên trang chủ thật
 
-**Cài đặt › Đọc › Trang chủ** → chọn "Trang chủ mới" → Lưu. Trang chủ cũ vẫn
-còn nguyên, muốn quay lại chỉ cần chọn lại trang cũ.
+Dán vào chính trang **Trang chủ** đang dùng (không đổi trang chủ ở Cài đặt › Đọc),
+để giữ nguyên tiêu đề, mô tả SEO của Rank Math và đường dẫn trang.
+
+1. Mở trang nháp "Trang chủ mới" → tab **Văn bản** → bấm vào ô code → Ctrl+A → Ctrl+C.
+   Lúc này code đã có mã các ảnh vừa chọn trong UX Builder.
+2. Mở trang **Trang chủ** → tab **Văn bản** → Ctrl+A → Ctrl+C, dán code cũ ra
+   Notepad để dự phòng.
+3. Vẫn ở ô đó: Ctrl+A → Ctrl+V dán code mới. Kiểm tra **Giao diện (Template)** là
+   **Page - Full Width** → bấm **Cập nhật**.
+4. Đưa trang nháp "Trang chủ mới" vào Thùng rác.
 
 Sau đó xoá cache (plugin cache, Cloudflare nếu có) và xem thử trên điện thoại.
 
@@ -132,5 +141,5 @@ Sau đó xoá cache (plugin cache, Cloudflare nếu có) và xem thử trên đi
 - **Bản quyền**: không dùng logo, hình ảnh hay file font của Apple, chỉ mô phỏng
   bố cục và kiểu chữ. SF Pro chỉ hiện trên thiết bị Apple (font hệ thống); các
   máy khác dùng Inter.
-- **Quay lại giao diện cũ**: đặt lại trang chủ cũ ở Cài đặt › Đọc và xoá đoạn CSS
-  đã dán.
+- **Quay lại giao diện cũ**: dán lại code cũ vào trang Trang chủ (hoặc khôi phục
+  trong ô **Bản sửa đổi** của trang) và xoá đoạn CSS đã dán.
