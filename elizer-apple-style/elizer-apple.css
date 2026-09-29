@@ -763,3 +763,122 @@ html { background-color: var(--ez-bg-alt); }
   .ez-store .product-small.box:hover,
   .ez-news .box-blog-post:hover .box-image img { transform: none; }
 }
+
+
+/* 9. TRANG CHỦ HIỆN TẠI (code UX Builder cũ) — làm đẹp mà không cần sửa trang --- */
+/* Nền xám nhạt kiểu Apple Store, thẻ trắng nổi lên */
+.home #main,
+.home #content { background-color: var(--ez-bg-alt); }
+.home #content > .row:first-child,
+.home #content > .section:first-child { padding-top: 12px; }
+
+/* Slider banner đầu trang: bo góc, nằm gọn trong khung */
+.home #content .slider-wrapper .flickity-viewport,
+.home #content .slider-wrapper .img-inner { border-radius: var(--ez-radius); }
+.home #content .flickity-page-dots .dot { width: 8px; height: 8px; margin: 0 5px; border: 0; background: rgba(0, 0, 0, .24); opacity: 1; }
+.home #content .flickity-page-dots .dot.is-selected { background: rgba(0, 0, 0, .8); }
+
+/* Tiêu đề danh mục: bỏ in hoa, bỏ màu xanh đậm, chữ to kiểu Apple */
+.home #content .text h3 {
+  margin: 56px 0 20px;
+  font-size: 32px !important;
+  line-height: 1.125;
+  font-weight: 600;
+  letter-spacing: .004em;
+  text-align: left !important;
+}
+.home #content .text h3,
+.home #content .text h3 * {
+  color: var(--ez-text) !important;
+  font-size: inherit !important;
+  font-weight: 600 !important;
+  text-decoration: none;
+}
+.home #content .text h3 a { display: inline-block; text-transform: lowercase; }
+.home #content .text h3 a::first-letter { text-transform: uppercase; }
+.home #content .text h3 a:hover,
+.home #content .text h3 a:hover * { color: var(--ez-link) !important; }
+
+/* Thẻ sản phẩm: trắng, bo góc, bóng nhẹ, nổi lên khi rê chuột */
+.home .product-small.col > .col-inner { height: 100%; }
+.home .product-small.box {
+  height: 100%;
+  overflow: hidden;
+  border-radius: var(--ez-radius);
+  background: #fff;
+  box-shadow: var(--ez-shadow);
+  transition: box-shadow .3s var(--ez-ease), transform .3s var(--ez-ease);
+}
+.home .product-small.box:hover { box-shadow: var(--ez-shadow-hover); transform: scale3d(1.01, 1.01, 1.01); }
+.home .product-small.box .box-image { padding: 20px 20px 0; border-radius: 0; background-color: #fff; }
+.home .product-small.box .box-text { padding: 14px 20px 20px; }
+.home .product-small.box .product-title,
+.home .product-small.box .product-title a { font-size: 16px; line-height: 1.3; }
+.home #content .slider .flickity-viewport { padding: 6px 0 16px; }
+
+/* Nút "Xem tất cả": thành link xanh có mũi tên như apple.com */
+.home #content .button.is-shade {
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none !important;
+  box-shadow: none;
+  color: var(--ez-link) !important;
+  font-size: 17px;
+  line-height: 1.5;
+}
+.home #content .button.is-shade:hover { text-decoration: underline; }
+.home #content .button.is-shade i { display: none; }
+.home #content .button.is-shade span::after {
+  content: "";
+  display: inline-block;
+  width: .42em;
+  height: .42em;
+  margin-left: .3em;
+  border: solid currentColor;
+  border-width: .09em .09em 0 0;
+  transform: translateY(-.06em) rotate(45deg);
+}
+
+/* Khối "Bạn chưa tìm được thiết bị phù hợp?": thẻ trắng bo góc lớn */
+.home #content .row-inner.align-middle,
+.home #content .row .row.align-middle {
+  margin: 64px 0 0 !important;
+  padding: 0;
+  overflow: hidden;
+  border-radius: var(--ez-radius-lg);
+  background: #fff;
+}
+.home #content .row .row.align-middle > .col { padding: 0; }
+.home #content .row .row.align-middle > .col:last-child > .col-inner { padding: 36px 40px; font-size: 17px; line-height: 1.47; }
+.home #content .row .row.align-middle strong { display: block; margin-bottom: 10px; font-size: 32px; line-height: 1.125; font-weight: 600; }
+.home #content .button.secondary {
+  padding: 11px 22px;
+  border-color: var(--ez-accent);
+  background: var(--ez-accent);
+  color: #fff;
+  font-size: 17px;
+  line-height: 1.17648;
+}
+
+/* Bài viết: tiêu đề mục + thẻ trắng */
+.home #content .section-title-container { margin: 64px 0 20px; }
+.home #content .section-title b { display: none; }
+.home #content .section-title,
+.home #content .section-title span {
+  color: var(--ez-text) !important;
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: .007em;
+  text-transform: none;
+  border: 0;
+}
+.home .box-blog-post { padding: 14px; border-radius: var(--ez-radius); background: #fff; }
+.home .box-blog-post .button { display: none; }
+
+@media (max-width: 734px) {
+  .home #content .text h3 { margin-top: 40px; font-size: 24px !important; }
+  .home #content .row .row.align-middle > .col:last-child > .col-inner { padding: 24px; }
+  .home #content .row .row.align-middle strong { font-size: 24px; }
+}
