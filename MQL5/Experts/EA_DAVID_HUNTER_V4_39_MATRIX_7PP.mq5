@@ -3,7 +3,8 @@
 // No live trading. No hindsight switching. No artificial SL slippage cap.
 // V4.39 MATRIX 7PP = bản sao V4.39 MATRIX RECONCILE 2 + input "0. BỘ CÀI SẴN" chứa sẵn 13 bộ test
 // (kiểm chứng ứng viên + lưới đầy đủ) của 7 PP chưa triển khai: EMA, ICT, MM, SMC, PVEMA, PIN, LQ.
-// Mặc định: kiểm chứng 6 PP cùng lúc, chỉ cần bấm Start. Chọn "Thủ công" = chạy y hệt bản gốc.
+// Mặc định: BỘ HIỆU QUẢ NHẤT (EMA SELL/A, sàng lọc 2.568 ví MT5 9 tháng), bấm Start là chạy;
+// Graph và lệnh Tester = đúng bộ đó. Kiểm chứng 6 PP / lưới đầy đủ: chọn trong input 0. "Thủ công" = y hệt bản gốc.
 // Không đổi thuật toán vào lệnh, quản lý lệnh, mô phỏng ví hay định dạng file xuất.
 #property copyright "David Hunter"
 #property version "4.39"
@@ -103,12 +104,13 @@ enum ENUM_MATRIX_BO_CAI_SAN
    BO_LUOI_DAY_DU_SMC = 11, // Lưới đầy đủ SMC (720 bộ, chạy rất lâu)
    BO_LUOI_DAY_DU_PVEMA = 12, // Lưới đầy đủ PVEMA (432 bộ, chạy rất lâu)
    BO_LUOI_DAY_DU_PIN = 13, // Lưới đầy đủ PIN (768 bộ, chạy rất lâu)
-   BO_LUOI_DAY_DU_LQ = 14 // Lưới đầy đủ LQ (864 bộ, chạy rất lâu)
+   BO_LUOI_DAY_DU_LQ = 14, // Lưới đầy đủ LQ (864 bộ, chạy rất lâu)
+   BO_HIEU_QUA_NHAT = 15 // Bộ hiệu quả nhất 9 tháng: EMA SELL/A, InpTimeframe=M1, InpFastEMA=7, InpSlowEMA=50, InpEMAKhungLoc=M15, InpMinDirectionEfficiency=0.1 (ví 10 = Graph)
 };
 
 
 input group "0. BỘ CÀI SẴN: CHỌN LÀ CHẠY, KHÔNG CẦN FILE SET"
-input ENUM_MATRIX_BO_CAI_SAN InpMatrixBoCaiSan = BO_KIEM_CHUNG_6PP; // Bộ cài sẵn (khác Thủ công: bỏ qua input bật PP, lưới, giới hạn và thư mục log bên dưới)
+input ENUM_MATRIX_BO_CAI_SAN InpMatrixBoCaiSan = BO_HIEU_QUA_NHAT; // Bộ cài sẵn (khác Thủ công: bỏ qua input bật PP, lưới, giới hạn và thư mục log bên dưới)
 input group "A. ĐIỀU KIỆN GỐC VÀ QUẢN LÝ VỐN"
 const ENUM_CHE_DO_LENH InpExecutionMode = BA_PHUONG_PHAP_DOC_LAP; // 
 input int InpMaxIndependentPositions = 10; // Tổng vị thế tối đa trong một tài khoản mô phỏng
@@ -331,7 +333,7 @@ input string InpLuoiLQ = "InpPVDoXuyenToiThieuGia=0.30,0.50,0.70|InpPVSoNenThanh
 input string InpLuoiPVT = "InpPVBKPVungPivotGia=0.50,1.0,1.50|InpPVKhungXacNhanPivot=M6,M15"; // Lưới Pivot
 input group "C. VỐN, CHI PHÍ VÀ ĐƯỜNG TIỀN TESTER"
 input bool InpMatrixLenhTester = true; // Đặt lệnh THAM CHIẾU trong Tester để có Balance/Equity
-input int InpMatrixViThamChieu = 0; // ID tài khoản vẽ Graph; 0=bộ gốc gộp các PP, không đổi giữa lượt
+input int InpMatrixViThamChieu = 0; // ID tài khoản vẽ Graph; 0=bộ gốc gộp các PP, không đổi giữa lượt; Bộ hiệu quả nhất tự dùng ví 10
 input double InpMatrixVonMoiVi = 0.0; // Vốn mỗi tài khoản bằng tiền tài khoản; 0=lấy Deposit của Tester
 input double InpMatrixHeSoTienThat = 0.0; // Đơn vị tài khoản / 1 tiền thật; 0=tự nhận USD=1, USC/USDC=100
 input double InpMatrixPhiKhuHoiLot = 0.0; // Commission khứ hồi / lot theo tiền tài khoản (USD hoặc USC)
@@ -347,6 +349,9 @@ input string InpMatrixThuMuc = "DavidHunter_V439_Matrix"; // Thư mục log; m�
 input bool InpMatrixGhiNenM1 = true; // Xuất nến M1 một lần, dùng chung mọi cấu hình
 input int InpMatrixGhiEquityPhut = 60; // Khoảng ghi đường vốn từng tài khoản; 0=tắt file đường vốn
 input bool InpMatrixBangNhe = true; // Bảng trạng thái nhỏ, chỉ trong Visual Tester
+
+// V4.39 MATRIX 7PP: ví đặt lệnh tham chiếu thật (Graph). Bộ hiệu quả nhất = ví của đúng bộ đó.
+int MXViThamChieu() { return InpMatrixBoCaiSan==BO_HIEU_QUA_NHAT?10:InpMatrixViThamChieu; }
 
 bool MatrixValidTF(const int v)
 {
@@ -4354,7 +4359,7 @@ bool MXAuditRequest(const string action,const long shadowID,const int engine,
 }
 void MXNativeOpen(const MXPosition &p)
 {
-   if(!MQLInfoInteger(MQL_TESTER) || !InpMatrixLenhTester || p.wallet!=InpMatrixViThamChieu) return;
+   if(!MQLInfoInteger(MQL_TESTER) || !InpMatrixLenhTester || p.wallet!=MXViThamChieu()) return;
    string comment="MX439|"+IntegerToString(p.id)+"|"+p.method;
    if(StringLen(comment)>31) comment=StringSubstr(comment,0,31);
    MqlTick before;
@@ -4684,7 +4689,7 @@ void MXOpen(const int w,const int engine,const int family,const string method,
    int n=ArraySize(g_positions); ArrayResize(g_positions,n+1,4096); g_positions[n]=p;
    g_wallets[w].floating+=MXProfit(buy,p.left,p.entry,buy?g_quote.bid:g_quote.ask)-fee;
    MXMark(w); MXTradeLog(p,"OPEN",p.entry,-fee,details);
-   if(InpMatrixLenhTester && w==InpMatrixViThamChieu)
+   if(InpMatrixLenhTester && w==MXViThamChieu())
    {
       int q=ArraySize(g_nativeQueue);ArrayResize(g_nativeQueue,q+1);g_nativeQueue[q]=p;
    }
@@ -4741,11 +4746,13 @@ bool MXNumber(string s,double &v)
 // ---------- V4.39 MATRIX 7PP: bộ cài sẵn thay cho 13 file SET ----------
 // Ứng viên hạng 1 và lưới lấy từ nghiên cứu Python (docs/david_hunter_v439 trong repo Davidtruong202).
 bool MXPresetActive() { return InpMatrixBoCaiSan!=BO_THEO_INPUT; }
-bool MXPresetFull() { return InpMatrixBoCaiSan>=BO_LUOI_DAY_DU_EMA; }
+bool MXPresetFull() { return InpMatrixBoCaiSan>=BO_LUOI_DAY_DU_EMA && InpMatrixBoCaiSan<=BO_LUOI_DAY_DU_LQ; }
+bool MXPresetBest() { return InpMatrixBoCaiSan==BO_HIEU_QUA_NHAT; }
 int MXPresetFamily()
 {
    switch(InpMatrixBoCaiSan)
    {
+      case BO_HIEU_QUA_NHAT: return 0;
       case BO_KIEM_CHUNG_EMA: case BO_LUOI_DAY_DU_EMA: return 0;
       case BO_KIEM_CHUNG_ICT: case BO_LUOI_DAY_DU_ICT: return 1;
       case BO_LUOI_DAY_DU_MM: return 2;
@@ -4766,6 +4773,7 @@ bool MXPresetUses(const int f)
 string MXPresetBase(const int f)
 {
    if(!MXPresetActive() || MXPresetFull()) return "";
+   if(MXPresetBest()) return f==0?"InpTimeframe=M1|InpFastEMA=7|InpSlowEMA=50|InpEMAKhungLoc=M15|InpEMAKhoangDiXaToiThieuATR=0.35|InpMinDirectionEfficiency=0.1|InpEMAMucRetest=0":""; // EMA bộ hiệu quả nhất
    if(f==0) return "InpTimeframe=M1|InpFastEMA=12|InpSlowEMA=34|InpEMAKhungLoc=M15|InpEMAKhoangDiXaToiThieuATR=0.35|InpMinDirectionEfficiency=0.22|InpEMAMucRetest=0"; // EMA
    if(f==1) return "InpICTEntryTF=M1|InpICTBiasTF=M30|InpICTDisplacementATR=0.9|InpICTMinFVG_ATR=0.05|InpICTPriority=0|InpICTSetupExpiryBars=12"; // ICT
    if(f==3) return "InpSMCEntryTF=M1|InpSMCBiasTF=M15|InpSMCDisplacementATR=1.2|InpSMCMinFVGATR=0.03|InpSMCDungLocEMAH1=false|InpSMCDungLocEMAM5=false|InpSMCDungLocRSI=true"; // SMC
@@ -4776,7 +4784,7 @@ string MXPresetBase(const int f)
 }
 string MXPresetGrid(const int f)
 {
-   if(!MXPresetUses(f)) return "";
+   if(!MXPresetUses(f) || MXPresetBest()) return ""; // bộ hiệu quả nhất: 1 bộ, không lưới
    if(MXPresetFull())
    {
       if(f==0) return "InpTimeframe=M1,M2,M3,M5|InpFastEMA=7,12|InpSlowEMA=21,34,50|InpEMAKhungLoc=M5,M15|InpEMAKhoangDiXaToiThieuATR=0.35,1.0|InpMinDirectionEfficiency=0.1,0.22|InpEMAMucRetest=0,1"; // EMA
@@ -4801,6 +4809,7 @@ bool MXPresetWallet(const int f,int &d,int &s)
 {
    d=0; s=0;
    if(!MXPresetActive() || MXPresetFull()) return false;
+   if(MXPresetBest()) { d=2; s=1; return f==0; } // SELL/A
    if(f==0) { d=0; s=0; return true; } // EMA BUY_SELL/TAT_CA
    if(f==1) { d=0; s=2; return true; } // ICT BUY_SELL/AU
    if(f==3) { d=1; s=2; return true; } // SMC BUY/AU
@@ -4811,6 +4820,7 @@ bool MXPresetWallet(const int f,int &d,int &s)
 }
 string MXPresetPython(const int f)
 {
+   if(MXPresetBest()) return "MT5 01/01-27/09/2026 vi 166: 116 lenh, WR 62.9%, PF 1.69, net +349.0 USD lot 0.02, lai 9/9 thang";
    if(f==0) return "Python 01-12/01/2026: 31 lenh, WR 67.7%, PF 2.41, net +141.6 USD lot 0.02"; // EMA
    if(f==1) return "Python 01-12/01/2026: 11 lenh, WR 81.8%, PF 3.99, net +79.9 USD lot 0.02"; // ICT
    if(f==3) return "Python 01-12/01/2026: 10 lenh, WR 90.0%, PF 11.23, net +102.3 USD lot 0.02"; // SMC
@@ -4824,6 +4834,7 @@ string MXPresetFolder()
    switch(InpMatrixBoCaiSan)
    {
       case BO_KIEM_CHUNG_6PP: return "DH_V439_7PP_KiemChung_6PP";
+      case BO_HIEU_QUA_NHAT: return "DH_V439_7PP_HieuQuaNhat";
       case BO_KIEM_CHUNG_EMA: return "DH_V439_7PP_KiemChung_EMA";
       case BO_KIEM_CHUNG_ICT: return "DH_V439_7PP_KiemChung_ICT";
       case BO_KIEM_CHUNG_SMC: return "DH_V439_7PP_KiemChung_SMC";
@@ -4893,7 +4904,7 @@ int MXAddWallet(const int engine,const int direction,const int session)
    p.balance=p.initial; p.equity=p.initial; p.peak=p.initial; p.dayStart=p.initial;
    ArrayResize(g_wallets,w+1,2048); g_wallets[w]=p;
    FileWrite(g_hWallet,w,engine,MXDirection(direction),MXSession(session),MXMoney(p.initial),g_currency,
-             w==InpMatrixViThamChieu?"NATIVE_REFERENCE":"VIRTUAL_INDEPENDENT");
+             w==MXViThamChieu()?"NATIVE_REFERENCE":"VIRTUAL_INDEPENDENT");
    return w;
 }
 bool MXAddEngine(const MatrixConfig &cfg,const int family,const bool base,const string axis)
@@ -4989,7 +5000,7 @@ void MXPanel()
 {
    if(!InpMatrixBangNhe || !MQLInfoInteger(MQL_VISUAL_MODE)) return;
    ulong now=GetTickCount64(); if(now-g_lastPanel<1000) return; g_lastPanel=now;
-   int r=InpMatrixViThamChieu; if(r<0 || r>=ArraySize(g_wallets))return;
+   int r=MXViThamChieu(); if(r<0 || r>=ArraySize(g_wallets))return;
    Comment("DAVID HUNTER V4.39 MATRIX | CHỈ TESTER\n",
            "Bộ tín hiệu: ",ArraySize(g_engines)," | Tài khoản độc lập: ",ArraySize(g_wallets),
            " | Lệnh ảo đang mở: ",ArraySize(g_positions),"\n",
@@ -5165,7 +5176,7 @@ void MXExportResults(const string status)
       FileWrite(h,"account_units_per_real_unit",MXMoney(g_moneyFactor));
       FileWrite(h,"first_tick",MXTime(g_firstTick));FileWrite(h,"last_tick",MXTime(g_lastTick));
       FileWrite(h,"engines",ArraySize(g_engines));FileWrite(h,"wallets",n);
-      FileWrite(h,"reference_wallet",InpMatrixViThamChieu);FileWrite(h,"native_orders_enabled",InpMatrixLenhTester);
+      FileWrite(h,"reference_wallet",MXViThamChieu());FileWrite(h,"native_orders_enabled",InpMatrixLenhTester);
       FileWrite(h,"native_balance",MXMoney(AccountInfoDouble(ACCOUNT_BALANCE)));FileWrite(h,"native_equity",MXMoney(AccountInfoDouble(ACCOUNT_EQUITY)));
       g_nativeReconcileGap=AccountInfoDouble(ACCOUNT_BALANCE)-g_nativeInitialBalance-g_nativeDealsNet;
       FileWrite(h,"native_initial_balance",MXMoney(g_nativeInitialBalance));
@@ -5176,8 +5187,8 @@ void MXExportResults(const string status)
       FileWrite(h,"native_request_count",g_nativeRequestCount);
       FileWrite(h,"native_operation_errors",g_nativeOperationErrors);
       FileWrite(h,"native_time_or_quote_advance_events",g_delayEvents);
-      FileWrite(h,"reference_shadow_net",MXMoney(g_wallets[InpMatrixViThamChieu].all.net));
-      FileWrite(h,"native_net_minus_shadow_net",MXMoney(AccountInfoDouble(ACCOUNT_BALANCE)-g_nativeInitialBalance-g_wallets[InpMatrixViThamChieu].all.net));
+      FileWrite(h,"reference_shadow_net",MXMoney(g_wallets[MXViThamChieu()].all.net));
+      FileWrite(h,"native_net_minus_shadow_net",MXMoney(AccountInfoDouble(ACCOUNT_BALANCE)-g_nativeInitialBalance-g_wallets[MXViThamChieu()].all.net));
       FileWrite(h,"reference_quality",!InpMatrixLenhTester?"DISABLED":
          (g_delayEvents>0 || g_fatal?"INVALID_RUN":
          (!g_nativeHistoryOK || MathAbs(g_nativeReconcileGap)>0.01 || PositionsTotal()>0 || g_nativeOperationErrors>0?"REVIEW_REQUIRED":"RECONCILE_TRADES_NEXT")));
@@ -5223,7 +5234,7 @@ int OnInit()
       InpMatrixLenhMoiPP<1 || InpMatrixLenhMoiPP>10 || InpMatrixSoLenhTinCay<1 || InpMatrixSoThangTinCay<1 ||
       InpMatrixPhiKhuHoiLot<0.0 || InpMatrixVonMoiVi<0.0 || InpMatrixHeSoTienThat<0.0 ||
       InpMatrixTruotGiaVao<0.0 || InpMatrixTruotGiaVao>0.30 || InpMatrixGhiEquityPhut<0 ||
-      InpMatrixViThamChieu<0) {Print("Thiết lập Matrix ngoài giới hạn");return INIT_PARAMETERS_INCORRECT;}
+      MXViThamChieu()<0) {Print("Thiết lập Matrix ngoài giới hạn");return INIT_PARAMETERS_INCORRECT;}
    if(InpMatrixLenhTester && AccountInfoInteger(ACCOUNT_MARGIN_MODE)!=ACCOUNT_MARGIN_MODE_RETAIL_HEDGING)
       {Print("Tham chiếu nhiều phương pháp cần tài khoản Tester Hedging. Hoặc tắt lệnh tham chiếu để chỉ mô phỏng.");return INIT_PARAMETERS_INCORRECT;}
    if(InpMatrixLenhTester && InpMatrixVonMoiVi>0.0 && MathAbs(InpMatrixVonMoiVi-AccountInfoDouble(ACCOUNT_BALANCE))>0.01)
@@ -5279,7 +5290,7 @@ int OnInit()
    MatrixBaseConfig(g_base);
    if(MXAddWallet(-1,0,0)<0)return INIT_FAILED;
    for(int f=0;f<10;f++)if(MXEnabled(f) && !MXBuildFamily(f))return INIT_PARAMETERS_INCORRECT;
-   if(ArraySize(g_engines)==0 || InpMatrixViThamChieu>=ArraySize(g_wallets))
+   if(ArraySize(g_engines)==0 || MXViThamChieu()>=ArraySize(g_wallets))
       {Print("Không có phương pháp hoặc ID tham chiếu không tồn tại.");return INIT_PARAMETERS_INCORRECT;}
    FileFlush(g_hConfig);FileClose(g_hConfig);g_hConfig=INVALID_HANDLE;
    FileFlush(g_hWallet);FileClose(g_hWallet);g_hWallet=INVALID_HANDLE;
@@ -5289,7 +5300,7 @@ int OnInit()
    Print("V4.39 MATRIX 7PP | Bộ cài sẵn: ",EnumToString(InpMatrixBoCaiSan),
          MXPresetActive()?" | bỏ qua input bật PP/lưới/giới hạn/thư mục":" | theo input thủ công");
    Print("V4.39 MATRIX | ",ArraySize(g_engines)," bộ tín hiệu độc lập | ",ArraySize(g_wallets),
-         " tài khoản | Graph=ID ",InpMatrixViThamChieu," | ",g_runFolder);
+         " tài khoản | Graph=ID ",MXViThamChieu()," | ",g_runFolder);
    Print("Swap mô phỏng dùng thông số HIỆN TẠI; commission cần nhập. Giữ Journal để kiểm tra dữ liệu tick.");
    Print("ĐỐI CHIẾU: đặt Execution = No Delay. Nếu thời gian thay đổi trong giao dịch, Matrix sẽ dừng và ghi ERROR.");
    return INIT_SUCCEEDED;
@@ -5315,7 +5326,7 @@ void OnTick()
 double OnTester()
 {
    MXFinish("COMPLETE");
-   return ArraySize(g_wallets)>0?MXScore(InpMatrixViThamChieu):0.0;
+   return ArraySize(g_wallets)>0?MXScore(MXViThamChieu()):0.0;
 }
 void OnDeinit(const int reason)
 {

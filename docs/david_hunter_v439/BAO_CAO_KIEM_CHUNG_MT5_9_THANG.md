@@ -7,6 +7,9 @@ File gốc: `EA-PRO/data/backtest_mt5/2026-09-29_V439_7PP_KiemChung_6PP/` · Ph�
 
 Tiếp nối báo cáo sơ bộ [`BAO_CAO_BACKTEST_7PP_CHUA_TRIEN_KHAI.md`](BAO_CAO_BACKTEST_7PP_CHUA_TRIEN_KHAI.md) (Python, 6,5 ngày).
 
+> **Bộ input hiệu quả nhất theo dữ liệu này:** EMA, chỉ SELL, phiên Á, vào M1, EMA 7/50, lọc M15 (116 lệnh, WR 62,9%, PF 1,69, lãi 9/9 tháng).
+> Xem [`BO_INPUT_HIEU_QUA_NHAT.md`](BO_INPUT_HIEU_QUA_NHAT.md). Bộ này đã có sẵn trong EA 7PP (`BO_HIEU_QUA_NHAT`, mặc định).
+
 ---
 
 ## Tóm tắt
