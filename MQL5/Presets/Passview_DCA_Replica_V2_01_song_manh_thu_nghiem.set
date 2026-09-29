@@ -1,0 +1,38 @@
+; Passview Replica V2.01 - SET THU NGHIEM BO LOC SONG MANH (chi de so sanh trong Strategy Tester)
+; Log Passview CHUA cho thay bo loc nay giup on dinh (docs/passview_dca/02_loc_song_manh.md).
+; Cach dung: chay 2 lan tren CUNG khoang thoi gian: InpVolFilter=0 (goc) va =1; hoac toi uu InpVolMinRange 1.0->4.0 buoc 0.5 voi Forward 1/3.
+; InpVolFilter: 0=Tat 1=Bien do N giay 2=ATR nen da dong
+InpMagic=55082602
+InpAllowRealAccount=false
+InpOrderComment=PVR2
+InpSlippagePoints=30
+InpMaxConsecErrors=5
+InpErrorPauseSec=30
+InpLevels=10
+InpStepPrice=0.21
+InpFirstOffset=0.21
+InpLot=0.05
+InpSLPrice=0.50
+InpRefreshMs=5000
+InpPendingExpirySec=60
+InpTrailStart=0.50
+InpTrailDist=0.50
+InpTrailStep=0.01
+InpUseSession=true
+InpSessionStart=15:23
+InpSessionEnd=18:32
+InpCloseAtSessionEnd=false
+InpMaxPositionsPerSide=40
+InpMaxSpreadPrice=0.50
+InpDailyLossPct=0.0
+InpMaxDrawdownPct=0.0
+InpWriteLog=true
+InpLogCommonFolder=true
+InpVolFilter=1
+InpVolWindowSec=60
+InpVolMinRange=2.5
+InpVolTF=5
+InpVolATRPeriod=14
+InpVolMinATR=6.0
+InpLogGrid=true
+InpLogTrail=false
