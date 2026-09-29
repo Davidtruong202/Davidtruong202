@@ -1,0 +1,106 @@
+khoa;gia_tri;ghi_chu
+phien_ban_script;PG-R0.1;
+thoi_gian_server;2026.09.29 14:07:15;
+thoi_gian_gmt;2026.09.29 14:07:15;
+lech_gio_server_gmt;0;giờ; dựa trên đồng hồ máy tính, cần đồng hồ máy chạy đúng
+terminal_build;6230;
+terminal_ket_noi;true;
+ping_lan_cuoi_ms;46.3;độ trễ tới server giao dịch
+account_server;Exness-MT5Trial17;
+account_company;Exness Technologies Ltd;
+account_currency;USD;
+account_trade_mode;ACCOUNT_TRADE_MODE_DEMO;DEMO / REAL / CONTEST
+account_leverage;2000000000;
+account_margin_mode;ACCOUNT_MARGIN_MODE_RETAIL_HEDGING;Phoenix Grid cần RETAIL_HEDGING
+account_margin_so_mode;ACCOUNT_STOPOUT_MODE_PERCENT;
+account_margin_so_call;30.00;mức margin call
+account_margin_so_so;0.00;mức stop out
+account_limit_orders;1024;0 = không giới hạn
+account_trade_allowed;true;
+account_trade_expert;false;
+so_vi_the_dang_mo;0;tài khoản riêng của Phoenix Grid nên là 0 trước khi chạy
+so_lenh_cho;6;
+symbol;XAUUSD;
+symbol_description;Gold vs US Dollar;
+symbol_path;Pro\Forex\XAUUSD;
+currency_base;XAU;
+currency_profit;USD;
+currency_margin;XAU;
+digits;3;
+point;0.00100000;
+trade_contract_size;100.00000000;
+trade_tick_size;0.00100000;
+trade_tick_value;0.10000000;
+trade_tick_value_profit;0.10000000;
+trade_tick_value_loss;0.10000000;
+trade_calc_mode;SYMBOL_CALC_MODE_FOREX;
+trade_mode;SYMBOL_TRADE_MODE_FULL;
+trade_exemode;SYMBOL_TRADE_EXECUTION_MARKET;
+filling_mode_flags;1;FOK=true IOC=false
+order_mode_flags;127;
+cho_phep_close_by;true;đóng cặp BUY/SELL đối ứng không trả thêm spread
+cho_phep_sl_tp;SL=true TP=true;SL thảm họa phía server
+trade_stops_level;0;point
+trade_freeze_level;0;point
+volume_min;0.0100;
+volume_max;200.0000;
+volume_step;0.0100;
+volume_limit;0.0000;0 = không giới hạn tổng khối lượng
+spread_hien_tai_point;168;
+spread_float;true;
+swap_mode;SYMBOL_SWAP_MODE_POINTS;
+swap_long;-560.0000;
+swap_short;0.0000;
+swap_rollover3days;WEDNESDAY;ngày tính swap ×3
+margin_initial;0.00000000;
+margin_maintenance;0.00000000;
+margin_hedged;0.00000000;
+margin_hedged_use_leg;false;true = chỉ tính margin cho chân lớn hơn
+margin_rate_buy_initial;1.000000;
+margin_rate_buy_maintenance;0.000000;
+margin_rate_sell_initial;1.000000;
+margin_rate_sell_maintenance;0.000000;
+gia_bid;4165.957;
+gia_ask;4166.125;
+thoi_diem_tick;2026.09.29 14:07:15;
+vpp_loss;100.000000;tiền tài khoản khi 1 lot đi ngược 1,0 giá (1 USD/oz)
+vpp_profit;100.000000;tiền tài khoản khi 1 lot đi thuận 1,0 giá
+K_theo_tick_value;1.000000;0,01 lot, 1 USD/oz; giả định H_K = 1 USC
+lo_lot_toi_thieu_100_usd;100.00;lot tối thiểu, giá đi ngược 100 USD/oz
+spread_hien_tai_tien_001_lot;0.1680;chi phí spread của 0,01 lot
+swap_long_tien_1_lot_1_dem;-56.0000;
+swap_short_tien_1_lot_1_dem;0.0000;
+K_theo_OrderCalcProfit_buy;1.000000;lỗ của BUY 0,01 khi giá giảm 1,0
+K_theo_OrderCalcProfit_sell;1.000000;lỗ của SELL 0,01 khi giá tăng 1,0
+margin_buy_001;0.0000;margin 1 chân BUY 0,01 tại giá Ask hiện tại
+margin_sell_001;0.0000;margin 1 chân SELL 0,01 tại giá Bid hiện tại
+margin_buy_lot_toi_thieu;0.0000;
+margin_buy_1_lot;0.0000;
+margin_cap_hedge_thuc_te;can_do_tay_tren_demo;mở BUY 0,01 + SELL 0,01 trên DEMO, ghi Margin trước/sau (xem hướng dẫn R0.1)
+kiem_tra_H_K;KHONG_DAT;K = 1.000000 USD; H_K: 0,01 lot = 1 USC mỗi 1 USD/oz
+phien_giao_dich_SUNDAY;22:01-24:00;
+phien_bao_gia_SUNDAY;22:01-24:00;
+phien_giao_dich_MONDAY;00:00-20:58,22:00-24:00;
+phien_bao_gia_MONDAY;00:00-20:58,22:00-24:00;
+phien_giao_dich_TUESDAY;00:00-20:58,22:00-24:00;
+phien_bao_gia_TUESDAY;00:00-20:58,22:00-24:00;
+phien_giao_dich_WEDNESDAY;00:00-20:58,22:00-24:00;
+phien_bao_gia_WEDNESDAY;00:00-20:58,22:00-24:00;
+phien_giao_dich_THURSDAY;00:00-20:58,22:00-24:00;
+phien_bao_gia_THURSDAY;00:00-20:58,22:00-24:00;
+phien_giao_dich_FRIDAY;00:00-20:58;
+phien_bao_gia_FRIDAY;00:00-20:58;
+phien_giao_dich_SATURDAY;khong_co;
+phien_bao_gia_SATURDAY;khong_co;
+lich_su_deal_so_deal;1632;deal BUY/SELL của symbol trong 365 ngày
+commission_fee_moi_lot_khu_hoi;0.0000;tổng commission + fee chia tổng lot vào lệnh
+spread_tick_so_ngay_yeu_cau;30;
+spread_tick_so_ngay_co_tick;27;
+spread_tick_so_ngay_loi;0;CopyTicksRange trả lỗi (thường do chưa tải lịch sử tick)
+spread_tick_tong_so_tick;6553916;
+spread_tick_trung_vi_point;182;
+spread_tick_p90_point;182;
+spread_tick_p99_point;182;
+spread_tick_p999_point;238;
+spread_tick_lon_nhat_point;1400;gộp ở 5000 nếu lớn hơn
+file_spread_theo_gio;PhoenixGrid\PG_R01_spread_theo_gio_XAUUSD_20260929_2107.csv;
