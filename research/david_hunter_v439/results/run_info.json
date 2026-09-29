@@ -1,0 +1,23 @@
+{
+  "data": {
+    "member": "XAUUSDm_202601012305_202604301458.csv",
+    "parts": [
+      "XAUUSDm_202601012305_202604301458.zip.part001"
+    ],
+    "complete": false,
+    "uncompressed_expected": 1860062245,
+    "uncompressed_read": 128451534,
+    "ticks": 2733021,
+    "first": "2026-01-01 23:05:00.019000",
+    "last": "2026-01-12 13:03:35.723000"
+  },
+  "split": "2026-01-08",
+  "capital": 1000.0,
+  "slippage": 0.0,
+  "lot": 0.02,
+  "families": "EMA,ICT,MM,SMC,PVEMA,PIN,LQ",
+  "configs": 4276,
+  "wallets": 51312,
+  "seconds": 49.0,
+  "unique_trades_simulated": 5287
+}
