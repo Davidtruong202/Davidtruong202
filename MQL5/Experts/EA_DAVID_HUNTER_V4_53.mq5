@@ -1,4 +1,7 @@
-﻿// David Hunter Ver1 - V4.53 TEST - BRK/PVT/ENG profiles + optional EMA trend-pullback method.
+﻿// David Hunter Ver1 - V4.53 REAL - BRK/PVT/ENG profiles + optional EMA trend-pullback method.
+// V4.53 REAL: official live build. Every filled entry is also written to the monthly
+//        'signals' log with its market context (M5/H1 ATR, RSI, Stoch, EMA, day range)
+//        so live results can be analysed per method for the next development round.
 // V4.53: add EMA method (EMA20<50<200 trend, closed-bar momentum candle after a Stoch/RSI
 //        pullback, SL = k x ATR). OFF by default (InpUseEMA=false); engine appended last so
 //        engine indexes of the four existing profiles (and their open positions) are unchanged.
@@ -1458,6 +1461,12 @@ const string DH_HDR_AUDIT="action;signal_id;engine_id;position_ticket;order_tick
 const string DH_HDR_EQUITY="time;account;balance;equity;max_dd_pct;positions;currency";
 const string DH_HDR_BARS_M1="time;open;high;low;close;tick_volume;spread_points";
 const string DH_HDR_BARS_CUR="time;timeframe;open;high;low;close;tick_volume;spread_points";
+// V4.53 REAL: one row per filled entry with the market context at the fill.
+const string DH_HDR_SIGNALS="fill_time;position_id;ticket;engine_id;method;side;signal_time;session;request_price;fill_price;slippage;sl;tp1;tp2;risk_price;volume;spread;equity;m5_close;m5_atr14;m5_rsi14;m5_stoch_k;m5_ema20;m5_ema50;m5_ema200;h1_close;h1_atr14;h1_rsi14;h1_ema50;day_high;day_low";
+int g_hSignals=INVALID_HANDLE;
+int g_fM5ATR=INVALID_HANDLE,g_fM5RSI=INVALID_HANDLE,g_fM5Sto=INVALID_HANDLE;
+int g_fM5E20=INVALID_HANDLE,g_fM5E50=INVALID_HANDLE,g_fM5E200=INVALID_HANDLE;
+int g_fH1ATR=INVALID_HANDLE,g_fH1RSI=INVALID_HANDLE,g_fH1E50=INVALID_HANDLE;
 
 datetime DHDayStart(const datetime t)
 {
@@ -1701,9 +1710,62 @@ void DHRotateLogs(const datetime now)
    DHReopenLog(g_hEquity,"equity",DH_HDR_EQUITY,mk);
    DHReopenLog(g_hBars,"bars_"+_Symbol+"_M1",DH_HDR_BARS_M1,mk);
    DHReopenLog(g_hBarsCurrent,"bars_"+_Symbol+"_CURRENT",DH_HDR_BARS_CUR,mk);
+   DHReopenLog(g_hSignals,"signals",DH_HDR_SIGNALS,mk);
    Print("V4.52: chuyển file log sang tháng ",StringFormat("%04d_%02d",mk/100,mk%100),
          "; file tháng ",StringFormat("%04d_%02d",g_logMonth/100,g_logMonth%100)," được giữ nguyên.");
    g_logMonth=mk;
+}
+// V4.53 REAL: indicators used only to describe the market at each fill (never for decisions).
+void DHCreateFeatureHandles()
+{
+   g_fM5ATR=iATR(_Symbol,PERIOD_M5,14);
+   g_fM5RSI=iRSI(_Symbol,PERIOD_M5,14,PRICE_CLOSE);
+   g_fM5Sto=iStochastic(_Symbol,PERIOD_M5,14,3,3,MODE_SMA,STO_LOWHIGH);
+   g_fM5E20=iMA(_Symbol,PERIOD_M5,20,0,MODE_EMA,PRICE_CLOSE);
+   g_fM5E50=iMA(_Symbol,PERIOD_M5,50,0,MODE_EMA,PRICE_CLOSE);
+   g_fM5E200=iMA(_Symbol,PERIOD_M5,200,0,MODE_EMA,PRICE_CLOSE);
+   g_fH1ATR=iATR(_Symbol,PERIOD_H1,14);
+   g_fH1RSI=iRSI(_Symbol,PERIOD_H1,14,PRICE_CLOSE);
+   g_fH1E50=iMA(_Symbol,PERIOD_H1,50,0,MODE_EMA,PRICE_CLOSE);
+}
+void DHReleaseFeatureHandle(int &h)
+{
+   if(h!=INVALID_HANDLE) IndicatorRelease(h);
+   h=INVALID_HANDLE;
+}
+void DHReleaseFeatureHandles()
+{
+   DHReleaseFeatureHandle(g_fM5ATR); DHReleaseFeatureHandle(g_fM5RSI); DHReleaseFeatureHandle(g_fM5Sto);
+   DHReleaseFeatureHandle(g_fM5E20); DHReleaseFeatureHandle(g_fM5E50); DHReleaseFeatureHandle(g_fM5E200);
+   DHReleaseFeatureHandle(g_fH1ATR); DHReleaseFeatureHandle(g_fH1RSI); DHReleaseFeatureHandle(g_fH1E50);
+}
+// Value of the last closed bar; 0 when the indicator is not ready (logged, never traded on).
+double DHFeat(const int h)
+{
+   double v[1];
+   if(h==INVALID_HANDLE || CopyBuffer(h,0,1,1,v)!=1 || !MathIsValidNumber(v[0])) return 0.0;
+   return v[0];
+}
+void DHLogSignalFill(const MXPosition &p,const MXNative &n,const double requestPrice,const double volume)
+{
+   if(g_hSignals==INVALID_HANDLE) return;
+   int d=_Digits;
+   ulong positionID=PositionSelectByTicket(n.ticket)?(ulong)PositionGetInteger(POSITION_IDENTIFIER):n.ticket;
+   double sl=n.buy?n.entry-n.risk:n.entry+n.risk;
+   int session=ArraySize(g_engines)>0?g_engines[0].GetSession(TimeCurrent()):0;
+   MqlTick q; ZeroMemory(q); SymbolInfoTick(_Symbol,q);
+   FileWrite(g_hSignals,MXTime(TimeCurrent()),positionID,n.ticket,p.engine,MXCleanText(p.method),
+      p.buy?"BUY":"SELL",MXTime(p.signalTime),MXSession(session),
+      DoubleToString(requestPrice,d),DoubleToString(n.entry,d),DoubleToString(n.entry-requestPrice,d),
+      DoubleToString(sl,d),DoubleToString(n.tp1,d),DoubleToString(n.tp2,d),DoubleToString(n.risk,d),
+      DoubleToString(volume,2),DoubleToString(q.ask-q.bid,d),DoubleToString(AccountInfoDouble(ACCOUNT_EQUITY),2),
+      DoubleToString(iClose(_Symbol,PERIOD_M5,1),d),DoubleToString(DHFeat(g_fM5ATR),d),
+      DoubleToString(DHFeat(g_fM5RSI),2),DoubleToString(DHFeat(g_fM5Sto),2),
+      DoubleToString(DHFeat(g_fM5E20),d),DoubleToString(DHFeat(g_fM5E50),d),DoubleToString(DHFeat(g_fM5E200),d),
+      DoubleToString(iClose(_Symbol,PERIOD_H1,1),d),DoubleToString(DHFeat(g_fH1ATR),d),
+      DoubleToString(DHFeat(g_fH1RSI),2),DoubleToString(DHFeat(g_fH1E50),d),
+      DoubleToString(iHigh(_Symbol,PERIOD_D1,0),d),DoubleToString(iLow(_Symbol,PERIOD_D1,0),d));
+   FileFlush(g_hSignals);
 }
 
 // Shared portfolio UI and live-account helpers belong at file scope.
@@ -1909,7 +1971,7 @@ void DrawDashboard()
    PanelBox("dh_head",lx+1,ly+1,lw-2,2*row+6,DH_BG_HEAD,DH_BG_HEAD);
    int x=lx+12, xr=lx+lw-12, c1=lx+280, y=ly+8;
    PanelLeft("dh_title","DAVID HUNTER",x,y,DH_GOLD,13,"Arial Bold");
-   PanelRight("dh_ver","V4.53",xr,y+4,DH_GOLD_DIM,9,"Arial Bold");
+   PanelRight("dh_ver","V4.53 REAL",xr,y+4,DH_GOLD_DIM,9,"Arial Bold");
    y+=row+3;
    PanelLeft("dh_sub","SĐT: 0941920986   |   "+_Symbol+"   |   Magic "+IntegerToString((long)InpMagic),x,y,DH_MUTED,8);
    y+=row+4;
@@ -2093,6 +2155,7 @@ void MXFlush()
    if(g_hAudit!=INVALID_HANDLE) FileFlush(g_hAudit);
    if(g_hOrders!=INVALID_HANDLE) FileFlush(g_hOrders);
    if(g_hSymbols!=INVALID_HANDLE) FileFlush(g_hSymbols);
+   if(g_hSignals!=INVALID_HANDLE) FileFlush(g_hSignals);
 }
 void MatrixEvent(const int engine,const string method,const string eventName,
                  const string status,const string reason,const datetime signalTime,
@@ -2674,6 +2737,7 @@ void MXNativeAfterFill(const MXPosition &p,const ulong ticket,const double reque
       return;
    }
    int count=ArraySize(g_native); ArrayResize(g_native,count+1); g_native[count]=n;
+   DHLogSignalFill(p,n,requestPrice,actualVolume);
    if(live)
    {
       GlobalVariableSet(LivePositionKey("R",n.ticket),n.risk);
@@ -3509,6 +3573,10 @@ void MXResetRuntime()
    g_hTrades=INVALID_HANDLE; g_hEvents=INVALID_HANDLE; g_hEquity=INVALID_HANDLE;
    g_hBars=INVALID_HANDLE; g_hConfig=INVALID_HANDLE; g_hWallet=INVALID_HANDLE;
    g_hAudit=INVALID_HANDLE; g_hOrders=INVALID_HANDLE; g_hSymbols=INVALID_HANDLE; g_hBarsCurrent=INVALID_HANDLE;
+   g_hSignals=INVALID_HANDLE;
+   g_fM5ATR=INVALID_HANDLE; g_fM5RSI=INVALID_HANDLE; g_fM5Sto=INVALID_HANDLE;
+   g_fM5E20=INVALID_HANDLE; g_fM5E50=INVALID_HANDLE; g_fM5E200=INVALID_HANDLE;
+   g_fH1ATR=INVALID_HANDLE; g_fH1RSI=INVALID_HANDLE; g_fH1E50=INVALID_HANDLE;
    g_delayEvents=0; g_nativeOperationErrors=0; g_nativeRequestCount=0;
    g_nativeInitialBalance=0.0; g_nativeDealsNet=0.0; g_nativeReconcileGap=0.0;
    g_nativeHistoryOK=false;
@@ -3596,6 +3664,8 @@ int OnInit()
    g_hOrders=MXFile("orders",DH_HDR_ORDERS);
    g_hEvents=MXFile("events",DH_HDR_EVENTS);
    g_hAudit=MXFile("management_requests",DH_HDR_AUDIT);
+   g_hSignals=MXFile("signals",DH_HDR_SIGNALS);
+   DHCreateFeatureHandles();
    g_hSymbols=MXFile("symbols","time;symbol;digits;point;tick_size;volume_min;volume_step;volume_max;spread_price;chart_tf;trade_fallback_tf");
    if(InpMatrixGhiEquityPhut>0)g_hEquity=MXFile("equity",DH_HDR_EQUITY);
    if(InpMatrixGhiNenM1)
@@ -3718,7 +3788,7 @@ int OnInit()
             "%/lệnh | không giới hạn lệnh/ngày | tối đa ",
             InpMaxIndependentPositions," vị thế | dừng ngày ",DoubleToString(InpDailyLossPct,1),"%.");
 
-   Print("V4.53 TEST | ",ArraySize(g_engines)," cấu hình | tài khoản broker thực | ",g_runFolder);
+   Print("V4.53 REAL | ",ArraySize(g_engines)," cấu hình | tài khoản broker thực | ",g_runFolder);
    if(MQLInfoInteger(MQL_TESTER))
    {
       Print("Tester: swap ước tính theo thông số sàn hiện tại; kiểm tra commission và mô hình tick trong Journal.");
@@ -3851,7 +3921,7 @@ void OnDeinit(const int reason)
          if(reason==REASON_CHARTCHANGE)
             Print("V4.53: đổi timeframe/chart, giữ nguyên vị thế và trạng thái quản lý để khởi tạo lại.");
          else
-            Print("V4.53 TEST tách khỏi chart; vị thế tại broker và dữ liệu khôi phục được giữ nguyên.");
+            Print("V4.53 REAL tách khỏi chart; vị thế tại broker và dữ liệu khôi phục được giữ nguyên.");
       }
    }
    for(int e=0;e<ArraySize(g_engines);e++)
@@ -3870,6 +3940,8 @@ void OnDeinit(const int reason)
    if(g_hBars!=INVALID_HANDLE)FileClose(g_hBars);
    if(g_hConfig!=INVALID_HANDLE)FileClose(g_hConfig);
    if(g_hWallet!=INVALID_HANDLE)FileClose(g_hWallet);
+   if(g_hSignals!=INVALID_HANDLE)FileClose(g_hSignals);
+   DHReleaseFeatureHandles();
    for(int i=ObjectsTotal(0,0,-1)-1;i>=0;i--) { string n=ObjectName(0,i,0,-1); if(StringFind(n,g_panelPrefix)==0) ObjectDelete(0,n); }
    Comment("");
    MXResetRuntime();
