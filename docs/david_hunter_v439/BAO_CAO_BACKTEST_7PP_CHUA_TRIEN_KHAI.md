@@ -4,6 +4,10 @@ Ngày: 29/09/2026 · Nguồn logic: `EA_DAVID_HUNTER_V4_39_MATRIX_RECONCILE_2.mq
 Dữ liệu: tick thật Exness **XAUUSDm**, 01/01/2026 23:05 → 12/01/2026 13:03 (~6,5 ngày giao dịch)
 Trạng thái: **SƠ BỘ.** Dữ liệu quá ngắn để chọn cấu hình chạy tiền thật (xem mục 7).
 
+> **Cập nhật 29/09/2026: đã kiểm chứng trên MT5 9 tháng (01/01 → 27/09/2026).** Cả 6 ứng viên ở mục 6 đều lỗ
+> (WR 44–51%, PF 0,81–0,99), nên **không dùng các cấu hình trong bảng dưới**. Bản Python khớp 164/164 lệnh
+> thật của MT5. Xem [`BAO_CAO_KIEM_CHUNG_MT5_9_THANG.md`](BAO_CAO_KIEM_CHUNG_MT5_9_THANG.md).
+
 Mã nguồn và dữ liệu thô: `research/david_hunter_v439/` (chạy lại được bằng một lệnh, mục 10).
 
 ---
@@ -55,7 +59,7 @@ Mã nguồn và dữ liệu thô: `research/david_hunter_v439/` (chạy lại đ
 
 | Mục | Giá trị |
 |---|---|
-| File | `EA-PRO/data/XAUUSDm_202601012305_202604301458.zip.part001` (24.000.000 byte) |
+| File | `EA-PRO/data/tick/XAUUSDm_2026-01-01_2026-04-30/XAUUSDm_202601012305_202604301458.zip.part001` (24.000.000 byte) |
 | Độ phủ | File nén đầy đủ là 359 MB (1,86 GB CSV). Trên GitHub **chỉ có phần 1**, giải nén được 128 MB đầu = **2.733.021 tick** |
 | Khoảng thời gian | 01/01/2026 23:05 → 12/01/2026 13:03 (02/01, 05–09/01, sáng 12/01) |
 | Spread | 0,16 giá ở 99,98% số tick. Thỉnh thoảng 0,24–0,48 |
@@ -212,7 +216,7 @@ dữ liệu không đủ để khẳng định PP nào tốt hay xấu (AGENTS.m
      2–3 tháng cuối làm dữ liệu kiểm chứng.
    - Tiêu chí nghiệm thu đề xuất: ≥100 lệnh, ≥3 tháng, có lãi ở tập kiểm chứng (`danh_gia =
      UNG_VIEN_CAN_TEST_LAI` trong `xep_hang.csv`), PF ≥ 1,3, DD chấp nhận được.
-5. **Dữ liệu:** upload đủ `XAUUSDm_202601012305_202604301458.zip.part002 … part015` vào `EA-PRO/data/`
+5. **Dữ liệu:** upload đủ `XAUUSDm_202601012305_202604301458.zip.part002 … part015` vào `EA-PRO/data/tick/XAUUSDm_2026-01-01_2026-04-30/`
    (mỗi phần ≤ 25 MB). Khi có đủ, chạy lại lệnh ở mục 10 sẽ cho kết quả trên cả 4 tháng.
    Muốn thời gian dài hơn nữa (1–2 năm) thì xuất tick theo từng tháng cũng được.
 

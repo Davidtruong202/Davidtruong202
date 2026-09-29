@@ -3,7 +3,9 @@
 Bản chuyển sang Python của `EA_DAVID_HUNTER_V4_39_MATRIX_RECONCILE_2.mq5` (repo EA-PRO), dùng để quét input × khung
 thời gian cho các phương pháp **chưa triển khai** (EMA, ICT, MM, SMC, PVEMA, PIN, LQ) trên tick thật, ngoài MT5.
 
-Báo cáo kết quả: [`docs/david_hunter_v439/BAO_CAO_BACKTEST_7PP_CHUA_TRIEN_KHAI.md`](../../docs/david_hunter_v439/BAO_CAO_BACKTEST_7PP_CHUA_TRIEN_KHAI.md)
+Báo cáo kết quả:
+- [`BAO_CAO_BACKTEST_7PP_CHUA_TRIEN_KHAI.md`](../../docs/david_hunter_v439/BAO_CAO_BACKTEST_7PP_CHUA_TRIEN_KHAI.md): quét Python trên 6,5 ngày (sơ bộ)
+- [`BAO_CAO_KIEM_CHUNG_MT5_9_THANG.md`](../../docs/david_hunter_v439/BAO_CAO_KIEM_CHUNG_MT5_9_THANG.md): kiểm chứng trong MT5 trên 9 tháng. **Cả 6 ứng viên đều lỗ.**
 
 ## Cấu trúc
 
@@ -23,18 +25,24 @@ Báo cáo kết quả: [`docs/david_hunter_v439/BAO_CAO_BACKTEST_7PP_CHUA_TRIEN_
 | `results/` | Kết quả lần chạy trên dữ liệu 01–12/01/2026 |
 | `make_ea_7pp.py` | Tạo `MQL5/Experts/EA_DAVID_HUNTER_V4_39_MATRIX_7PP.mq5`: bản V4.39 có sẵn 13 bộ test trong input "Bộ cài sẵn" (không cần file SET) |
 | `mt5_sets/` | File SET cho EA V4.39 MATRIX gốc (ghi đủ 197 input) + `HUONG_DAN.txt`; bản 7PP ở trên thay thế các file này |
+| `analyze_mt5.py` | Đọc kết quả MT5 của EA 7PP: 6 ứng viên, chọn trên T1–T6 rồi kiểm trên T7–T9, ô hướng × phiên, từng trục input |
+| `compare_mt5.py` | Đối chiếu từng lệnh thật của ví 0 trong MT5 với bản Python (01–12/01/2026) |
+| `results_mt5/` | Kết quả hai script trên cho lượt MT5 01/01–27/09/2026 (`EA-PRO/data/backtest_mt5/2026-09-29_V439_7PP_KiemChung_6PP/`) |
 
 ## Chạy
 
 ```bash
 pip install numpy pandas numba
 export DH_CACHE=/tmp/dh_cache          # nơi lưu cache tick (.npz), mặc định ./.cache
-python3 run_matrix.py --ticks "/duong_dan/XAUUSDm_*.zip.part*" --split 2026-01-08 --out results
+python3 run_matrix.py --ticks "/duong_dan/EA-PRO/data/tick/XAUUSDm_2026-01-01_2026-04-30/*.zip.part*" --split 2026-01-08 --out results
 python3 analyze.py --res results
 python3 validate.py --res results --reps 1000
 python3 null_tournament.py --res results --reps 100
 python3 make_sets.py
 python3 tests/test_crosscheck.py && python3 tests/test_engines.py
+# kết quả MT5 (thư mục RUN của EA 7PP)
+python3 analyze_mt5.py --run /duong_dan/EA-PRO/data/backtest_mt5/2026-09-29_V439_7PP_KiemChung_6PP
+python3 compare_mt5.py --mt5 /duong_dan/EA-PRO/data/backtest_mt5/2026-09-29_V439_7PP_KiemChung_6PP/lenh_tham_chieu_MT5.csv
 ```
 
 Khi có thêm dữ liệu, xóa cache cũ (`$DH_CACHE/xauusdm_2026.npz`) hoặc đổi `--cache-name`, rồi đặt `--split` vào khoảng

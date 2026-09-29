@@ -85,7 +85,7 @@ def random_timing(m, sim, cfg, trades, ses, n_rep, rng, split_t=None):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--ticks", default="/home/user/ea-pro/data/XAUUSDm_202601012305_202604301458.zip.part*")
+    ap.add_argument("--ticks", default="/home/user/ea-pro/data/tick/XAUUSDm_2026-01-01_2026-04-30/XAUUSDm_202601012305_202604301458.zip.part*")
     ap.add_argument("--cache-name", default="xauusdm_2026")
     ap.add_argument("--res", default=os.path.join(HERE, "results"))
     ap.add_argument("--split", default="2026-01-08")

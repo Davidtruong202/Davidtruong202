@@ -71,7 +71,7 @@ def wallet_best(sig, res, sessions, money, split_t, t_entry, min_trades, min_hal
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--ticks", default="/home/user/ea-pro/data/XAUUSDm_202601012305_202604301458.zip.part*")
+    ap.add_argument("--ticks", default="/home/user/ea-pro/data/tick/XAUUSDm_2026-01-01_2026-04-30/XAUUSDm_202601012305_202604301458.zip.part*")
     ap.add_argument("--cache-name", default="xauusdm_2026")
     ap.add_argument("--res", default=os.path.join(HERE, "results"))
     ap.add_argument("--split", default="2026-01-08")

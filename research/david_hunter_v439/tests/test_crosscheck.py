@@ -17,7 +17,7 @@ from dh import signals_setup as S  # noqa: E402
 from dh.data import Market, load_ticks  # noqa: E402
 from dh.mt5ind import IndCache  # noqa: E402
 
-TICKS = os.environ.get("DH_TICKS", "/home/user/ea-pro/data/XAUUSDm_202601012305_202604301458.zip.part*")
+TICKS = os.environ.get("DH_TICKS", "/home/user/ea-pro/data/tick/XAUUSDm_2026-01-01_2026-04-30/XAUUSDm_202601012305_202604301458.zip.part*")
 
 
 def first_bid(m, bars, c):
