@@ -25,7 +25,11 @@
 
 ## A.2. Spread (USD/oz) ✅
 
-Nguồn là cột spread của nến M1. Đây là giá trị đại diện cho cả nến, không phải spread tại từng tick.
+Nguồn là cột spread của nến M1, không phải spread tại từng tick.
+
+**Cập nhật R0.1:** đối chiếu với tick tháng 1/2026 cho thấy cột này nhiều khả năng là **spread nhỏ nhất trong phút**
+(6/6 phút có spread thay đổi). Vì vậy các con số dưới đây là **cận dưới** của spread thật. Xem
+[`03_R01_THONG_SO_VA_DU_LIEU.md`](03_R01_THONG_SO_VA_DU_LIEU.md), Mục 5.
 
 | Trung vị | p75 | p90 | p99 | Lớn nhất |
 |---|---|---|---|---|

@@ -2,18 +2,23 @@
 
 **DAVID HUNTER – PHOENIX GRID – 0941920986**
 
-EA MT5 mới cho XAUUSD (Exness Standard Cent), theo chu trình: Sideways → DCA thông minh → cảnh báo Breakout →
-Hedge → giao dịch vùng mới và tỉa lệnh → chu kỳ mới.
+EA MT5 mới cho XAUUSD (Exness Standard Cent, tài khoản riêng), theo chu trình: Sideways → DCA thông minh → cảnh báo
+Breakout → Hedge → giao dịch vùng mới và tỉa lệnh → chu kỳ mới.
 
-> **Trạng thái: PG-R0.0, kế hoạch nghiên cứu, CHỜ PHÊ DUYỆT.**
-> Chưa có EA giao dịch, chưa có bộ kiểm định, chưa chạy backtest nào. Không có con số hiệu suất nào trong thư mục
-> này.
+> **Trạng thái:**
+>
+> - Kế hoạch PG-R0.0 **đã được duyệt ngày 29/09/2026** (tag `pg-r0.0`).
+> - Đang ở **PG-R0.1**: đọc thông số MT5 và kiểm tra dữ liệu. Chờ bạn chạy script trên MT5.
+>
+> Chưa có EA giao dịch, chưa chạy backtest nào. Không có con số hiệu suất nào trong thư mục này.
 
 | File | Nội dung |
 |---|---|
-| [`01_KE_HOACH_NGHIEN_CUU.md`](01_KE_HOACH_NGHIEN_CUU.md) | Kế hoạch đầy đủ: phân tích ảnh, kiến trúc, công thức, PP1–PP9, lot/rủi ro/stress, DCA, Hedge, Recovery, state machine, ma trận A–G, chia dữ liệu, tiêu chí nghiệm thu, dữ liệu còn thiếu, lộ trình phiên bản |
-| [`02_PHU_LUC_THONG_KE_DU_LIEU.md`](02_PHU_LUC_THONG_KE_DU_LIEU.md) | Thống kê mô tả 9 tháng nến M1 XAUUSDm (biên độ, spread, ATR, biến động ngược chiều, variance ratio, gap). Không phải backtest |
-| [`../../research/phoenix_grid/`](../../research/phoenix_grid/) | Script tái lập số liệu phụ lục và các file CSV kết quả |
+| [`01_KE_HOACH_NGHIEN_CUU.md`](01_KE_HOACH_NGHIEN_CUU.md) | Kế hoạch đầy đủ (đã duyệt): phân tích ảnh, kiến trúc, công thức, PP1–PP9, lot/rủi ro/stress, DCA, Hedge, Recovery, state machine, ma trận A–G, chia dữ liệu, tiêu chí nghiệm thu, dữ liệu còn thiếu, lộ trình phiên bản |
+| [`02_PHU_LUC_THONG_KE_DU_LIEU.md`](02_PHU_LUC_THONG_KE_DU_LIEU.md) | Thống kê mô tả 9 tháng nến M1 XAUUSDm. Không phải backtest |
+| [`03_R01_THONG_SO_VA_DU_LIEU.md`](03_R01_THONG_SO_VA_DU_LIEU.md) | PG-R0.1: hướng dẫn chạy script đọc thông số, đo margin hedge trên demo, xuất tick XAUUSDc; kết quả kiểm tra tick hiện có |
+| [`../../MQL5/Scripts/PhoenixGrid/`](../../MQL5/Scripts/PhoenixGrid/) | Script MT5 chỉ đọc `PG_R01_DocThongSo.mq5` (chưa compile) |
+| [`../../research/phoenix_grid/`](../../research/phoenix_grid/) | Công cụ Python và kết quả CSV |
 
 ## Kết quả bàn giao theo Phần 10 của yêu cầu
 
@@ -24,20 +29,46 @@ Hedge → giao dịch vùng mới và tỉa lệnh → chu kỳ mới.
 | 3 | Công thức tính lot và rủi ro | Mục 5 và Mục 8 (gồm ma trận stress S1–S12, ví dụ số học) |
 | 4 | Sơ đồ vận hành các trạng thái | Mục 12 |
 | 5 | Kế hoạch chia dữ liệu | Mục 14 |
-| 6 | Tiêu chí nghiệm thu đề xuất | Mục 16 (NT-A0, cổng A, NT-01…NT-30) |
+| 6 | Tiêu chí nghiệm thu đề xuất | Mục 16 (NT-A0, cổng A, NT-01…NT-30), đóng băng tại commit `47480fe` |
 | 7 | Danh sách dữ liệu và thông số MT5 còn thiếu | Mục 17 (DL-01…DL-09, TS-01…TS-12) |
 | 8 | Kế hoạch triển khai theo từng phiên bản nghiên cứu | Mục 18 (PG-R0.0 → PG-R1.0 → EA V1.00 TEST) |
 
-Những điểm cần bạn phê duyệt: Mục 21.
-
 ## Nhật ký phiên bản
+
+### PG-R0.1 — Đọc thông số MT5 và kiểm tra dữ liệu tick
+
+**Ngày:** 29/09/2026
+**Phiên bản gốc:** PG-R0.0 (đã duyệt)
+**Mục tiêu:** có bảng thông số XAUUSDc thật, xác minh giả định H_K, và có công cụ kiểm tra dữ liệu tick trước khi
+nghiên cứu
+**Trạng thái:** TEST — chờ bạn chạy script trên MT5 và gửi 2 file CSV
+
+**Thay đổi:**
+
+- Script MT5 chỉ đọc `MQL5/Scripts/PhoenixGrid/PG_R01_DocThongSo.mq5`.
+- `research/phoenix_grid/pg_data.py`: bộ đọc tick (chép từ V4.39) và làm sạch có đếm bất thường.
+- `research/phoenix_grid/kiem_tra_tick.py`: báo cáo chất lượng tick.
+- `research/phoenix_grid/doc_thong_so.py`: đọc thông số, xác minh H_K.
+- Báo cáo `03_R01_THONG_SO_VA_DU_LIEU.md`. Kết quả kiểm tra tick XAUUSDm 01–12/01/2026 nằm trong
+  `research/phoenix_grid/results_r01/`.
+
+**Kiểm tra kỹ thuật:**
+
+- Compile MQL5: **chưa kiểm tra** (không có MetaEditor trong môi trường phát triển).
+- Kiểm tra tĩnh script: đạt (ngoặc cân bằng, mọi hàm có định nghĩa, không có lời gọi lệnh giao dịch).
+- Python:
+  - Kiểm tra tick chạy trên dữ liệu thật: nến M1 dựng từ tick khớp MT5 ở mọi phút đầy đủ.
+  - `doc_thong_so.py --tu-kiem-tra` đạt.
+
+**Backtest:** không áp dụng.
+**Rollback:** PG-R0.0 (tag `pg-r0.0`).
 
 ### PG-R0.0 — Kế hoạch nghiên cứu
 
 **Ngày:** 29/09/2026
 **Phiên bản gốc:** không có (dự án mới, không dùng mã nguồn EA cũ)
 **Mục tiêu:** trình bày kế hoạch nghiên cứu và kiến trúc để phê duyệt trước khi lập trình
-**Trạng thái:** CHỜ PHÊ DUYỆT
+**Trạng thái:** **ĐÃ DUYỆT 29/09/2026**. Tài khoản riêng. Chi tiết ở Mục 21 của kế hoạch
 
 **Thay đổi:**
 
@@ -51,5 +82,5 @@ Những điểm cần bạn phê duyệt: Mục 21.
   (numpy 2.4, pandas 3.0).
 
 **Backtest:** chưa chạy.
-**Kết luận:** chờ phê duyệt.
+**Kết luận:** đã duyệt; tiêu chí nghiệm thu đóng băng tại commit `47480fe`.
 **Rollback:** không áp dụng.

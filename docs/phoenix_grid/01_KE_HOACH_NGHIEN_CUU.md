@@ -6,7 +6,7 @@
 |---|---|
 | Phiên bản tài liệu | **PG-R0.0**, kế hoạch nghiên cứu |
 | Ngày lập | 29/09/2026 |
-| Trạng thái | **CHỜ PHÊ DUYỆT**. Chưa viết EA giao dịch, chưa viết bộ kiểm định, chưa chạy backtest nào |
+| Trạng thái | **ĐÃ PHÊ DUYỆT ngày 29/09/2026** (Mục 21). Nội dung được duyệt đóng băng tại commit `47480fe`, tag `pg-r0.0`. Chưa viết EA giao dịch, chưa chạy backtest nào |
 | Sản phẩm | XAUUSD trên Exness Standard Cent (XAUUSDc), MetaTrader 5, vốn nghiên cứu 5.000 USC |
 | Khung | Giao dịch M1, cấu trúc M5, xử lý tín hiệu theo tick |
 | Quan hệ với David Hunter | Dòng sản phẩm **mới, độc lập**. Không đụng tới Baseline V4.52 trong EA-PRO |
@@ -86,8 +86,9 @@ Phụ lục số liệu: [`02_PHU_LUC_THONG_KE_DU_LIEU.md`](02_PHU_LUC_THONG_KE_
 
    Vì vậy kế hoạch này: đăng ký trước lưới tham số thô, kiểm định ngẫu nhiên (null), đo PBO, tách riêng
    BUY/SELL, tập TEST chỉ chạy một lần.
-8. **Việc cần bạn làm tiếp**: phê duyệt các điểm ở **Mục 21** và cung cấp dữ liệu/thông số ở **Mục 17**.
-   Quan trọng nhất là tick XAUUSDc và bảng Specification của XAUUSDc.
+8. **Đã duyệt ngày 29/09/2026** (Mục 21). Phoenix Grid chạy trên tài khoản riêng. Việc còn lại là cung cấp dữ
+   liệu/thông số ở **Mục 17**, gồm tick XAUUSDc và thông số XAUUSDc. Bước R0.1 đang làm:
+   [`03_R01_THONG_SO_VA_DU_LIEU.md`](03_R01_THONG_SO_VA_DU_LIEU.md).
 
 ---
 
@@ -179,14 +180,15 @@ Nguồn: `nen_M1.csv` (XAUUSDm, 231 ngày có giao dịch). Chi tiết và cách
 | Ngược chiều ≥ 100 USD | 24 giờ: 14–17%. 3 ngày: 30–36%. 5 ngày: 39–47% | Giữ basket nhiều ngày gần như chắc chắn gặp 100 USD → time stop là bắt buộc |
 | Gap đầu tuần | Trung vị 14; p90 52; max 98 USD/oz | Đề xuất không mang exposure chưa hedge qua cuối tuần |
 | ATR14 trung vị | M1 2,24; M5 5,24; M15 9,36; H1 19,72 USD/oz | Mọi khoảng cách tham số hóa theo ATR, không theo USD cố định |
-| Spread (cột spread của nến M1) | Trung vị 0,26; p99 0,364; max 1,44 USD/oz. Cao hơn quanh giờ mở lại 22:00–23:00 | Spread = 11,6% ATR M1, nên scalp TP nhỏ rất nhạy chi phí. Cần đo lại spread của tài khoản Cent |
+| Spread (cột spread của nến M1, nhiều khả năng là spread nhỏ nhất trong phút, xem R0.1) | Trung vị 0,26; p99 0,364; max 1,44 USD/oz. Cao hơn quanh giờ mở lại 22:00–23:00 | Spread = 11,6% ATR M1, nên scalp TP nhỏ rất nhạy chi phí. Đây là cận dưới; cần đo spread theo tick của tài khoản Cent |
 | Giờ nghỉ hằng ngày | Nến cuối trước nghỉ lúc 20:57 (113 lần) hoặc 21:57 (34 lần). Mở lại 22:00–22:01 hoặc 23:00–23:01 giờ server | Không vào lệnh sát giờ nghỉ. Trong giờ nghỉ, hedge không thể khớp |
 | Variance ratio 5–240 phút | 0,91–0,99; z* từ −0,43 đến −1,04 | Không có hồi quy về trung bình vô điều kiện có ý nghĩa → lợi thế phải đến từ lọc trạng thái |
 | Theo tháng | Xác suất ngược ≥ 100 USD trong 24 giờ dao động 4%–35% tùy tháng và hướng | Kết quả phụ thuộc mạnh vào giai đoạn → bắt buộc kiểm định nhiều giai đoạn |
 
 **Giới hạn của các số liệu trên:**
 
-- Cột spread của nến M1 là giá trị đại diện cho cả nến, không phải spread tại từng tick.
+- Cột spread của nến M1 không phải spread tại từng tick. Đối chiếu ở R0.1 cho thấy nó nhiều khả năng là spread nhỏ
+  nhất trong phút, tức cận dưới của spread thật.
 - Dữ liệu là XAUUSDm (tài khoản Standard, tiền USD), không phải XAUUSDc.
 - Dữ liệu 2026 đã được dùng ở đây để đặt kịch bản stress và đã được dự án V4.39 xem. **Không** tham số tín hiệu nào
   của Phoenix Grid được chọn từ các thống kê này (xem Mục 14 về tập TEST).
@@ -282,8 +284,10 @@ Phần này chưa lập trình. Mục đích là để bạn duyệt cấu trúc
 - Comment lệnh dạng `PG|B<basket>|<vai trò><bậc>` chỉ là nguồn dự phòng, vì sàn có thể ghi đè comment. Nguồn chính
   là bảng ticket → basket lưu trong file.
 - SL thảm họa phía server cho phần exposure chưa hedge, để bảo vệ khi VPS/EA mất kết nối.
-- Khuyến nghị dùng **tài khoản riêng** cho Phoenix Grid. Nếu chạy chung tài khoản với David Hunter, RiskGate phải
-  tính margin và Equity của toàn tài khoản, vì stop out áp dụng cho cả tài khoản.
+- **Tài khoản riêng** cho Phoenix Grid (đã chốt ngày 29/09/2026).
+  - RiskGate vẫn tính theo margin và Equity của toàn tài khoản, vì stop out áp dụng cho cả tài khoản.
+  - Đề xuất (hệ quả của tài khoản riêng, sẽ trình duyệt khi viết EA): mọi vị thế hoặc lệnh chờ không thuộc Phoenix
+    Grid (Magic khác, lệnh tay) được coi là bất thường → chuyển PAUSED và cảnh báo.
 
 ---
 
@@ -1414,7 +1418,7 @@ thì cần khoảng 385 lệnh để phân biệt với 0 ở mức 5%. Với μ
 | TS-08 | SYMBOL_TRADE_STOPS_LEVEL, TRADE_FREEZE_LEVEL | Đặt SL phía server |
 | TS-09 | SYMBOL_FILLING_MODE, TRADE_EXEMODE, ORDER_MODE (có SYMBOL_ORDER_CLOSEBY không) | Khớp lệnh, Close By |
 | TS-10 | Phiên giao dịch từng ngày (`SymbolInfoSessionTrade`); múi giờ server (GMT+0?); giờ nghỉ hằng ngày | Theo dữ liệu XAUUSDm: nghỉ sau nến 20:57 (hè) / 21:57 (đông), mở lại 22:00 / 23:00 |
-| TS-11 | Phoenix Grid có tài khoản riêng, hay chạy chung với David Hunter (Magic 68999)? | Khuyến nghị tài khoản riêng |
+| TS-11 | Phoenix Grid có tài khoản riêng, hay chạy chung với David Hunter (Magic 68999)? | **Đã chốt 29/09/2026: tài khoản riêng** |
 | TS-12 | Giới hạn số dư hoặc lot tối đa của tài khoản Cent (nếu có) | Kế hoạch tăng vốn |
 
 Có hai cách lấy TS-01…TS-10:
@@ -1529,9 +1533,26 @@ Giá trị trong ngoặc là đề xuất mặc định.
     - Nghiên cứu ở repo `Davidtruong202` (`docs/phoenix_grid/`, `research/phoenix_grid/`).
     - Dữ liệu ở `EA-PRO/data/` theo quy ước hiện có.
     - EA sau này ở EA-PRO với tên `EA_PHOENIX_GRID_Vx_yy_TEST.mq5`.
-11. **Tài khoản riêng** cho Phoenix Grid (khuyến nghị) và Magic riêng.
+11. **Tài khoản riêng** cho Phoenix Grid và Magic riêng.
 12. **Xác nhận các giới hạn:** không martingale không trần, không tăng lot để đạt mục tiêu tháng, không dùng backcom
     trong mọi phép tính.
 
 Bước đầu tiên sau khi bạn duyệt là **PG-R0.1**: script chỉ đọc thông số và kiểm kê dữ liệu. Chưa phải EA giao dịch,
 chưa phải bộ backtest.
+
+### Kết quả phê duyệt — 29/09/2026
+
+Bạn trả lời: "đồng ý, phoenix chạy tài khoản riêng". Ghi nhận như sau:
+
+| Điểm | Quyết định |
+|---|---|
+| 1 | r_b = 1% mỗi basket tại mức phòng thủ. Mức 2% chỉ xuất hiện như biến thể nghiên cứu trong khoảng tham số đã duyệt (Mục 13.10), không dùng làm mặc định |
+| 2 | Lỗ ngày 10% theo Equity; tầng DD 5% / 8% / 12%; r_open 3%; r_fail 5%; ML_vào 500%; κ = 1,5 |
+| 3 | Giữ PP1–PP9 và lưới 185 biến thể. PP3 vẫn trong lưới, với tiền nghiệm thấp như đã ghi ở Mục 7 |
+| 4, 5, 6 | Ma trận A–G, state machine, chính sách cuối tuần: theo đúng kế hoạch |
+| 7 | Tiêu chí NT-A0, cổng A, NT-01…NT-30 **đóng băng** theo nội dung tại commit `47480fe` (tag `pg-r0.0`) |
+| 8 | Chọn phương án chia dữ liệu khi biết lịch sử tick XAUUSDc tải được bao xa (R0.1) |
+| 9, 10, 12 | Theo đúng kế hoạch |
+| 11 | **Tài khoản riêng** cho Phoenix Grid, Magic riêng |
+
+Nếu cách ghi nhận ở điểm 1, 3 hoặc 8 không đúng ý bạn, cần sửa trước khi bắt đầu Giai đoạn A.
