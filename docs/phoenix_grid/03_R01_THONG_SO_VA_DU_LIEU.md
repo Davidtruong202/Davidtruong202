@@ -94,6 +94,9 @@ nào (TS-04). Kế hoạch vẫn dùng cách tính thận trọng (không trừ 
 
 Nếu MT5 không cho tải đủ lịch sử XAUUSDc, xuất thêm tick XAUUSDm cùng khoảng (phương án DL-02 của kế hoạch).
 
+Chia thành nhiều file zip độc lập (ví dụ `XAUUSD_01.zip` … `XAUUSD_20.zip`, mỗi file < 24 MB) cũng được. Từ
+30/09/2026 bộ đọc tự nhận dạng này, kể cả khi file CSV bị cắt giữa một dòng (Mục 10).
+
 ## 5. Kết quả kiểm tra dữ liệu tick hiện có ✅
 
 Tôi chạy `kiem_tra_tick.py` trên bộ tick XAUUSDm duy nhất đang có (`EA-PRO/data/tick/XAUUSDm_2026-01-01_2026-04-30/`,
@@ -236,8 +239,55 @@ thường, không giãn. Cần kiểm tra lại trên dữ liệu tick dài hơn
 
 ## 9. Bước tiếp theo
 
+(Cập nhật 30/09/2026: điểm 1 và 2 bạn đã xác nhận; điểm 3 xem Mục 10.)
+
 1. **Bạn xác nhận bảng thông số XAUUSDc ở Mục 8.** Đây là cổng của R0.1 (phần thông số).
 2. **Làm rõ tài khoản riêng:** đây có phải tài khoản sẽ dành riêng cho Phoenix Grid không (Mục 8)?
 3. **Xuất tick XAUUSDc (Bước C, Mục 4).** Đây là việc duy nhất còn chặn tiến độ trước R0.2. Sau khi có tick, tôi kiểm
    tra chất lượng dữ liệu, so spread với XAUUSDm và chốt phương án chia dữ liệu (Mục 14 kế hoạch).
 4. Sau đó sang **PG-R0.2**: bộ phân loại trạng thái thị trường và đánh giá A0 (Mục 6 và Mục 13.2 kế hoạch).
+
+## 10. Kiểm tra thư mục `data` trên EA-PRO (30/09/2026)
+
+Nhánh `main` của EA-PRO, commit `1b02e20`.
+
+| File | Kết quả |
+|---|---|
+| `data/README_XAUUSD_2026.md` | Liệt kê 20 file `XAUUSD_01.zip` … `XAUUSD_20.zip` "cần tải lên", mỗi file < 24 MB |
+| 20 file `XAUUSD_xx.zip` | **Chưa có trên GitHub**: không có ở nhánh nào của EA-PRO và không có trong Releases |
+| `data/XAUUSD_GITHUB_SAMPLE.csv` | Đọc được. 300 tick, 01/01/2026 23:05:00,019 → 23:06:36,407 (96,4 giây). Đúng định dạng xuất tick của MT5. Không có bất thường. Spread cố định 0,160 USD (160 point) |
+
+**So file mẫu với tick XAUUSDm đang có, cùng 96,4 giây:**
+
+| Chỉ số | Kết quả |
+|---|---|
+| Số tick | Mẫu 300, XAUUSDm 301 |
+| Cùng thời điểm (ms) và cùng Bid | 195/300 |
+| Cùng Bid, lệch thời điểm ≤ 1 ms | 290/300 |
+| Cùng Bid, lệch thời điểm ≤ 5 ms | 292/300 |
+| 8 tick còn lại | Bid lệch tối đa 0,036 USD |
+| Spread | Cả hai đều 0,160 |
+
+**Nhận định.**
+
+- File mẫu và XAUUSDm dùng cùng một nguồn giá, nhưng được ghi ở server khác, nên thời điểm tick lệch vài mili-giây.
+  File mẫu không phải bản chép lại file XAUUSDm.
+- Tên file không có hậu tố, nên chưa biết đây là XAUUSDc hay XAUUSDm.
+- Nếu đây là XAUUSDc từ tài khoản Phoenix, thì trong 96 giây này XAUUSDc và XAUUSDm có cùng giá và cùng spread
+  (0,16 USD vào 01/2026; R0.1 đo XAUUSDc vào 09/2026 được 0,26).
+- 96 giây chưa đủ để kết luận. Cần ít nhất 1 tháng trùng thời gian để so (DL-02).
+
+**Công cụ đã sẵn sàng.** `pg_data.read_tick_zip` đọc được ba dạng: một zip chia phần, nhiều zip độc lập, và CSV. Mỗi
+phần có hoặc không có dòng tiêu đề, và có thể bị cắt giữa dòng. Kết quả kiểm tra:
+
+- `python3 pg_data.py --tu-kiem-tra`: 8/8 phép thử đạt.
+- File XAUUSDm cũ vẫn đọc ra đúng 2.733.021 tick như trước.
+- File mẫu cắt giữa dòng vào 3 zip cho kết quả giống hệt đọc CSV gốc.
+
+**Cần bạn làm để tôi đọc được dữ liệu:**
+
+1. Tải 20 file zip lên EA-PRO. Trên GitHub web: Add file → Upload files. Mỗi file < 25 MB là vừa giới hạn của trình
+   duyệt; một lần tải tối đa 100 file. Nên đặt vào `data/tick/XAUUSDc_<từ ngày>_<đến ngày>/` (DL-01) thay vì `data/`.
+2. Cho tôi biết symbol (XAUUSDc hay XAUUSDm), server và khoảng ngày. Tốt nhất là giữ nguyên tên file MT5 đặt khi xuất
+   (có symbol và khoảng thời gian) bên trong các file zip.
+

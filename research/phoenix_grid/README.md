@@ -9,26 +9,24 @@ R0.3 trở đi, theo lộ trình đã duyệt.
 pip install numpy pandas
 ```
 
-## EA V0.10 — công cụ phụ trợ EA (`cong_cu_ea/`)
+## EA quan sát — công cụ phụ trợ (`cong_cu_ea/`)
 
 | File | Việc làm |
 |---|---|
-| `bieu_tuong_phuong_hoang.py` | Vẽ biểu tượng phượng hoàng 64 × 64 (nền trong suốt) và nhúng mảng ARGB vào file EA `.mq5`, giữa hai dòng `// >>> PG_PHOENIX_DATA` và `// <<< PG_PHOENIX_DATA`. Giữ BOM nếu file có sẵn |
-| `kiem_tra_tinh_mq5.py` | Kiểm tra tĩnh file MQL5: ngoặc, lời gọi hàm, hàm trùng, biến `g_`, từ khóa giao dịch trong mã, nhãn input, mảng biểu tượng. Không thay được compile |
+| `kiem_tra_tinh_mq5.py` | Kiểm tra tĩnh file MQL5: ngoặc, lời gọi hàm, hàm trùng, biến `g_`, từ khóa giao dịch trong mã, nhãn input. Không thay được compile |
 
 ```bash
-pip install pillow
-cd cong_cu_ea
-python3 bieu_tuong_phuong_hoang.py --png phuong_hoang_64.png \
-  --nhung ../../../MQL5/Experts/PhoenixGrid/EA_PHOENIX_GRID_V0_10_TEST.mq5
-python3 kiem_tra_tinh_mq5.py ../../../MQL5/Experts/PhoenixGrid/EA_PHOENIX_GRID_V0_10_TEST.mq5
+python3 cong_cu_ea/kiem_tra_tinh_mq5.py ../../MQL5/Experts/PhoenixGrid/EA_PHOENIX_GRID_V0_11_TEST.mq5
 ```
+
+Biểu tượng phượng hoàng của V0.10 đã bỏ từ V0.11 theo yêu cầu 30/09/2026; script vẽ biểu tượng còn trong lịch sử git
+(commit `61bab04`).
 
 ## PG-R0.1 — thông số MT5 và chất lượng dữ liệu tick
 
 | File | Việc làm |
 |---|---|
-| `pg_data.py` | Đọc file tick zip của MT5 (có thể chia phần, thiếu phần cuối vẫn đọc được). Làm sạch có đếm bất thường. Dựng nến M1 theo Bid như MT5 |
+| `pg_data.py` | Đọc tick MT5, tự nhận ba dạng:<br>- một zip có thể chia phần (thiếu phần cuối vẫn đọc được)<br>- nhiều zip độc lập (ví dụ `XAUUSD_01.zip` … `XAUUSD_20.zip`)<br>- CSV không nén<br>Mỗi phần có hoặc không có dòng tiêu đề. Làm sạch có đếm bất thường, dựng nến M1 theo Bid như MT5. `python3 pg_data.py --tu-kiem-tra` chạy 6 phép thử trên dữ liệu giả |
 | `kiem_tra_tick.py` | Báo cáo chất lượng tick: độ phủ, bất thường, khoảng trống, spread theo tick, bước nhảy giá, đối chiếu nến M1 của MT5, so spread hai bộ tick |
 | `doc_thong_so.py` | Đọc CSV của script MT5 `PG_R01_DocThongSo.mq5`, xác minh H_K, kiểm tra điều kiện kế hoạch, in nhận định tự động (đòn bẩy, stop out, chế độ khớp…). `--von` nhận nhiều mức vốn |
 | `du_lieu_r01/<server>_<symbol>_<thời điểm>/` | File CSV gốc do script MT5 xuất ra, lưu nguyên văn |
@@ -43,6 +41,9 @@ python3 kiem_tra_tick.py \
 
 # Khi có tick XAUUSDc: so spread với XAUUSDm trên phần thời gian trùng nhau
 python3 kiem_tra_tick.py --ticks "<XAUUSDc>/*.zip*" --nhan XAUUSDc --ticks2 "<XAUUSDm>/*.zip*" --nhan2 XAUUSDm
+# Nhiều zip độc lập (XAUUSD_01.zip … XAUUSD_20.zip) hoặc CSV: cùng lệnh, đổi mẫu đường dẫn
+python3 kiem_tra_tick.py --ticks "/duong_dan/EA-PRO/data/tick/XAUUSDc_<từ>_<đến>/XAUUSD_*.zip" --nhan XAUUSDc
+python3 pg_data.py --tu-kiem-tra
 
 # Đọc thông số do script MT5 xuất ra
 python3 doc_thong_so.py --file PG_R01_thong_so_XAUUSDc_<ngày>.csv --spread-gio PG_R01_spread_theo_gio_XAUUSDc_<ngày>.csv \

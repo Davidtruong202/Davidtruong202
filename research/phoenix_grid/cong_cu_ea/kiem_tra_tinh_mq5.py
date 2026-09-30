@@ -4,7 +4,7 @@ Kiểm tra:
 - ngoặc (), [], {} cân bằng (bỏ qua chuỗi, ký tự màu C'..', chú thích); chuỗi hằng không bị cắt ngang dòng
 - mọi lời gọi hàm có định nghĩa trong file hoặc thuộc danh sách hàm MQL5 đã biết (BUILTIN); không có hàm trùng
 - không có từ khóa giao dịch (danh sách CAM) - dùng cho các bản EA quan sát
-- mọi input có nhãn (chú thích //) và mảng biểu tượng PG_PHOENIX_DATA đủ phần tử
+- mọi input có nhãn (chú thích //)
 
 Chạy:  python3 kiem_tra_tinh_mq5.py ../../../MQL5/Experts/PhoenixGrid/<EA>.mq5
 """
@@ -115,15 +115,6 @@ def main(path):
     decl = set(re.findall(r"\b(g_\w+)\s*(?:=|\[|,|;)", s))
     used_g = set(re.findall(r"\b(g_\w+)\b", s))
     print("Biến g_ dùng mà không thấy khai báo:", sorted(used_g - decl) or "không có")
-    # mảng biểu tượng
-    m = re.search(r"uint PG_PHOENIX_DATA\[\] =\s*\{([^}]*)\}", src)
-    if m:
-        vals = [v for v in m.group(1).replace("\n", "").split(",") if v.strip()]
-        print("Số phần tử PG_PHOENIX_DATA:", len(vals))
-    elif "PG_PHOENIX_DATA" in src:
-        print("THIẾU mảng PG_PHOENIX_DATA (chưa chạy bieu_tuong_phuong_hoang.py --nhung)")
-    else:
-        print("Mảng biểu tượng: không áp dụng")
     inputs = re.findall(r"^input\s+(\w+)\s+(\w+)\s*=\s*([^;]+);\s*//\s*(.*)$", src, re.M)
     print("Số input:", len(inputs))
     for t, name, val, label in inputs:

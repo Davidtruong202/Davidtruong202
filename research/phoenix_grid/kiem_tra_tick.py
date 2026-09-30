@@ -1,8 +1,8 @@
 """Phoenix Grid – Bước R0.1: kiểm tra chất lượng dữ liệu tick. KHÔNG PHẢI BACKTEST.
 
 Việc làm:
-  1. Đọc file tick MT5 (zip, có thể chia phần) và đếm bất thường: giá trống/không hợp lệ, Ask < Bid, thời gian lùi,
-     tick trùng.
+  1. Đọc file tick MT5 (một zip có thể chia phần, nhiều zip độc lập, hoặc CSV) và đếm bất thường: giá trống/không
+     hợp lệ, Ask < Bid, thời gian lùi, tick trùng.
   2. Độ phủ: tick đầu/cuối, số ngày, số tick mỗi ngày.
   3. Khoảng trống > 60 giây, phân loại: cuối tuần/ngày lễ, giờ nghỉ hằng ngày, hay bất thường trong phiên.
   4. Spread theo tick: tổng thể, theo giờ server, theo ngày.
@@ -98,7 +98,7 @@ def compare_m1(t_ms, bid, ask, point, m1_path):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--ticks", required=True, help="mẫu đường dẫn file tick zip (có thể nhiều phần)")
+    ap.add_argument("--ticks", required=True, help="mẫu đường dẫn file tick: zip chia phần, nhiều zip độc lập, hoặc CSV")
     ap.add_argument("--nhan", default="tick", help="nhãn bộ dữ liệu, ví dụ XAUUSDc")
     ap.add_argument("--point", type=float, default=0.001, help="giá trị point của symbol (SYMBOL_POINT)")
     ap.add_argument("--m1", help="file nến M1 xuất từ MT5 (time;open;high;low;close;tick_volume;spread_points)")

@@ -9,8 +9,10 @@ Breakout → Hedge → giao dịch vùng mới và tỉa lệnh → chu kỳ m�
 >
 > - Kế hoạch PG-R0.0 **đã được duyệt ngày 29/09/2026** (commit `47480fe`).
 > - **PG-R0.1**: thông số XAUUSDc trên tài khoản thật Standard Cent đã được bạn xác nhận ngày 30/09/2026 (**H_K
->   đạt**). Exness-MT5Real20 là tài khoản Phoenix. Chờ tick XAUUSDc để kiểm tra dữ liệu.
-> - **EA V0.10 TEST (30/09/2026)**: chế độ quan sát, **không gửi lệnh**, **chưa compile**.
+>   đạt**). Exness-MT5Real20 là tài khoản Phoenix.
+> - **Dữ liệu tick**: trên EA-PRO mới có file mẫu 300 tick; 20 file zip chưa được tải lên (báo cáo R0.1, Mục 10).
+> - **EA V0.11 TEST (30/09/2026)**: chế độ quan sát, **không gửi lệnh**. Bảng ở góc trái chart, không còn biểu tượng.
+>   Chưa có kết quả compile.
 >
 > Chưa có EA giao dịch, chưa chạy backtest nào. Không có con số hiệu suất nào trong thư mục này.
 
@@ -19,9 +21,9 @@ Breakout → Hedge → giao dịch vùng mới và tỉa lệnh → chu kỳ m�
 | [`01_KE_HOACH_NGHIEN_CUU.md`](01_KE_HOACH_NGHIEN_CUU.md) | Kế hoạch đầy đủ (đã duyệt): phân tích ảnh, kiến trúc, công thức, PP1–PP9, lot/rủi ro/stress, DCA, Hedge, Recovery, state machine, ma trận A–G, chia dữ liệu, tiêu chí nghiệm thu, dữ liệu còn thiếu, lộ trình phiên bản |
 | [`02_PHU_LUC_THONG_KE_DU_LIEU.md`](02_PHU_LUC_THONG_KE_DU_LIEU.md) | Thống kê mô tả 9 tháng nến M1 XAUUSDm. Không phải backtest |
 | [`03_R01_THONG_SO_VA_DU_LIEU.md`](03_R01_THONG_SO_VA_DU_LIEU.md) | PG-R0.1: hướng dẫn chạy script đọc thông số, đo margin hedge trên demo, xuất tick XAUUSDc; kết quả kiểm tra tick hiện có |
-| [`04_EA_V0_10_QUAN_SAT.md`](04_EA_V0_10_QUAN_SAT.md) | EA V0.10 TEST (quan sát): lộ trình EA, cách chạy, đặc tả thuật toán cho bộ Python R0.2, chi tiết cần duyệt |
+| [`04_EA_V0_10_QUAN_SAT.md`](04_EA_V0_10_QUAN_SAT.md) | EA quan sát V0.10 / V0.11 TEST: lộ trình EA, cách chạy, đặc tả thuật toán cho bộ Python R0.2, chi tiết cần duyệt |
 | [`../../MQL5/Scripts/PhoenixGrid/`](../../MQL5/Scripts/PhoenixGrid/) | Script MT5 chỉ đọc `PG_R01_DocThongSo.mq5` (đã compile và chạy trên máy bạn) |
-| [`../../MQL5/Experts/PhoenixGrid/`](../../MQL5/Experts/PhoenixGrid/) | `EA_PHOENIX_GRID_V0_10_TEST.mq5`: EA quan sát, không gửi lệnh (chưa compile) |
+| [`../../MQL5/Experts/PhoenixGrid/`](../../MQL5/Experts/PhoenixGrid/) | `EA_PHOENIX_GRID_V0_11_TEST.mq5` (hiện hành) và `EA_PHOENIX_GRID_V0_10_TEST.mq5` (rollback): EA quan sát, không gửi lệnh |
 | [`../../research/phoenix_grid/`](../../research/phoenix_grid/) | Công cụ Python và kết quả CSV |
 
 ## Kết quả bàn giao theo Phần 10 của yêu cầu
@@ -38,6 +40,39 @@ Breakout → Hedge → giao dịch vùng mới và tỉa lệnh → chu kỳ m�
 | 8 | Kế hoạch triển khai theo từng phiên bản nghiên cứu | Mục 18 (PG-R0.0 → PG-R1.0 → EA V1.00 TEST) |
 
 ## Nhật ký phiên bản
+
+### EA V0.11 TEST — Bảng bên trái, bỏ biểu tượng; bộ đọc tick nhiều dạng
+
+**Ngày:** 30/09/2026
+**Phiên bản gốc:** EA V0.10 TEST (commit `61bab04`)
+**Mục tiêu:**
+
+- Đổi giao diện theo yêu cầu 30/09/2026: bảng ở góc trái chart, bỏ biểu tượng phượng hoàng.
+- Kiểm tra dữ liệu tick trên EA-PRO.
+
+**Trạng thái:** TEST, không gửi lệnh.
+
+**Thay đổi:**
+
+- `EA_PHOENIX_GRID_V0_11_TEST.mq5` (file mới; V0.10 giữ nguyên để rollback):
+  - Bảng neo góc trái trên.
+  - Bỏ mảng biểu tượng và các hàm vẽ biểu tượng.
+  - Bỏ input "Dịch chart" và phần dựng lại bảng khi đổi độ rộng chart.
+  - Log ghi `PG_V011_…`, cột giữ nguyên.
+  - Thuật toán nhận diện không đổi.
+- Xóa `cong_cu_ea/bieu_tuong_phuong_hoang.py` (còn trong lịch sử git, commit `61bab04`).
+- `pg_data.py`: đọc thêm được nhiều zip độc lập và CSV, có hoặc không có tiêu đề, kể cả khi bị cắt giữa dòng. Thêm
+  `--tu-kiem-tra` (8 phép thử).
+- Báo cáo R0.1, Mục 10: kết quả kiểm tra thư mục `data` trên EA-PRO.
+
+**Kiểm tra kỹ thuật:**
+
+- Compile MQL5: chưa làm được (không có MetaEditor).
+- Kiểm tra tĩnh V0.11: đạt (63 hàm; 44 input; không có từ khóa giao dịch).
+- `pg_data.py --tu-kiem-tra`: 8/8 đạt. File XAUUSDm cũ đọc ra đúng 2.733.021 tick như trước.
+
+**Backtest:** không áp dụng.
+**Rollback:** V0.10 (commit `61bab04`).
 
 ### EA V0.10 TEST — Chế độ quan sát
 

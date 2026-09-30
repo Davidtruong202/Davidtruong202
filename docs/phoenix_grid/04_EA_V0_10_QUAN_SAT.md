@@ -1,15 +1,21 @@
-# EA Phoenix Grid V0.10 TEST — chế độ quan sát
+# EA Phoenix Grid V0.10 / V0.11 TEST — chế độ quan sát
 
 **DAVID HUNTER – PHOENIX GRID – 0941920986**
 
-> **Trạng thái: TEST, CHƯA COMPILE.**
+> **Trạng thái: TEST.**
 >
-> - Môi trường làm việc của tôi không có MetaEditor, nên file chưa được compile và chưa chạy trên MT5.
+> - Bản hiện hành là **V0.11** (30/09/2026). So với V0.10, V0.11 chỉ đổi giao diện: bảng chuyển sang góc trái trên
+>   chart, bỏ biểu tượng phượng hoàng, bỏ dịch chart. Thuật toán, input nhận diện và các cột log giữ nguyên.
+> - Môi trường làm việc của tôi không có MetaEditor, nên tôi chưa compile được. Ngày 30/09/2026 bạn phản hồi V0.10
+>   "khá ổn", nhưng chưa gửi kết quả compile (số lỗi, số cảnh báo) cho tôi.
 > - Bản này **không gửi lệnh**. Mã nguồn không có `OrderSend`, `CTrade`, `PositionClose` hay lời gọi giao dịch nào
 >   khác (đã kiểm tra tĩnh, Mục 10).
 > - Chưa có backtest. Không có con số hiệu suất nào trong tài liệu này.
 
-File: [`MQL5/Experts/PhoenixGrid/EA_PHOENIX_GRID_V0_10_TEST.mq5`](../../MQL5/Experts/PhoenixGrid/EA_PHOENIX_GRID_V0_10_TEST.mq5)
+| Bản | File | Ghi chú |
+|---|---|---|
+| **V0.11 TEST** | [`EA_PHOENIX_GRID_V0_11_TEST.mq5`](../../MQL5/Experts/PhoenixGrid/EA_PHOENIX_GRID_V0_11_TEST.mq5) | Bản hiện hành |
+| V0.10 TEST | [`EA_PHOENIX_GRID_V0_10_TEST.mq5`](../../MQL5/Experts/PhoenixGrid/EA_PHOENIX_GRID_V0_10_TEST.mq5) | Giữ lại để rollback (bảng bên phải, có biểu tượng) |
 
 ## 1. Vì sao có bản EA này lúc này
 
@@ -28,7 +34,7 @@ File: [`MQL5/Experts/PhoenixGrid/EA_PHOENIX_GRID_V0_10_TEST.mq5`](../../MQL5/Exp
 
 | Bản | Nội dung | Gửi lệnh? | Điều kiện bắt đầu |
 |---|---|---|---|
-| **V0.10 TEST** | Quan sát: nhận diện trạng thái, bảng điều khiển, ước tính rủi ro, log CSV | **Không** | Yêu cầu 30/09/2026 (bản này) |
+| **V0.10 / V0.11 TEST** | Quan sát: nhận diện trạng thái, bảng điều khiển, ước tính rủi ro, log CSV. V0.11 chỉ đổi giao diện | **Không** | Yêu cầu 30/09/2026 (bản này) |
 | V0.20 TEST | Hạ tầng thực thi, chưa có chiến lược:<br>- RiskGate theo Mục 8.2 (4)<br>- Sổ basket, lưu và khôi phục trạng thái<br>- State machine Mục 12, nút ĐÓNG<br>- Vị thế lạ trên tài khoản riêng → PAUSED + cảnh báo | Chỉ demo / tester | Bạn duyệt đặc tả V0.20 |
 | V0.3x TEST | Từng module (Entry, DCA, Hedge, Recovery), mỗi module một bản | Chỉ demo / tester | Module đó qua cổng nghiên cứu (A, C, D, E) + bạn duyệt |
 | V1.00 TEST | Chỉ gồm module đã duyệt; forward demo ≥ 3 tháng (G3) | Demo | PG-R1.0 được duyệt |
@@ -48,6 +54,9 @@ File lưu dạng UTF-8 có BOM để MetaEditor đọc đúng tiếng Việt.
 ### 3.2. Chạy trên chart
 
 - Tài khoản Phoenix (Exness-MT5Real20), chart **XAUUSDc**, khung thời gian nào cũng được, vì EA tự dùng M5 và M1.
+- Bảng nằm ở góc trái trên, ngay dưới dòng tên chart. Nếu chart đang bật One Click Trading, bảng sẽ che bảng giao dịch
+  nhanh. Khi đó tắt One Click Trading trên chart này (chuột phải vào chart).
+- Khi thay V0.10 bằng V0.11 trên cùng chart, gỡ V0.10 trước. V0.10 tự trả lại chế độ dịch chart như cũ khi bị gỡ.
 - **Để TẮT "Allow Algo Trading"** trong thuộc tính EA. V0.10 không cần quyền giao dịch, và tắt quyền là thêm một lớp
   an toàn trên tài khoản thật. EA vẫn nhận tick và cập nhật bảng khi tắt quyền này.
 - Tài khoản đang có 3 vị thế mở (lần đọc thông số 30/09/2026). V0.10 chỉ báo "Vị thế khác" màu cam, không đụng vào
@@ -58,25 +67,25 @@ File lưu dạng UTF-8 có BOM để MetaEditor đọc đúng tiếng Việt.
 - Symbol XAUUSDc, chế độ **"Every tick based on real ticks"**. Tốc độ và mật độ tick chỉ có nghĩa với tick thật.
 - MT5 không gửi sự kiện chart cho EA trong tester, nên các nút trên bảng không bấm được. Bảng và hộp giá vẫn hiển
   thị.
-- Log tester ghi vào file riêng `PG_V010_trang_thai_XAUUSDc_tester_YYYYMM.csv`, ghi mới mỗi lần chạy. File này không
-  lẫn với log chạy thật.
+- Log tester ghi vào file riêng `PG_V011_trang_thai_XAUUSDc_tester_YYYYMM.csv` (V0.10: `PG_V010_…`), ghi mới mỗi lần
+  chạy. File này không lẫn với log chạy thật.
 
 ## 4. Cần kiểm tra khi chạy lần đầu
 
 | # | Kiểm tra | Kết quả mong đợi |
 |---|---|---|
 | 1 | Compile | 0 lỗi. Cảnh báo (nếu có) gửi tôi |
-| 2 | Bảng điều khiển | Nằm góc phải trên, chữ tiếng Việt đủ dấu, biểu tượng phượng hoàng ở góc trái đầu bảng, nến mới nhất không bị bảng che (chart được dịch sang trái) |
-| 3 | Thông báo khởi động | "Khởi động V0.10 TEST: chế độ quan sát, không gửi lệnh", "Symbol XAUUSDc, tiền tài khoản USC" và "Tài khoản có 3 vị thế không thuộc Phoenix" |
+| 2 | Bảng điều khiển | V0.11: nằm góc trái trên, dưới dòng tên chart, chữ tiếng Việt đủ dấu, không có biểu tượng; nến mới nhất ở bên phải, không bị che |
+| 3 | Thông báo khởi động | "Khởi động V0.11 TEST: chế độ quan sát, không gửi lệnh", "Symbol XAUUSDc, tiền tài khoản USC" và "Tài khoản có 3 vị thế không thuộc Phoenix" |
 | 4 | Sau tối đa 1 nến M5 | Dòng "Lọc vào lệnh" hết "Chờ dữ liệu". Có ATR, ADX, ER, chạm biên |
 | 5 | Khi có SIDEWAYS | Chip SIDEWAYS sáng, hộp màu vàng sẫm vẽ trên chart, hai đường chấm cam là mức cảnh báo |
 | 6 | Rủi ro ước tính | Lỗ 100 USD / lot min = 100,00 (≈ 2% của 5.000); margin lot min ≈ 2 USC; "Phòng thủ tối đa" khoảng 18–27 USD tùy ATR (Mục 7.9) |
-| 7 | File log | `Common\Files\PhoenixGrid\PG_V010_trang_thai_XAUUSDc_YYYYMM.csv`, mỗi 5 phút một dòng `M5` |
-| 8 | Tab Journal / Experts | Không có lỗi `PG:` lặp lại (ví dụ "không mở được log", "không tạo được biểu tượng") |
+| 7 | File log | `Common\Files\PhoenixGrid\PG_V011_trang_thai_XAUUSDc_YYYYMM.csv`, mỗi 5 phút một dòng `M5` |
+| 8 | Tab Journal / Experts | Không có lỗi `PG:` lặp lại (ví dụ "không mở được log") |
 | 9 | Nút | TẠM DỪNG / TIẾP TỤC đổi thành "XÁC NHẬN? 5s" ở lần bấm đầu. ĐÓNG BASKET / ĐÓNG TẤT CẢ chỉ báo "chức năng có từ V0.20" |
 
 Nếu bảng bị chồng chữ trên màn hình độ phân giải cao, chỉnh `Tỷ lệ kích thước bảng` (0,8–1,5). Tọa độ bảng đã tự
-nhân theo DPI màn hình.
+nhân theo DPI màn hình. Nút "–" ở đầu bảng thu gọn bảng còn một dòng.
 
 ## 5. Tham số và đối chiếu kế hoạch
 
@@ -113,9 +122,8 @@ Các tham số nhận diện sẽ được thay bằng kết quả A0. Không t�
 
 ## 6. Bảng điều khiển
 
-Bảng theo Mục 19. Đầu bảng có biểu tượng phượng hoàng ở góc trái trên, dòng "DAVID HUNTER", "PHOENIX GRID" và
-"0941920986". Biểu tượng là mảng ARGB 64 × 64 nhúng trong mã nguồn, nên chỉ cần chép một file `.mq5`. Mảng được sinh
-bởi `research/phoenix_grid/cong_cu_ea/bieu_tuong_phuong_hoang.py`.
+Bảng theo Mục 19, neo góc trái trên chart (V0.11). Đầu bảng có ba dòng "DAVID HUNTER", "PHOENIX GRID" và
+"0941920986". V0.10 có thêm biểu tượng phượng hoàng; từ V0.11 bỏ theo yêu cầu ngày 30/09/2026.
 
 | Khu vực | Nội dung |
 |---|---|
@@ -310,14 +318,15 @@ chúng cùng các tham số khác. Nếu bạn không đồng ý điểm nào, t
 |---|---|
 | Compile MetaEditor | **Chưa làm** (không có MetaEditor) |
 | Chạy trên MT5 / tester | **Chưa làm** |
-| Kiểm tra tĩnh (script Python) | Đạt:<br>- Ngoặc cân bằng; không có chuỗi bị cắt ngang dòng<br>- 66 hàm tự định nghĩa, mọi lời gọi hàm có định nghĩa hoặc là hàm MQL5 chuẩn<br>- Không có hàm định nghĩa trùng hay định nghĩa mà không gọi<br>- Mọi biến `g_` đều có khai báo<br>- Mảng biểu tượng đủ 4.096 phần tử<br>- 45 input đều có nhãn tiếng Việt |
+| Kiểm tra tĩnh (`research/phoenix_grid/cong_cu_ea/kiem_tra_tinh_mq5.py`) | Đạt cho cả hai bản:<br>- Ngoặc cân bằng; không có chuỗi bị cắt ngang dòng<br>- Mọi lời gọi hàm có định nghĩa hoặc là hàm MQL5 chuẩn (V0.10: 66 hàm tự định nghĩa; V0.11: 63)<br>- Không có hàm định nghĩa trùng hay định nghĩa mà không gọi<br>- Mọi biến `g_` đều có khai báo<br>- Input đều có nhãn tiếng Việt (V0.10: 45; V0.11: 44, bỏ "Dịch chart")<br>- V0.10: mảng biểu tượng đủ 4.096 phần tử |
 | Không có lệnh giao dịch | Đạt: không có `OrderSend`, `OrderSendAsync`, `CTrade`, `Trade.mqh`, `PositionClose`, `PositionModify`, `OrderCloseBy`, `TRADE_ACTION` |
 | Mã hóa file | UTF-8 có BOM, xuống dòng LF |
 | Công thức rủi ro | Khớp Bảng C của kế hoạch (Mục 7.9) |
 
 ## 11. Log CSV
 
-- Vị trí: `Common\Files\PhoenixGrid\PG_V010_trang_thai_<symbol>_<YYYYMM>.csv` (tester: `_tester_`).
+- Vị trí: `Common\Files\PhoenixGrid\PG_V011_trang_thai_<symbol>_<YYYYMM>.csv` (tester: `_tester_`). V0.10 ghi
+  `PG_V010_…`. Hai bản có cùng các cột.
 - Dấu phân cách `;`, mã hóa UTF-8.
 - Không ghi số tài khoản, tên hay số dư. Chỉ có giá và trạng thái.
 
