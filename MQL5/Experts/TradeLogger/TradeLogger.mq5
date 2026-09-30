@@ -6,9 +6,15 @@
 //| tools/analyze_trades.py.                                         |
 //|                                                                  |
 //| EA KHONG dat lenh, chi doc lich su + trang thai tai khoan.       |
+//|                                                                  |
+//| 2.00: them dac trung rieng cua bot DCA (EMA/CCI/nen dung khung   |
+//| cua file .set), boi canh ro lenh (lenh thu may, cach lenh truoc  |
+//| bao nhieu pip, he so lot), bat su kien tuc thi bang               |
+//| OnTradeTransaction, loc theo magic, xuat nen M1 kem dac trung     |
+//| bot (de so sanh luc vao lenh vs luc khong vao).                   |
 //+------------------------------------------------------------------+
 #property copyright "TradeLogger"
-#property version   "1.00"
+#property version   "2.00"
 #property description "Ghi log lenh (deal/order/position) + dac trung thi truong ra CSV."
 #property description "Chay duoc voi tai khoan dang nhap bang mat khau investor (chi doc)."
 
@@ -28,6 +34,29 @@ input int             InpBarsRefreshHours = 6;          // Xuất lại file n�
 
 input group "Theo dõi"
 input int             InpTimerSeconds     = 5;          // Chu kỳ kiểm tra (giây)
+input int             InpLiveWindowSec    = 10;         // Deal mới trong N giây -> ghi thêm bid/ask/EMA tức thời
+
+input group "Lọc lệnh"
+input long            InpMagicFilter      = 0;          // Chỉ ghi magic này (0 = tất cả)
+input string          InpSymbolFilter     = "";         // Chỉ ghi symbol này (trống = tất cả)
+input double          InpPipSize          = 0;          // Cỡ pip (0 = tự động, XAU/GOLD = 0.1)
+
+input group "Đặc trưng riêng bot DCA (mặc định khớp file .set BE Nha Trang)"
+input bool            InpBotFeatures      = true;       // Ghi đặc trưng bot vào deals
+input ENUM_TIMEFRAMES InpBotEmaTF         = PERIOD_M6;  // EMA chính: khung (InpEMATF)
+input int             InpBotEmaFast       = 34;         // EMA chính: nhanh
+input int             InpBotEmaSlow       = 89;         // EMA chính: chậm
+input ENUM_TIMEFRAMES InpBotF1TF          = PERIOD_M12; // Lọc phụ 1: khung (InpM1TF)
+input int             InpBotF1Fast        = 10;
+input int             InpBotF1Slow        = 20;
+input ENUM_TIMEFRAMES InpBotF2TF          = PERIOD_M6;  // Lọc phụ 2: khung (InpM15TF)
+input int             InpBotF2Fast        = 34;
+input int             InpBotF2Slow        = 89;
+input ENUM_TIMEFRAMES InpBotCciTF         = PERIOD_M1;  // CCI: khung
+input int             InpBotCciPeriod     = 14;
+input ENUM_TIMEFRAMES InpBotDcaTF         = PERIOD_M1;  // Khung nến DCA (InpDCATF)
+input ENUM_TIMEFRAMES InpBotPaTF          = PERIOD_M10; // Khung Price Action
+input bool            InpExportBotBars    = true;       // Xuất nến khung DCA kèm đặc trưng bot (nối thêm liên tục)
 
 //--- bo chi bao cho moi cap (symbol, timeframe)
 struct IndSet
@@ -46,11 +75,35 @@ datetime g_lastBarsExport = 0;
 bool     g_snapInit = false;
 int      g_waitTicks = 0;
 
+//--- bo chi bao rieng cua bot DCA cho moi symbol
+struct BotSet
+  {
+   string            sym;
+   int               emaF, emaS, f1F, f1S, f2F, f2S, cci;
+  };
+BotSet   g_bot[];
+
+//--- phat lai lich su deal -> vi the dang mo (de tinh boi canh ro lenh)
+ulong    g_pId[];
+string   g_pSym[];
+long     g_pMagic[];
+int      g_pSide[];      // 0 = BUY, 1 = SELL
+double   g_pPrice[], g_pVol[];
+int      g_pIdx[], g_pBasket[];
+string   g_bKey[];
+int      g_bCur[];
+int      g_basketSeq = 0;
+
+bool     g_ordersDirty = false;
+string   g_bbSym[];       // file nen bot: symbol -> thoi gian nen cuoi da ghi
+datetime g_bbLast[];
+
 //--- snapshot vi the / lenh cho (mang song song)
 ulong    g_sTicket[];
 bool     g_sIsOrder[];
 string   g_sSym[];
 string   g_sType[];
+long     g_sMagic[];
 double   g_sVol[], g_sPrice[], g_sSL[], g_sTP[];
 
 //+------------------------------------------------------------------+
@@ -86,6 +139,51 @@ string D(const double v, const int digits = 5) { return DoubleToString(v, digits
 string TS(const datetime t) { return TimeToString(t, TIME_DATE | TIME_SECONDS); }
 
 bool Valid(const double v) { return v != EMPTY_VALUE && MathIsValidNumber(v); }
+
+//--- so hop le -> chuoi, khong hop le -> o trong
+string VD(const double v, const int digits) { return Valid(v) ? DoubleToString(v, digits) : ""; }
+
+//--- chuoi n-1 dau phay cho mot header n cot
+string EmptyCols(const string header)
+  {
+   string parts[];
+   int n = StringSplit(header, ',', parts);
+   string s = "";
+   for(int i = 1; i < n; i++)
+      s += ",";
+   return s;
+  }
+
+string TfName(const ENUM_TIMEFRAMES tf)
+  {
+   string s = EnumToString(tf == PERIOD_CURRENT ? (ENUM_TIMEFRAMES)_Period : tf);
+   StringReplace(s, "PERIOD_", "");
+   return s;
+  }
+
+double PipOf(const string sym)
+  {
+   if(InpPipSize > 0)
+      return InpPipSize;
+   string s = sym;
+   StringToUpper(s);
+   if(StringFind(s, "XAU") >= 0 || StringFind(s, "GOLD") >= 0)
+      return 0.1;
+   int    d  = (int)SymbolInfoInteger(sym, SYMBOL_DIGITS);
+   double pt = SymbolInfoDouble(sym, SYMBOL_POINT);
+   if(pt <= 0)
+      return 0.0001;
+   return (d == 3 || d == 5) ? 10.0 * pt : pt;
+  }
+
+bool PassFilter(const string sym, const long magic)
+  {
+   if(InpMagicFilter != 0 && magic != InpMagicFilter)
+      return false;
+   if(StringLen(InpSymbolFilter) > 0 && sym != InpSymbolFilter)
+      return false;
+   return true;
+  }
 
 //+------------------------------------------------------------------+
 int IndIndex(const string sym, const ENUM_TIMEFRAMES tf)
@@ -132,7 +230,10 @@ bool IndReady(const int k)
 
 bool SymbolReady(const string sym)
   {
-   return IndReady(IndIndex(sym, InpFeatureTF)) && IndReady(IndIndex(sym, InpBiasTF));
+   bool ok = IndReady(IndIndex(sym, InpFeatureTF)) && IndReady(IndIndex(sym, InpBiasTF));
+   if(ok && (InpBotFeatures || InpExportBotBars))
+      ok = BotReady(BotIndex(sym));
+   return ok;
   }
 
 double Buf(const int handle, const int buffer, const int shift)
@@ -289,12 +390,275 @@ bool Features(const string sym, const int shift, string &out)
   }
 
 //+------------------------------------------------------------------+
+//| Dac trung rieng cua bot DCA: dung khung/chu ky trong file .set.   |
+//| Moi gia tri lay tren nen DA DONG ngay truoc thoi diem t, nen      |
+//| tinh lai tu lich su cung ra dung gia tri bot da thay luc do.      |
+//+------------------------------------------------------------------+
+int BotIndex(const string sym)
+  {
+   int n = ArraySize(g_bot);
+   for(int i = 0; i < n; i++)
+      if(g_bot[i].sym == sym)
+         return i;
+   SymbolSelect(sym, true);
+   ArrayResize(g_bot, n + 1);
+   g_bot[n].sym = sym;
+   g_bot[n].emaF = iMA(sym, InpBotEmaTF, InpBotEmaFast, 0, MODE_EMA, PRICE_CLOSE);
+   g_bot[n].emaS = iMA(sym, InpBotEmaTF, InpBotEmaSlow, 0, MODE_EMA, PRICE_CLOSE);
+   g_bot[n].f1F  = iMA(sym, InpBotF1TF, InpBotF1Fast, 0, MODE_EMA, PRICE_CLOSE);
+   g_bot[n].f1S  = iMA(sym, InpBotF1TF, InpBotF1Slow, 0, MODE_EMA, PRICE_CLOSE);
+   g_bot[n].f2F  = iMA(sym, InpBotF2TF, InpBotF2Fast, 0, MODE_EMA, PRICE_CLOSE);
+   g_bot[n].f2S  = iMA(sym, InpBotF2TF, InpBotF2Slow, 0, MODE_EMA, PRICE_CLOSE);
+   g_bot[n].cci  = iCCI(sym, InpBotCciTF, InpBotCciPeriod, PRICE_TYPICAL);
+   return n;
+  }
+
+bool BotReady(const int k)
+  {
+   int h[7];
+   h[0] = g_bot[k].emaF; h[1] = g_bot[k].emaS; h[2] = g_bot[k].f1F; h[3] = g_bot[k].f1S;
+   h[4] = g_bot[k].f2F;  h[5] = g_bot[k].f2S;  h[6] = g_bot[k].cci;
+   for(int i = 0; i < 7; i++)
+      if(h[i] == INVALID_HANDLE || BarsCalculated(h[i]) <= 0)
+        {
+         g_notReady = StringFormat("%s bot indicator #%d: handle=%d", g_bot[k].sym, i, h[i]);
+         return false;
+        }
+   return true;
+  }
+
+string BotHeader()
+  {
+   return "b_hour,b_sec_in_dca_bar,b_sec_in_ema_bar,"
+          "b_ema_bar,b_ema_fast,b_ema_slow,b_ema_gap_pct,b_px_dist_fast_pct,b_ema_dir,"
+          "b_f1_fast,b_f1_slow,b_f1_dir,b_f2_fast,b_f2_slow,b_f2_dir,b_cci1,b_cci2,"
+          "b_dca_bar,b_dca_o,b_dca_h,b_dca_l,b_dca_c,b_pa_body_pct,b_pa_dir";
+  }
+
+int Dir(const double a, const double b)
+  {
+   if(!Valid(a) || !Valid(b))
+      return 0;
+   return a > b ? 1 : (a < b ? -1 : 0);
+  }
+
+//--- t/tmsc: thoi diem ra quyet dinh; price: gia de do khoang cach toi EMA
+bool BotFeatures(const string sym, const datetime t, const long tmsc, const double price, string &out)
+  {
+   out = "";
+   int k  = BotIndex(sym);
+   int se = iBarShift(sym, InpBotEmaTF, t, false);
+   int s1 = iBarShift(sym, InpBotF1TF, t, false);
+   int s2 = iBarShift(sym, InpBotF2TF, t, false);
+   int sc = iBarShift(sym, InpBotCciTF, t, false);
+   int sd = iBarShift(sym, InpBotDcaTF, t, false);
+   int sp = iBarShift(sym, InpBotPaTF, t, false);
+   if(se < 0 || s1 < 0 || s2 < 0 || sc < 0 || sd < 0 || sp < 0)
+      return false;
+   int digits = (int)SymbolInfoInteger(sym, SYMBOL_DIGITS);
+   if(digits <= 0)
+      digits = 5;
+
+   double ef  = Buf(g_bot[k].emaF, 0, se + 1), es = Buf(g_bot[k].emaS, 0, se + 1);
+   double f1f = Buf(g_bot[k].f1F, 0, s1 + 1),  f1s = Buf(g_bot[k].f1S, 0, s1 + 1);
+   double f2f = Buf(g_bot[k].f2F, 0, s2 + 1),  f2s = Buf(g_bot[k].f2S, 0, s2 + 1);
+   double c1  = Buf(g_bot[k].cci, 0, sc + 1),  c2  = Buf(g_bot[k].cci, 0, sc + 2);
+
+   double gap  = (Valid(ef) && Valid(es) && price > 0) ? (ef - es) / price * 100.0 : EMPTY_VALUE;
+   double dist = (Valid(ef) && price > 0) ? (price - ef) / price * 100.0 : EMPTY_VALUE;
+
+   datetime dcaOpen = iTime(sym, InpBotDcaTF, sd);
+   datetime emaOpen = iTime(sym, InpBotEmaTF, se);
+   double secDca = dcaOpen > 0 ? (tmsc - (long)dcaOpen * 1000) / 1000.0 : EMPTY_VALUE;
+   double secEma = emaOpen > 0 ? (tmsc - (long)emaOpen * 1000) / 1000.0 : EMPTY_VALUE;
+
+   datetime dT = iTime(sym, InpBotDcaTF, sd + 1);
+   double dO = iOpen(sym, InpBotDcaTF, sd + 1), dH = iHigh(sym, InpBotDcaTF, sd + 1);
+   double dL = iLow(sym, InpBotDcaTF, sd + 1),  dC = iClose(sym, InpBotDcaTF, sd + 1);
+
+   double pO = iOpen(sym, InpBotPaTF, sp + 1), pC = iClose(sym, InpBotPaTF, sp + 1);
+   double pH = iHigh(sym, InpBotPaTF, sp + 1), pL = iLow(sym, InpBotPaTF, sp + 1);
+   double body = (pH > pL) ? MathAbs(pC - pO) / (pH - pL) * 100.0 : EMPTY_VALUE;
+
+   MqlDateTime mt;
+   TimeToStruct(t, mt);
+
+   out = IntegerToString(mt.hour) + "," + VD(secDca, 3) + "," + VD(secEma, 3) + "," +
+         TS(iTime(sym, InpBotEmaTF, se + 1)) + "," + VD(ef, digits + 2) + "," + VD(es, digits + 2) + "," +
+         VD(gap, 5) + "," + VD(dist, 5) + "," + IntegerToString(Dir(ef, es)) + "," +
+         VD(f1f, digits + 2) + "," + VD(f1s, digits + 2) + "," + IntegerToString(Dir(f1f, f1s)) + "," +
+         VD(f2f, digits + 2) + "," + VD(f2s, digits + 2) + "," + IntegerToString(Dir(f2f, f2s)) + "," +
+         VD(c1, 2) + "," + VD(c2, 2) + "," +
+         (dT > 0 ? TS(dT) : "") + "," + VD(dO, digits) + "," + VD(dH, digits) + "," + VD(dL, digits) + "," +
+         VD(dC, digits) + "," + VD(body, 2) + "," + IntegerToString(Dir(pC, pO));
+   return true;
+  }
+
+//+------------------------------------------------------------------+
+//| Boi canh ro lenh: phat lai deal theo thu tu thoi gian, gom vi the |
+//| dang mo theo (symbol, magic, chieu) = mot "ro" DCA.               |
+//+------------------------------------------------------------------+
+string BasketHeader()
+  {
+   return "k_side,k_basket,k_idx,k_count_before,k_vol_before,k_avg_before,k_last_price,k_last_lot,"
+          "k_dist_last_pips,k_dist_avg_pips,k_lot_ratio,k_pos_pips,k_count_after,k_pip";
+  }
+
+void ResetReplay()
+  {
+   ArrayResize(g_pId, 0); ArrayResize(g_pSym, 0); ArrayResize(g_pMagic, 0); ArrayResize(g_pSide, 0);
+   ArrayResize(g_pPrice, 0); ArrayResize(g_pVol, 0); ArrayResize(g_pIdx, 0); ArrayResize(g_pBasket, 0);
+   ArrayResize(g_bKey, 0); ArrayResize(g_bCur, 0);
+   g_basketSeq = 0;
+  }
+
+int FindPos(const ulong id)
+  {
+   for(int i = ArraySize(g_pId) - 1; i >= 0; i--)
+      if(g_pId[i] == id)
+         return i;
+   return -1;
+  }
+
+void RemovePos(const int i)
+  {
+   int n = ArraySize(g_pId);
+   for(int j = i; j < n - 1; j++)
+     {
+      g_pId[j] = g_pId[j + 1];   g_pSym[j] = g_pSym[j + 1];     g_pMagic[j] = g_pMagic[j + 1];
+      g_pSide[j] = g_pSide[j + 1]; g_pPrice[j] = g_pPrice[j + 1]; g_pVol[j] = g_pVol[j + 1];
+      g_pIdx[j] = g_pIdx[j + 1];  g_pBasket[j] = g_pBasket[j + 1];
+     }
+   ArrayResize(g_pId, n - 1); ArrayResize(g_pSym, n - 1); ArrayResize(g_pMagic, n - 1); ArrayResize(g_pSide, n - 1);
+   ArrayResize(g_pPrice, n - 1); ArrayResize(g_pVol, n - 1); ArrayResize(g_pIdx, n - 1); ArrayResize(g_pBasket, n - 1);
+  }
+
+//--- mang vi the giu thu tu mo lenh, nen phan tu cuoi cung khop = lenh moi nhat
+void BasketStats(const string sym, const long magic, const int side,
+                 int &cnt, double &vol, double &avg, double &lastP, double &lastL)
+  {
+   cnt = 0; vol = 0; avg = 0; lastP = 0; lastL = 0;
+   double pv = 0;
+   for(int i = 0; i < ArraySize(g_pId); i++)
+     {
+      if(g_pSym[i] != sym || g_pMagic[i] != magic || g_pSide[i] != side)
+         continue;
+      cnt++;
+      vol += g_pVol[i];
+      pv  += g_pPrice[i] * g_pVol[i];
+      lastP = g_pPrice[i];
+      lastL = g_pVol[i];
+     }
+   if(vol > 0)
+      avg = pv / vol;
+  }
+
+int BasketSlot(const string key)
+  {
+   for(int i = 0; i < ArraySize(g_bKey); i++)
+      if(g_bKey[i] == key)
+         return i;
+   int n = ArraySize(g_bKey);
+   ArrayResize(g_bKey, n + 1);
+   ArrayResize(g_bCur, n + 1);
+   g_bKey[n] = key;
+   g_bCur[n] = 0;
+   return n;
+  }
+
+//--- cap nhat trang thai theo deal t, tra ve cot boi canh ro va magic cua vi the
+string Replay(const ulong t, long &magic)
+  {
+   long   type  = HistoryDealGetInteger(t, DEAL_TYPE);
+   long   entry = HistoryDealGetInteger(t, DEAL_ENTRY);
+   ulong  pid   = (ulong)HistoryDealGetInteger(t, DEAL_POSITION_ID);
+   string sym   = HistoryDealGetString(t, DEAL_SYMBOL);
+   double price = HistoryDealGetDouble(t, DEAL_PRICE);
+   double vol   = HistoryDealGetDouble(t, DEAL_VOLUME);
+   magic = HistoryDealGetInteger(t, DEAL_MAGIC);
+
+   int pi = FindPos(pid);
+   int side;
+   if(entry == DEAL_ENTRY_IN)
+      side = (type == DEAL_TYPE_BUY) ? 0 : 1;
+   else
+      side = (pi >= 0) ? g_pSide[pi] : ((type == DEAL_TYPE_BUY) ? 1 : 0);
+   if(pi >= 0)
+      magic = g_pMagic[pi]; // deal dong boi SL/TP co the khong mang magic
+
+   double pip = PipOf(sym);
+   double dir = (side == 0) ? 1.0 : -1.0;
+   int digits = (int)SymbolInfoInteger(sym, SYMBOL_DIGITS);
+   if(digits <= 0)
+      digits = 5;
+
+   int cnt; double bvol, avg, lastP, lastL;
+   BasketStats(sym, magic, side, cnt, bvol, avg, lastP, lastL);
+   int slot = BasketSlot(sym + "|" + IntegerToString(magic) + "|" + IntegerToString(side));
+
+   double distLast = EMPTY_VALUE, distAvg = EMPTY_VALUE, ratio = EMPTY_VALUE, posPips = EMPTY_VALUE;
+   int basket = -1, idx = 0, after = cnt;
+
+   if(entry == DEAL_ENTRY_IN)
+     {
+      if(cnt == 0)
+         g_bCur[slot] = ++g_basketSeq;
+      basket = g_bCur[slot];
+      idx = cnt + 1;
+      if(cnt > 0)
+        {
+         distLast = dir * (lastP - price) / pip;   // duong = vao lenh o gia tot hon lenh truoc
+         distAvg  = dir * (avg - price) / pip;
+         if(lastL > 0)
+            ratio = vol / lastL;
+        }
+      int n = ArraySize(g_pId);
+      ArrayResize(g_pId, n + 1); ArrayResize(g_pSym, n + 1); ArrayResize(g_pMagic, n + 1); ArrayResize(g_pSide, n + 1);
+      ArrayResize(g_pPrice, n + 1); ArrayResize(g_pVol, n + 1); ArrayResize(g_pIdx, n + 1); ArrayResize(g_pBasket, n + 1);
+      g_pId[n] = pid; g_pSym[n] = sym; g_pMagic[n] = magic; g_pSide[n] = side;
+      g_pPrice[n] = price; g_pVol[n] = vol; g_pIdx[n] = idx; g_pBasket[n] = basket;
+      after = cnt + 1;
+     }
+   else if(entry == DEAL_ENTRY_OUT || entry == DEAL_ENTRY_OUT_BY)
+     {
+      if(pi >= 0)
+        {
+         basket  = g_pBasket[pi];
+         idx     = g_pIdx[pi];
+         posPips = dir * (price - g_pPrice[pi]) / pip;   // duong = lenh nay dong co lai
+         g_pVol[pi] -= vol;
+         if(g_pVol[pi] <= 1e-8)
+            RemovePos(pi);
+        }
+      if(cnt > 0)
+         distAvg = dir * (price - avg) / pip;            // duong = dong tren gia trung binh (lai)
+      int c2; double v2, a2, l2, ll2;
+      BasketStats(sym, magic, side, c2, v2, a2, l2, ll2);
+      after = c2;
+     }
+   else
+      return (side == 0 ? "BUY" : "SELL") + EmptyCols(BasketHeader()); // INOUT (tai khoan netting): bo qua
+
+   return (side == 0 ? "BUY" : "SELL") + "," + IntegerToString(basket) + "," + IntegerToString(idx) + "," +
+          IntegerToString(cnt) + "," + D(bvol, 2) + "," + (cnt > 0 ? D(avg, digits + 2) : "") + "," +
+          (cnt > 0 ? D(lastP, digits) : "") + "," + (cnt > 0 ? D(lastL, 2) : "") + "," +
+          VD(distLast, 1) + "," + VD(distAvg, 1) + "," + VD(ratio, 4) + "," + VD(posPips, 1) + "," +
+          IntegerToString(after) + "," + D(pip, 6);
+  }
+
+//+------------------------------------------------------------------+
 //| Deals                                                             |
 //+------------------------------------------------------------------+
+string LiveHeader()
+  {
+   return "live_lag_sec,live_bid,live_ask,live_spread_pts,live_ema_fast0,live_ema_slow0";
+  }
+
 string DealHeader()
   {
    return "deal_ticket,order_ticket,position_id,time,time_msc,symbol,type,entry,volume,price,sl,tp,"
-          "profit,commission,swap,fee,magic,reason,comment," + FeatureHeader();
+          "profit,commission,swap,fee,magic,reason,comment," + FeatureHeader() + "," +
+          BasketHeader() + "," + BotHeader() + "," + LiveHeader();
   }
 
 bool IsLogged(const ulong ticket)
@@ -306,13 +670,20 @@ bool IsLogged(const ulong ticket)
    return false;
   }
 
-bool DealLine(const ulong t, string &line)
+//--- live = deal vua xay ra (goi tu OnTradeTransaction/OnTimer): ghi them gia/EMA tuc thoi
+bool DealLine(const ulong t, string &line, const bool live = false)
   {
    long type = HistoryDealGetInteger(t, DEAL_TYPE);
    if(type != DEAL_TYPE_BUY && type != DEAL_TYPE_SELL)
       return false; // bo qua nap/rut tien, credit...
 
+   //--- luon phat lai (ke ca deal bi loc) de trang thai ro lenh dung
+   long posMagic;
+   string basketCols = Replay(t, posMagic);
+
    string sym  = HistoryDealGetString(t, DEAL_SYMBOL);
+   if(!PassFilter(sym, posMagic))
+      return false;
    int digits  = (int)SymbolInfoInteger(sym, SYMBOL_DIGITS);
    if(digits <= 0)
       digits = 5;
@@ -334,7 +705,7 @@ bool DealLine(const ulong t, string &line)
           D(HistoryDealGetDouble(t, DEAL_COMMISSION), 2) + "," +
           D(HistoryDealGetDouble(t, DEAL_SWAP), 2) + "," +
           D(HistoryDealGetDouble(t, DEAL_FEE), 2) + "," +
-          IntegerToString(HistoryDealGetInteger(t, DEAL_MAGIC)) + "," +
+          IntegerToString(posMagic) + "," +
           EnumToString((ENUM_DEAL_REASON)HistoryDealGetInteger(t, DEAL_REASON)) + "," +
           Clean(HistoryDealGetString(t, DEAL_COMMENT)) + ",";
 
@@ -345,6 +716,30 @@ bool DealLine(const ulong t, string &line)
       line += f;
    else
       line += EmptyFeatures();
+
+   line += "," + basketCols + ",";
+
+   string b;
+   long   tmsc  = HistoryDealGetInteger(t, DEAL_TIME_MSC);
+   double price = HistoryDealGetDouble(t, DEAL_PRICE);
+   if(InpBotFeatures && BotFeatures(sym, tm, tmsc, price, b))
+      line += b;
+   else
+      line += EmptyCols(BotHeader());
+
+   line += ",";
+   long lag = (long)(TimeCurrent() - tm);
+   if(live && lag <= InpLiveWindowSec)
+     {
+      double bid = SymbolInfoDouble(sym, SYMBOL_BID), ask = SymbolInfoDouble(sym, SYMBOL_ASK);
+      double pt  = SymbolInfoDouble(sym, SYMBOL_POINT);
+      int k = BotIndex(sym);
+      line += IntegerToString(lag) + "," + D(bid, digits) + "," + D(ask, digits) + "," +
+              (pt > 0 ? D((ask - bid) / pt, 0) : "") + "," +
+              VD(Buf(g_bot[k].emaF, 0, 0), digits + 2) + "," + VD(Buf(g_bot[k].emaS, 0, 0), digits + 2);
+     }
+   else
+      line += EmptyCols(LiveHeader());
    return true;
   }
 
@@ -374,6 +769,12 @@ void HistorySymbols(string &syms[])
 
 void BarSymbols(string &syms[])
   {
+   if(StringLen(InpSymbolFilter) > 0)
+     {
+      ArrayResize(syms, 1);
+      syms[0] = InpSymbolFilter;
+      return;
+     }
    if(StringLen(InpBarSymbols) > 0)
      {
       string parts[];
@@ -409,25 +810,28 @@ void DumpAllDeals()
       return;
    WriteLine(h, DealHeader());
    ArrayResize(g_loggedDeals, 0);
+   ResetReplay();
    int total = HistoryDealsTotal(), written = 0;
    for(int i = 0; i < total; i++)
      {
       ulong t = HistoryDealGetTicket(i);
       string line;
-      if(!DealLine(t, line))
-         continue;
-      WriteLine(h, line);
-      written++;
+      bool ok = DealLine(t, line);
+      // danh dau ca deal bi loc: neu khong, AppendNewDeals se phat lai lan 2 -> sai trang thai ro
       int n = ArraySize(g_loggedDeals);
       ArrayResize(g_loggedDeals, n + 1, 1000);
       g_loggedDeals[n] = t;
       g_lastDealTime = MathMax(g_lastDealTime, (datetime)HistoryDealGetInteger(t, DEAL_TIME));
+      if(!ok)
+         continue;
+      WriteLine(h, line);
+      written++;
      }
    FileClose(h);
    PrintFormat("[TradeLogger] Da ghi %d deal vao %s", written, FName("deals"));
   }
 
-bool AppendNewDeals()
+bool AppendNewDeals(const bool live = true)
   {
    datetime from = (g_lastDealTime > 60) ? g_lastDealTime - 60 : 0;
    HistorySelect(from, TimeCurrent() + 86400);
@@ -439,7 +843,7 @@ bool AppendNewDeals()
       if(IsLogged(t))
          continue;
       string line;
-      if(!DealLine(t, line))
+      if(!DealLine(t, line, live))
         {
          int n = ArraySize(g_loggedDeals);
          ArrayResize(g_loggedDeals, n + 1, 1000);
@@ -483,6 +887,8 @@ void DumpOrders()
       string sym = HistoryOrderGetString(t, ORDER_SYMBOL);
       if(sym == "")
          continue;
+      if(!PassFilter(sym, HistoryOrderGetInteger(t, ORDER_MAGIC)))
+         continue;
       int digits = (int)SymbolInfoInteger(sym, SYMBOL_DIGITS);
       if(digits <= 0)
          digits = 5;
@@ -516,7 +922,8 @@ void DumpSymbols()
    if(h == INVALID_HANDLE)
       return;
    WriteLine(h, "symbol,digits,point,contract_size,tick_size,tick_value,volume_min,volume_step,"
-             "feature_tf,bias_tf,account_currency,account_leverage,server");
+             "feature_tf,bias_tf,account_currency,account_leverage,server,pip,magic_filter,"
+             "bot_ema_tf,bot_ema,bot_f1_tf,bot_f1,bot_f2_tf,bot_f2,bot_cci_tf,bot_cci,bot_dca_tf,bot_pa_tf");
    for(int i = 0; i < ArraySize(syms); i++)
      {
       string s = syms[i];
@@ -530,7 +937,13 @@ void DumpSymbols()
                 EnumToString(InpFeatureTF) + "," + EnumToString(InpBiasTF) + "," +
                 AccountInfoString(ACCOUNT_CURRENCY) + "," +
                 IntegerToString(AccountInfoInteger(ACCOUNT_LEVERAGE)) + "," +
-                Clean(AccountInfoString(ACCOUNT_SERVER)));
+                Clean(AccountInfoString(ACCOUNT_SERVER)) + "," + D(PipOf(s), 6) + "," +
+                IntegerToString(InpMagicFilter) + "," +
+                TfName(InpBotEmaTF) + "," + IntegerToString(InpBotEmaFast) + "/" + IntegerToString(InpBotEmaSlow) + "," +
+                TfName(InpBotF1TF) + "," + IntegerToString(InpBotF1Fast) + "/" + IntegerToString(InpBotF1Slow) + "," +
+                TfName(InpBotF2TF) + "," + IntegerToString(InpBotF2Fast) + "/" + IntegerToString(InpBotF2Slow) + "," +
+                TfName(InpBotCciTF) + "," + IntegerToString(InpBotCciPeriod) + "," +
+                TfName(InpBotDcaTF) + "," + TfName(InpBotPaTF));
      }
    FileClose(h);
   }
@@ -593,6 +1006,88 @@ void ExportBars()
   }
 
 //+------------------------------------------------------------------+
+//| Nen khung DCA kem dac trung bot, tinh tai thoi diem nen dong.     |
+//| Lan dau ghi tu truoc lenh dau tien; sau do chi noi them nen moi.  |
+//+------------------------------------------------------------------+
+string BotBarHeader()
+  {
+   return "symbol,bar_time,open,high,low,close,spread,tick_volume," + BotHeader();
+  }
+
+void ExportBotBars()
+  {
+   string syms[];
+   BarSymbols(syms);
+   const ENUM_TIMEFRAMES tf = InpBotDcaTF;
+   const int per = PeriodSeconds(tf);
+   for(int i = 0; i < ArraySize(syms); i++)
+     {
+      string s = syms[i];
+      string name = FName("botbars_" + s + "_" + TfName(tf));
+      int slot = -1;
+      for(int j = 0; j < ArraySize(g_bbSym); j++)
+         if(g_bbSym[j] == s) { slot = j; break; }
+
+      int h, first;
+      if(slot < 0)
+        {
+         datetime start = FirstDealTime() - InpBarsLookbackDays * 86400;
+         int avail = Bars(s, tf);
+         first = iBarShift(s, tf, start, false);
+         if(first < 0 || first > avail - 2)
+           {
+            first = avail - 2;
+            PrintFormat("[TradeLogger] %s %s: chi co %d nen, khong du tu %s (tang 'Max bars in chart')",
+                        s, TfName(tf), avail, TS(start));
+           }
+         if(first < 1)
+            continue;
+         h = OpenOut(name, false);
+         if(h == INVALID_HANDLE)
+            continue;
+         WriteLine(h, BotBarHeader());
+         slot = ArraySize(g_bbSym);
+         ArrayResize(g_bbSym, slot + 1);
+         ArrayResize(g_bbLast, slot + 1);
+         g_bbSym[slot]  = s;
+         g_bbLast[slot] = 0;
+        }
+      else
+        {
+         first = iBarShift(s, tf, g_bbLast[slot], false);
+         if(first <= 1)
+            continue; // chua co nen moi dong
+         h = OpenOut(name, true);
+         if(h == INVALID_HANDLE)
+            continue;
+        }
+
+      MqlRates r[];
+      ArraySetAsSeries(r, true);
+      int got = CopyRates(s, tf, 1, first, r);
+      int written = 0;
+      for(int k = got - 1; k >= 0; k--)
+        {
+         if(r[k].time <= g_bbLast[slot])
+            continue;
+         datetime tclose = r[k].time + per;
+         string f;
+         if(!BotFeatures(s, tclose, (long)tclose * 1000, r[k].close, f))
+            f = EmptyCols(BotHeader());
+         int digits = (int)SymbolInfoInteger(s, SYMBOL_DIGITS);
+         WriteLine(h, s + "," + TS(r[k].time) + "," + D(r[k].open, digits) + "," + D(r[k].high, digits) + "," +
+                   D(r[k].low, digits) + "," + D(r[k].close, digits) + "," + IntegerToString(r[k].spread) + "," +
+                   IntegerToString(r[k].tick_volume) + "," + f);
+         g_bbLast[slot] = r[k].time;
+         written++;
+        }
+      FileClose(h);
+      if(written > 1)
+         PrintFormat("[TradeLogger] Da ghi %d nen bot %s vao %s", written, s, name);
+     }
+  }
+
+//+------------------------------------------------------------------+
 //| Theo doi vi the / lenh cho dang mo: moi, sua SL/TP, dong          |
 //+------------------------------------------------------------------+
 int FindSnap(const ulong ticket, const bool isOrder)
@@ -603,22 +1098,27 @@ int FindSnap(const ulong ticket, const bool isOrder)
    return -1;
   }
 
-void WriteEvent(int &h, const string ev, const bool isOrder, const ulong ticket, const string sym,
+void WriteEvent(int &h, const string ev, const bool isOrder, const ulong ticket, const long magic, const string sym,
                 const string type, const double vol, const double price, const double sl, const double tp)
   {
+   if(!PassFilter(sym, magic))
+      return;
    if(h == INVALID_HANDLE)
      {
-      h = OpenOut(FName("events"), true);
+      // file moi (v2) vi them cot time_msc, magic: khong ghi chung file cu
+      h = OpenOut(FName("events_v2"), true);
       if(h == INVALID_HANDLE)
          return;
       if(FileSize(h) == 0)
-         WriteLine(h, "time,kind,event,ticket,symbol,type,volume,price,sl,tp,bid,ask");
+         WriteLine(h, "time,time_msc,kind,event,ticket,magic,symbol,type,volume,price,sl,tp,bid,ask");
      }
    int digits = (int)SymbolInfoInteger(sym, SYMBOL_DIGITS);
    if(digits <= 0)
       digits = 5;
-   WriteLine(h, TS(TimeCurrent()) + "," + (isOrder ? "ORDER" : "POSITION") + "," + ev + "," +
-             IntegerToString((long)ticket) + "," + sym + "," + type + "," + D(vol, 2) + "," +
+   MqlTick tk;
+   long msc = SymbolInfoTick(sym, tk) ? (long)tk.time_msc : (long)TimeCurrent() * 1000;
+   WriteLine(h, TS(TimeCurrent()) + "," + IntegerToString(msc) + "," + (isOrder ? "ORDER" : "POSITION") + "," + ev + "," +
+             IntegerToString((long)ticket) + "," + IntegerToString(magic) + "," + sym + "," + type + "," + D(vol, 2) + "," +
              D(price, digits) + "," + D(sl, digits) + "," + D(tp, digits) + "," +
              D(SymbolInfoDouble(sym, SYMBOL_BID), digits) + "," + D(SymbolInfoDouble(sym, SYMBOL_ASK), digits));
   }
@@ -628,6 +1128,7 @@ void Snapshot()
    ulong  cT[];
    bool   cO[];
    string cS[], cY[];
+   long   cM[];
    double cV[], cP[], cL[], cTP[];
    int n = 0;
 
@@ -639,7 +1140,9 @@ void Snapshot()
          continue;
       ArrayResize(cT, n + 1); ArrayResize(cO, n + 1); ArrayResize(cS, n + 1); ArrayResize(cY, n + 1);
       ArrayResize(cV, n + 1); ArrayResize(cP, n + 1); ArrayResize(cL, n + 1); ArrayResize(cTP, n + 1);
+      ArrayResize(cM, n + 1);
       cT[n] = t; cO[n] = false;
+      cM[n] = PositionGetInteger(POSITION_MAGIC);
       cS[n] = PositionGetString(POSITION_SYMBOL);
       cY[n] = PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY ? "BUY" : "SELL";
       cV[n] = PositionGetDouble(POSITION_VOLUME);
@@ -656,7 +1159,9 @@ void Snapshot()
          continue;
       ArrayResize(cT, n + 1); ArrayResize(cO, n + 1); ArrayResize(cS, n + 1); ArrayResize(cY, n + 1);
       ArrayResize(cV, n + 1); ArrayResize(cP, n + 1); ArrayResize(cL, n + 1); ArrayResize(cTP, n + 1);
+      ArrayResize(cM, n + 1);
       cT[n] = t; cO[n] = true;
+      cM[n] = OrderGetInteger(ORDER_MAGIC);
       cS[n] = OrderGetString(ORDER_SYMBOL);
       string ty = EnumToString((ENUM_ORDER_TYPE)OrderGetInteger(ORDER_TYPE));
       StringReplace(ty, "ORDER_TYPE_", "");
@@ -673,11 +1178,11 @@ void Snapshot()
      {
       int j = FindSnap(cT[i], cO[i]);
       if(!g_snapInit)
-         WriteEvent(h, "EXISTING", cO[i], cT[i], cS[i], cY[i], cV[i], cP[i], cL[i], cTP[i]);
+         WriteEvent(h, "EXISTING", cO[i], cT[i], cM[i], cS[i], cY[i], cV[i], cP[i], cL[i], cTP[i]);
       else if(j < 0)
-         WriteEvent(h, "NEW", cO[i], cT[i], cS[i], cY[i], cV[i], cP[i], cL[i], cTP[i]);
+         WriteEvent(h, "NEW", cO[i], cT[i], cM[i], cS[i], cY[i], cV[i], cP[i], cL[i], cTP[i]);
       else if(g_sVol[j] != cV[i] || g_sPrice[j] != cP[i] || g_sSL[j] != cL[i] || g_sTP[j] != cTP[i])
-         WriteEvent(h, "MODIFY", cO[i], cT[i], cS[i], cY[i], cV[i], cP[i], cL[i], cTP[i]);
+         WriteEvent(h, "MODIFY", cO[i], cT[i], cM[i], cS[i], cY[i], cV[i], cP[i], cL[i], cTP[i]);
      }
    for(int j = 0; j < ArraySize(g_sTicket); j++)
      {
@@ -685,16 +1190,17 @@ void Snapshot()
       for(int i = 0; i < n; i++)
          if(cT[i] == g_sTicket[j] && cO[i] == g_sIsOrder[j]) { still = true; break; }
       if(!still)
-         WriteEvent(h, "GONE", g_sIsOrder[j], g_sTicket[j], g_sSym[j], g_sType[j], g_sVol[j], g_sPrice[j], g_sSL[j], g_sTP[j]);
+         WriteEvent(h, "GONE", g_sIsOrder[j], g_sTicket[j], g_sMagic[j], g_sSym[j], g_sType[j], g_sVol[j], g_sPrice[j], g_sSL[j], g_sTP[j]);
      }
    if(h != INVALID_HANDLE)
       FileClose(h);
 
    ArrayResize(g_sTicket, n); ArrayResize(g_sIsOrder, n); ArrayResize(g_sSym, n); ArrayResize(g_sType, n);
    ArrayResize(g_sVol, n); ArrayResize(g_sPrice, n); ArrayResize(g_sSL, n); ArrayResize(g_sTP, n);
+   ArrayResize(g_sMagic, n);
    for(int i = 0; i < n; i++)
      {
-      g_sTicket[i] = cT[i]; g_sIsOrder[i] = cO[i]; g_sSym[i] = cS[i]; g_sType[i] = cY[i];
+      g_sTicket[i] = cT[i]; g_sIsOrder[i] = cO[i]; g_sSym[i] = cS[i]; g_sType[i] = cY[i]; g_sMagic[i] = cM[i];
       g_sVol[i] = cV[i]; g_sPrice[i] = cP[i]; g_sSL[i] = cL[i]; g_sTP[i] = cTP[i];
      }
    g_snapInit = true;
@@ -718,6 +1224,12 @@ int OnInit()
                                    : TerminalInfoString(TERMINAL_DATA_PATH) + "\\MQL5\\Files";
    // EA co the duoc khoi dong lai (doi tham so/khung) ma bien toan cuc van giu gia tri cu
    ArrayResize(g_ind, 0);
+   ArrayResize(g_bot, 0);
+   ArrayResize(g_bbSym, 0);
+   ArrayResize(g_bbLast, 0);
+   ArrayResize(g_sMagic, 0);
+   ResetReplay();
+   g_ordersDirty = false;
    ArrayResize(g_loggedDeals, 0);
    ArrayResize(g_sTicket, 0); ArrayResize(g_sIsOrder, 0); ArrayResize(g_sSym, 0); ArrayResize(g_sType, 0);
    ArrayResize(g_sVol, 0); ArrayResize(g_sPrice, 0); ArrayResize(g_sSL, 0); ArrayResize(g_sTP, 0);
@@ -743,6 +1255,13 @@ void OnDeinit(const int reason)
       IndicatorRelease(g_ind[i].ema200); IndicatorRelease(g_ind[i].bb);
       IndicatorRelease(g_ind[i].macd);  IndicatorRelease(g_ind[i].stoch);
      }
+   for(int i = 0; i < ArraySize(g_bot); i++)
+     {
+      IndicatorRelease(g_bot[i].emaF); IndicatorRelease(g_bot[i].emaS);
+      IndicatorRelease(g_bot[i].f1F);  IndicatorRelease(g_bot[i].f1S);
+      IndicatorRelease(g_bot[i].f2F);  IndicatorRelease(g_bot[i].f2S);
+      IndicatorRelease(g_bot[i].cci);
+     }
   }
 
 void OnTimer()
@@ -766,6 +1285,8 @@ void OnTimer()
       DumpOrders();
       if(InpExportBars)
          ExportBars();
+      if(InpExportBotBars)
+         ExportBotBars();
       Snapshot();
       g_initialDone = true;
       return;
@@ -773,12 +1294,37 @@ void OnTimer()
 
    Snapshot();
    if(AppendNewDeals())
+      g_ordersDirty = true;
+   // ghi lai orders/symbols o nhip timer, khong ghi moi deal (ro DCA dong 20 lenh cung luc)
+   if(g_ordersDirty)
      {
       DumpOrders();
       DumpSymbols();
+      g_ordersDirty = false;
      }
+   if(InpExportBotBars)
+      ExportBotBars();
    if(InpExportBars && TimeCurrent() - g_lastBarsExport >= InpBarsRefreshHours * 3600)
       ExportBars();
+  }
+
+//+------------------------------------------------------------------+
+//| Bat su kien ngay khi xay ra (khong phai doi timer 5 giay):        |
+//| deal moi -> ghi kem bid/ask/EMA tuc thoi; sua SL/TP -> events.    |
+//+------------------------------------------------------------------+
+void OnTradeTransaction(const MqlTradeTransaction &trans, const MqlTradeRequest &request, const MqlTradeResult &result)
+  {
+   if(!g_initialDone)
+      return;
+   if(trans.type == TRADE_TRANSACTION_DEAL_ADD)
+     {
+      if(AppendNewDeals(true))
+         g_ordersDirty = true;
+      Snapshot();
+     }
+   else if(trans.type == TRADE_TRANSACTION_POSITION || trans.type == TRADE_TRANSACTION_ORDER_ADD ||
+           trans.type == TRADE_TRANSACTION_ORDER_UPDATE || trans.type == TRADE_TRANSACTION_ORDER_DELETE)
+      Snapshot();
   }
 
 void OnTick() {}

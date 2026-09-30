@@ -4,6 +4,7 @@
 |---|---|
 | [`../../MQL5/Experts/BE_NhaTrang_DCA.mq5`](../../MQL5/Experts/BE_NhaTrang_DCA.mq5) | EA viết lại (chưa compile, chưa backtest) |
 | [`../../MQL5/Presets/BE_NhaTrang_DCA_lot0.02_30-40k_cent.set`](../../MQL5/Presets/BE_NhaTrang_DCA_lot0.02_30-40k_cent.set) | File .set gốc bạn gửi (giữ nguyên, UTF-16) |
+| [`THU_LOG.md`](THU_LOG.md) | Thu log bot gốc bằng TradeLogger 2.00 + script phân tích để chỉnh các giả định |
 
 > **Quan trọng:** không có mã nguồn của "BE Nha Trang v1.0.4". Logic dưới đây được **suy ra từ tên và giá trị
 > tham số** trong file .set. Phần nào rõ nghĩa thì bám sát; phần nào mơ hồ thì ghi rõ là **giả định**. Muốn giống
