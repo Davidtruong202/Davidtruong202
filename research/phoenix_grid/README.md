@@ -14,6 +14,7 @@ pip install numpy pandas
 | File | Việc làm |
 |---|---|
 | `kiem_tra_tinh_mq5.py` | Kiểm tra tĩnh file MQL5: ngoặc, lời gọi hàm, hàm trùng, biến `g_`, từ khóa giao dịch trong mã, nhãn input. Không thay được compile |
+| `dong_goi_cai_dat.py` | Đóng gói `goi_cai_dat/<tên>.zip`: thư mục MQL5 sắp sẵn cho MT5 + hướng dẫn từng bước; kiểm tra include, BOM, file SET khớp input |
 | `tao_file_set.py` | Sinh file `.set` (UTF-16, như MT5 lưu) từ input trong mã nguồn EA vào `MQL5/Presets/PhoenixGrid/`; `--kiem-tra` đối chiếu lại từng input |
 
 ## Market Intelligence — TEST 1 shadow

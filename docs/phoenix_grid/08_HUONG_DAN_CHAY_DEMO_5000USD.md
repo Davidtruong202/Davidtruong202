@@ -5,6 +5,23 @@
 > Cả hai EA **chưa compile** trong môi trường phát triển. Bước 3 là compile trên máy bạn. Nếu có lỗi, gửi tôi toàn bộ
 > lỗi và cảnh báo trước khi chạy.
 
+## 0. Cách nhanh nhất: gói cài đặt
+
+Tải [`goi_cai_dat/PhoenixGrid_V0_20_MI_V0_01.zip`](../../goi_cai_dat/PhoenixGrid_V0_20_MI_V0_01.zip). Zip đã sắp đúng
+cấu trúc thư mục MT5, và có hướng dẫn từng bước
+[`HUONG_DAN_CAI_DAT.txt`](../../goi_cai_dat/HUONG_DAN_CAI_DAT.txt) (các phần A–H):
+
+1. giải nén;
+2. kéo thư mục `MQL5` trong zip thả vào Data Folder của MT5;
+3. compile;
+4. gắn EA 1 lên chart thứ nhất, EA 2 lên chart thứ hai.
+
+Gói được tạo bằng `research/phoenix_grid/cong_cu_ea/dong_goi_cai_dat.py`. Script kiểm tra file `.mqh` nằm cùng thư mục
+với EA shadow, và file SET khớp input.
+
+**Dùng một MT5 riêng cho demo** (cài vào thư mục khác, ví dụ `C:\Program Files\MT5 DEMO PHOENIX`). Không đăng nhập
+demo trên MT5 đang chạy Hydra: đổi tài khoản trên MT5 đó thì Hydra chạy sang tài khoản demo.
+
 ## 1. Demo 5.000 USD thay cho real cent 5.000 USC — không cần đổi lot
 
 Số liệu hợp đồng đọc từ MT5 ở PG-R0.1:
