@@ -65,7 +65,7 @@ Phụ lục số liệu: [`02_PHU_LUC_THONG_KE_DU_LIEU.md`](02_PHU_LUC_THONG_KE_
    DCA chỉ đổi hình dạng phân phối: Win Rate cao hơn, đổi lại lỗ đuôi lớn hơn. Nếu Phoenix Grid có lợi thế, lợi
    thế đó phải đến từ việc **nhận diện đúng vùng sideways và tránh xu hướng**. Đây là giả thuyết trung tâm, phải
    kiểm định đầu tiên (Giai đoạn A0).
-4. **Vốn 5.000 USC chỉ đủ cho basket rất nhỏ** 🧮. Giả định H_K (phải xác minh): 0,01 lot XAUUSDc lãi/lỗ 1 USC cho
+4. **Vốn 5.000 USC chỉ đủ cho basket rất nhỏ** 🧮. Giả định H_K (**đã xác minh ngày 30/09/2026** trên tài khoản thật, R0.1): 0,01 lot XAUUSDc lãi/lỗ 1 USC cho
    mỗi 1 USD/oz.
    - Một lệnh 0,01 lot mất 100 USC (2% tài khoản) khi vàng đi ngược 100 USD. Lệnh 0,10 lot mất 20%.
    - Với ngân sách 1% mỗi basket, basket 3 bậc × 0,01 lot (bước 6 USD) chỉ chịu được **khoảng 22 USD** tính từ
@@ -298,8 +298,8 @@ Phần này chưa lập trình. Mục đích là để bạn duyệt cấu trúc
 | b, a, s | Bid, Ask, spread = a − b | Tick |
 | m | Giá giữa = (a + b)/2 | Tick |
 | ATR1, ATR5 | ATR(14) khung M1, M5, tính trên nến đã đóng | iATR |
-| VPP | Tiền tài khoản khi 1 lot đi 1 USD/oz = TICK_VALUE_LOSS / TICK_SIZE | MT5 ⛔ |
-| K | K = 0,01 × VPP (0,01 lot, 1 USD/oz). **Giả định làm việc H_K: K = 1 USC**, tức VPP = 100 USC | MT5 ⛔ |
+| VPP | Tiền tài khoản khi 1 lot đi 1 USD/oz = TICK_VALUE_LOSS / TICK_SIZE. XAUUSDc: 100 USC | MT5 ✅ |
+| K | K = 0,01 × VPP (0,01 lot, 1 USD/oz). **H_K: K = 1 USC**, tức VPP = 100 USC. Đã xác minh 30/09/2026 trên XAUUSDc (R0.1) | MT5 ✅ |
 | V_min, V_step | Lot tối thiểu, bước lot | MT5 |
 | σ_i, V_i, P_i | Hướng (+1 BUY, −1 SELL), khối lượng, giá mở của vị thế i | — |
 | N, G | Net exposure = Σ σ_i V_i. Gross = Σ V_i | — |
@@ -574,8 +574,9 @@ Danh sách đầy đủ ở Mục 17 (TS-01…TS-12). Tóm tắt:
 - Spread, commission, swap, stops/freeze level, chế độ khớp, có cho Close By hay không.
 - Phiên giao dịch.
 
-**Không tự quy đổi lot.** Mọi ví dụ 🧮 dưới đây dựa trên H_K (0,01 lot = 1 USC mỗi 1 USD/oz) và phải tính lại khi có
-thông số thật.
+**Không tự quy đổi lot.** Mọi ví dụ 🧮 dưới đây dựa trên H_K (0,01 lot = 1 USC mỗi 1 USD/oz). **H_K đã được xác minh
+ngày 30/09/2026** trên tài khoản thật Standard Cent (R0.1), và spread theo tick đo được (0,26 USD/oz) trùng mức giả
+định, nên các ví dụ dùng được với thông số thật.
 
 ### 8.2. Công thức
 
@@ -681,7 +682,7 @@ Các basket mẫu dùng bước 6 USD ≈ 1,15 × ATR5 trung vị. Số tiền t
 
 ### 8.5. Kết luận sơ bộ
 
-Các kết luận dưới đây có điều kiện: chỉ đúng nếu H_K đúng.
+H_K đã được xác minh (30/09/2026), nên các kết luận dưới đây áp dụng cho tài khoản Standard Cent thật.
 
 1. **Lot 0,10 bị loại**: vàng đi ngược 100 USD = 20% tài khoản cho một lệnh.
 2. **Với r_b = 1%, chỉ khả thi dạng 0,01 lot × 1–3 bậc**, mức phòng thủ cách lệnh đầu khoảng 20–50 USD (3,8–9,5 ×
@@ -1420,6 +1421,10 @@ thì cần khoảng 385 lệnh để phân biệt với 0 ở mức 5%. Với μ
 | TS-10 | Phiên giao dịch từng ngày (`SymbolInfoSessionTrade`); múi giờ server (GMT+0?); giờ nghỉ hằng ngày | Theo dữ liệu XAUUSDm: nghỉ sau nến 20:57 (hè) / 21:57 (đông), mở lại 22:00 / 23:00 |
 | TS-11 | Phoenix Grid có tài khoản riêng, hay chạy chung với David Hunter (Magic 68999)? | **Đã chốt 29/09/2026: tài khoản riêng** |
 | TS-12 | Giới hạn số dư hoặc lot tối đa của tài khoản Cent (nếu có) | Kế hoạch tăng vốn |
+
+**Cập nhật 30/09/2026:** TS-01…TS-10 đã có từ script R0.1 chạy trên tài khoản thật Standard Cent (xem
+[`03_R01_THONG_SO_VA_DU_LIEU.md`](03_R01_THONG_SO_VA_DU_LIEU.md), Mục 8). Chỉ còn số đo tay margin cặp hedge trên demo
+(phần thứ hai của TS-04), không gấp.
 
 Có hai cách lấy TS-01…TS-10:
 

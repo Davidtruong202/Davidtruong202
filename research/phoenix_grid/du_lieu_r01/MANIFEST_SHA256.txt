@@ -1,3 +1,5 @@
-# File gốc do script PG_R01_DocThongSo.mq5 (bản 0.10) xuất ra, bạn gửi ngày 29/09/2026. Lưu nguyên văn (CRLF).
+# File gốc do script PG_R01_DocThongSo.mq5 xuất ra (Trial17: bản 0.10, 29/09/2026; Real20: bản 0.11, 30/09/2026). Lưu nguyên văn (CRLF).
+9026275131e74066ef17ef8a733dafbdea5ae70b862a2c0a05fa424e24840acb  Exness-MT5Real20_XAUUSDc_20260930_0827/PG_R01_spread_theo_gio_XAUUSDc_20260930_0827.csv
+05acc58d3ee71c94cbafafbc4a5ade76a399e45da4605b21085f277bc018d2e5  Exness-MT5Real20_XAUUSDc_20260930_0827/PG_R01_thong_so_XAUUSDc_20260930_0827.csv
 2032083ee3a8a44ee5626949b4a572472effc38f51f42a5b875633fc65b3c124  Exness-MT5Trial17_XAUUSD_20260929_2107/PG_R01_spread_theo_gio_XAUUSD_20260929_2107.csv
 124410e1c3936dc1fbdbbc5e2e5828eae28b66c86c0df292877b891ca1636e28  Exness-MT5Trial17_XAUUSD_20260929_2107/PG_R01_thong_so_XAUUSD_20260929_2107.csv

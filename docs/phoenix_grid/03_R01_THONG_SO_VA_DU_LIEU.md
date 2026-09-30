@@ -6,7 +6,7 @@
 |---|---|
 | Phiên bản | **PG-R0.1** (bước đầu tiên của lộ trình, Mục 18 kế hoạch) |
 | Ngày | 29/09/2026 |
-| Trạng thái | **TEST — lần chạy 1 xong (29/09/2026) nhưng trên tài khoản demo Pro (XAUUSD, USD), chưa phải Standard Cent.** Kết quả ở Mục 7. Script 0.10 đã compile và chạy được trên MT5 build 6230 của bạn; bản 0.11 sửa lỗi ghi chú, chưa compile lại |
+| Trạng thái | **TEST — phần thông số xong.** Lần chạy 2 (30/09/2026) trên tài khoản thật Standard Cent: **H_K ĐẠT**, 7/8 điều kiện đạt (Mục 8). Chờ bạn xác nhận thông số, làm rõ tài khoản riêng (đang có 3 lệnh mở) và xuất tick XAUUSDc. Script 0.11 đã compile và chạy được trên MT5 build 6230 của bạn |
 | Phạm vi | Chỉ đọc thông số và kiểm tra dữ liệu. Không có EA giao dịch, không có mô phỏng lệnh, không có backtest |
 | Cổng duyệt | Bạn xác nhận bảng thông số XAUUSDc (kết quả của Phần A) |
 
@@ -131,7 +131,7 @@ s_abs.
 
 | File | Việc làm |
 |---|---|
-| `MQL5/Scripts/PhoenixGrid/PG_R01_DocThongSo.mq5` | Script MT5 chỉ đọc (Mục 2). Bản 0.10 đã compile và chạy trên MT5 build 6230 của bạn. Bản 0.11 (sửa ghi chú có `;`) chưa compile lại |
+| `MQL5/Scripts/PhoenixGrid/PG_R01_DocThongSo.mq5` | Script MT5 chỉ đọc (Mục 2). Bản 0.10 và 0.11 (sửa ghi chú có `;`) đều đã compile và chạy trên MT5 build 6230 của bạn |
 | `research/phoenix_grid/pg_data.py` | Đọc file tick zip của MT5 (chép bộ đọc đã đối chiếu của V4.39), làm sạch có đếm bất thường, dựng nến M1 theo Bid |
 | `research/phoenix_grid/kiem_tra_tick.py` | Báo cáo chất lượng tick (Mục 5); `--ticks2` so spread hai bộ tick, ví dụ XAUUSDc với XAUUSDm |
 | `research/phoenix_grid/doc_thong_so.py` | Đọc CSV của script MT5, xác minh H_K, kiểm tra điều kiện kế hoạch. `--tu-kiem-tra` đạt (dữ liệu giả lập trong bộ nhớ, không ghi file) |
@@ -143,7 +143,7 @@ s_abs.
   - Lưu UTF-8 có BOM, giống các EA hiện có trong EA-PRO.
   - Bản 0.10: đã compile và chạy được trên MT5 build 6230 của bạn (lần chạy 1). Tôi không thấy được cảnh báo compile,
     nếu có.
-  - Bản 0.11: chỉ sửa nội dung ghi chú, chưa compile lại.
+  - Bản 0.11: chỉ sửa nội dung ghi chú; đã compile và chạy được (lần chạy 2).
 - Python: đã chạy `kiem_tra_tick.py` trên dữ liệu thật và `doc_thong_so.py --tu-kiem-tra`.
 
 ## 7. Kết quả lần chạy 1 — Exness-MT5Trial17, demo Pro, XAUUSD (29/09/2026, 14:07 giờ server)
@@ -196,14 +196,48 @@ s_abs.
 | Đ1 | Khi đòn bẩy tài khoản lớn hơn một mức L_cap (đề xuất 1:200), tính dự trữ margin phòng thủ (Mục 8.2 d) theo L_cap. Ví dụ 0,01 lot ở giá 4.166: 0,01 × 100 × 4.166 / 200 ≈ 20,8 đơn vị tiền tài khoản | Với đòn bẩy không giới hạn, điều kiện hiện tại luôn đạt. Sàn có thể hạ đòn bẩy quanh tin tức/cuối tuần (cần xác minh quy định Exness) |
 | Đ2 (kỹ thuật) | Module khớp lệnh tự nhận diện chế độ khớp (FOK/IOC) từ SYMBOL_FILLING_MODE | Symbol này chỉ nhận FOK; gửi sai chế độ sẽ bị từ chối |
 
-## 8. Bước tiếp theo
+## 8. Kết quả lần chạy 2 — Exness-MT5Real20, tài khoản thật Standard Cent, XAUUSDc (30/09/2026, 01:27 giờ server)
 
-1. **Bạn cho biết tài khoản thật chạy Phoenix Grid là loại nào:**
-   - Standard Cent (XAUUSDc, USC) như kế hoạch: chạy script 0.11 trên chính tài khoản đó rồi gửi lại 2 file CSV.
-     Script chỉ đọc nên an toàn trên tài khoản thật.
-   - Hoặc đổi sang loại khác (ví dụ Pro, tiền USD): khi đó cần xem lại vốn và chi phí trong kế hoạch.
-2. **Cho forward test sau này:** dùng một tài khoản demo mới, trống, số dư theo đúng tỷ lệ của kế hoạch, và bật
-   Algo Trading.
-3. Bước B (đo margin cặp hedge trên demo) và Bước C (xuất tick XAUUSDc) giữ nguyên.
-4. Khi có file của XAUUSDc: lập bảng thông số, kết luận H_K → bạn xác nhận → sang **PG-R0.2** (bộ phân loại trạng
-   thái thị trường và đánh giá A0).
+- File gốc: `research/phoenix_grid/du_lieu_r01/Exness-MT5Real20_XAUUSDc_20260930_0827/`.
+- Báo cáo đầy đủ: `research/phoenix_grid/results_r01/thong_so_XAUUSDc_20260930_0827.md`.
+- Script 0.11 chạy đúng: file CSV không còn lệch cột.
+
+**Kết luận: giả định H_K ĐẠT.**
+
+- 0,01 lot XAUUSDc lãi/lỗ đúng 1 USC cho mỗi 1 USD/oz.
+- Kết quả nhất quán giữa tick value và `OrderCalcProfit` (BUY và SELL).
+- Vì vậy mọi ví dụ 🧮 trong kế hoạch (Bảng A–D, Mục 8.4) dùng được với số thật, không cần nhân thêm hệ số.
+
+| Hạng mục | Giá trị đo được | So với kế hoạch |
+|---|---|---|
+| Hợp đồng | Symbol cent: contract size 1 (1 lot = 1 oz); tick 0,001 = 0,1 USC mỗi lot; lot 0,01–200, bước 0,01 | K = 1 USC ✅ |
+| Đòn bẩy | 1:2000. Margin 0,01 lot = 2,08 USC; 1 lot = 208,48 USC (giá 4.169) | Margin rất nhỏ so với 5.000 USC (0,04% mỗi 0,01 lot). Khác đòn bẩy không giới hạn của tài khoản demo Pro, ở đây điều kiện margin của RiskGate vẫn có ý nghĩa |
+| Margin call / stop out | 60% / 0% | Sàn không cắt lỗ trước khi Equity về 0 → giới hạn của EA là lớp bảo vệ duy nhất |
+| Hedged margin | MARGIN_HEDGED = 0 | Phần BUY/SELL đã cặp hóa không tính margin (xác nhận thêm bằng Bước B nếu muốn) |
+| Khớp lệnh | Market execution; FOK và IOC; Close By ✅; SL/TP ✅; stops/freeze level = 0 | ✅ |
+| Swap | BUY −560 point/lot/đêm = −0,56 USC mỗi 0,01 lot; SELL 0; thứ Tư ×3 | Trùng giả định S10 |
+| Commission | 0 (tính từ 908 deal trong 365 ngày) | ✅ |
+| Spread theo tick (27 ngày, 6,65 triệu tick) | 0,260 USD/oz ở trung vị, p90 và p99; p99,9 = 0,340; lớn nhất 2,00 lúc 12h server (giờ công bố số liệu Mỹ) | **Trùng đúng giả định 0,26 của kế hoạch.** Cao hơn tài khoản Pro (0,182) khoảng 43%. Chi phí spread mỗi 0,01 lot = 0,26 USC |
+| Phiên giao dịch (giờ server = GMT) | CN 22:01–24:00; T2–T5 00:00–20:58 và 22:00–24:00; T6 00:00–20:58 | ✅ |
+| Ping | 55,6 ms | ✅ |
+| Cho phép EA giao dịch | true | ✅ |
+
+**7/8 điều kiện kế hoạch đạt.** Điều kiện chưa đạt là tài khoản chưa trống: đang có **3 vị thế mở** và đã có
+**908 deal XAUUSDc** trong 365 ngày. Theo quyết định ngày 29/09/2026, Phoenix Grid chạy trên tài khoản riêng.
+
+- Nếu đây là tài khoản đang chạy David Hunter (Magic 68999), Phoenix Grid cần một tài khoản Standard Cent khác.
+- Nếu đây là tài khoản sẽ dành riêng cho Phoenix Grid, tài khoản phải trống trước khi Phoenix chạy.
+
+**Ứng viên ngưỡng spread** (s_abs, Mục 7.1 kế hoạch) = p99 = 0,260 USD/oz. Tức là chỉ vào lệnh khi spread ở mức bình
+thường, không giãn. Cần kiểm tra lại trên dữ liệu tick dài hơn.
+
+**Đề xuất Đ1** (tính margin dự phòng theo 1:200 khi đòn bẩy không giới hạn): với đòn bẩy 1:2000 của tài khoản này,
+điều kiện margin hiện tại đã có ý nghĩa, nên Đ1 không gấp. Đ1 chỉ cần nếu tài khoản chuyển sang đòn bẩy không giới hạn.
+
+## 9. Bước tiếp theo
+
+1. **Bạn xác nhận bảng thông số XAUUSDc ở Mục 8.** Đây là cổng của R0.1 (phần thông số).
+2. **Làm rõ tài khoản riêng:** đây có phải tài khoản sẽ dành riêng cho Phoenix Grid không (Mục 8)?
+3. **Xuất tick XAUUSDc (Bước C, Mục 4).** Đây là việc duy nhất còn chặn tiến độ trước R0.2. Sau khi có tick, tôi kiểm
+   tra chất lượng dữ liệu, so spread với XAUUSDm và chốt phương án chia dữ liệu (Mục 14 kế hoạch).
+4. Sau đó sang **PG-R0.2**: bộ phân loại trạng thái thị trường và đánh giá A0 (Mục 6 và Mục 13.2 kế hoạch).

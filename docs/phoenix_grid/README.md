@@ -8,8 +8,8 @@ Breakout → Hedge → giao dịch vùng mới và tỉa lệnh → chu kỳ m�
 > **Trạng thái:**
 >
 > - Kế hoạch PG-R0.0 **đã được duyệt ngày 29/09/2026** (commit `47480fe`).
-> - Đang ở **PG-R0.1**: đọc thông số MT5 và kiểm tra dữ liệu. Lần chạy 1 (29/09/2026) được làm trên tài
->   khoản demo **Pro** (XAUUSD, USD), chưa phải Standard Cent. Cần chạy lại trên tài khoản XAUUSDc.
+> - Đang ở **PG-R0.1**: đọc thông số MT5 và kiểm tra dữ liệu. Lần chạy 2 (30/09/2026) trên tài khoản thật
+>   Standard Cent: **H_K đạt**, 7/8 điều kiện đạt. Chờ xác nhận thông số, làm rõ tài khoản riêng và tick XAUUSDc.
 >
 > Chưa có EA giao dịch, chưa chạy backtest nào. Không có con số hiệu suất nào trong thư mục này.
 
@@ -42,7 +42,13 @@ Breakout → Hedge → giao dịch vùng mới và tỉa lệnh → chu kỳ m�
 **Phiên bản gốc:** PG-R0.0 (đã duyệt)
 **Mục tiêu:** có bảng thông số XAUUSDc thật, xác minh giả định H_K, và có công cụ kiểm tra dữ liệu tick trước khi
 nghiên cứu
-**Trạng thái:** TEST. Lần chạy 1 trên demo Pro (XAUUSD, USD): K = 1 USD mỗi 0,01 lot mỗi 1 USD/oz, nhất quán giữa 3 cách tính; H_K chưa kiểm chứng được vì không phải tài khoản Cent. Chờ chạy lại trên XAUUSDc
+**Trạng thái:** TEST.
+
+- Lần chạy 1 (29/09/2026, demo Pro, XAUUSD, USD): K = 1 USD mỗi 0,01 lot mỗi 1 USD/oz, nhất quán giữa 3 cách
+  tính. H_K chưa kiểm chứng được vì không phải tài khoản Cent.
+- Lần chạy 2 (30/09/2026, tài khoản thật Standard Cent, XAUUSDc): **H_K đạt**; spread theo tick 0,26 USD/oz (trùng
+  giả định); đòn bẩy 1:2000; stop out 0%. Tài khoản đang có 3 vị thế mở.
+- Chờ: bạn xác nhận thông số, làm rõ tài khoản riêng, xuất tick XAUUSDc.
 
 **Thay đổi:**
 
@@ -52,13 +58,14 @@ nghiên cứu
 - `research/phoenix_grid/doc_thong_so.py`: đọc thông số, xác minh H_K.
 - Báo cáo `03_R01_THONG_SO_VA_DU_LIEU.md`. Kết quả kiểm tra tick XAUUSDm 01–12/01/2026 nằm trong
   `research/phoenix_grid/results_r01/`.
-- Lần chạy 1 của script (demo Pro): file gốc ở `research/phoenix_grid/du_lieu_r01/`, báo cáo ở
-  `research/phoenix_grid/results_r01/thong_so_XAUUSD_20260929_2107.md`.
+- Hai lần chạy script: file gốc ở `research/phoenix_grid/du_lieu_r01/` (kèm SHA-256), báo cáo ở
+  `research/phoenix_grid/results_r01/thong_so_XAUUSD_20260929_2107.md` (demo Pro) và
+  `research/phoenix_grid/results_r01/thong_so_XAUUSDc_20260930_0827.md` (tài khoản thật Standard Cent).
 
 **Kiểm tra kỹ thuật:**
 
-- Compile MQL5: bản 0.10 đã compile và chạy được trên MT5 build 6230 của bạn. Bản 0.11 (đổi `;` thành `,` trong
-  ghi chú, vì bản 0.10 làm lệch cột CSV) chưa compile lại.
+- Compile MQL5: bản 0.10 và bản 0.11 (đổi `;` thành `,` trong ghi chú, vì bản 0.10 làm lệch cột CSV) đều đã
+  compile và chạy được trên MT5 build 6230 của bạn.
 - Kiểm tra tĩnh script: đạt (ngoặc cân bằng, mọi hàm có định nghĩa, không có lời gọi lệnh giao dịch).
 - Python:
   - Kiểm tra tick chạy trên dữ liệu thật: nến M1 dựng từ tick khớp MT5 ở mọi phút đầy đủ.
