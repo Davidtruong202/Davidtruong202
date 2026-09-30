@@ -3,7 +3,7 @@
 Kiểm tra:
 - ngoặc (), [], {} cân bằng (bỏ qua chuỗi, ký tự màu C'..', chú thích); chuỗi hằng không bị cắt ngang dòng
 - mọi lời gọi hàm có định nghĩa trong file hoặc thuộc danh sách hàm MQL5 đã biết (BUILTIN); không có hàm trùng
-- không có từ khóa giao dịch (danh sách CAM) - dùng cho các bản EA quan sát
+- từ khóa giao dịch (danh sách CAM): bản EA quan sát phải là "không có"; bản giao dịch (V0.20+) có là đúng
 - mọi input có nhãn (chú thích //)
 
 Chạy:  python3 kiem_tra_tinh_mq5.py ../../../MQL5/Experts/PhoenixGrid/<EA>.mq5
@@ -32,6 +32,9 @@ SymbolInfoSessionQuote SymbolSelect TerminalInfoString MQLInfoString TimeGMT Nor
 ArraySetAsSeries ArrayCopy ArrayFill CopyTicks CopyTime CopyClose CopyHigh CopyLow iHigh iLow iOpen iBars
 FileWriteString FileReadString FileIsEnding Comment Alert GetTickCount Sleep ObjectsTotal ObjectName
 ObjectGetDouble ColorToARGB
+iMA iBands OrderSend ZeroMemory GetMicrosecondCount HistorySelectByPosition HistoryDealSelect PositionSelectByTicket
+PositionGetDouble OrderGetTicket OrderGetInteger GlobalVariableDel GlobalVariablesDeleteAll GlobalVariablesFlush
+CalendarValueHistory CalendarEventById SendNotification MathLog10 OnTradeTransaction
 C
 """.split())
 KEYWORDS = set("if for while switch return sizeof else do case".split())
@@ -92,7 +95,7 @@ def main(path):
         raise SystemExit(f"ngoặc chưa đóng ở dòng {s.count(chr(10), 0, stack[-1][1]) + 1}")
     print("Ngoặc: cân bằng")
     # định nghĩa hàm
-    defs = set(re.findall(r"^\s*(?:void|bool|int|double|string|color|datetime|long|uint|ulong)\s+(\w+)\s*\(", s, re.M))
+    defs = set(re.findall(r"^\s*(?:void|bool|int|double|string|color|datetime|long|uint|ulong|ENUM_\w+)\s+(\w+)\s*\(", s, re.M))
     calls = set(re.findall(r"\b([A-Za-z_]\w*)\s*\(", s))
     unknown = sorted(c for c in calls - defs - BUILTIN - KEYWORDS if not c.isupper())
     print("Số hàm tự định nghĩa:", len(defs))
@@ -108,7 +111,7 @@ def main(path):
     hits = [w for w in CAM if re.search(r"\b" + re.escape(w) + r"\b", s) or w in includes]
     print("Từ khóa giao dịch trong mã:", hits or "không có")
     # định nghĩa trùng
-    allf = re.findall(r"^\s*(?:void|bool|int|double|string|color|datetime|long|uint|ulong)\s+(\w+)\s*\(", s, re.M)
+    allf = re.findall(r"^\s*(?:void|bool|int|double|string|color|datetime|long|uint|ulong|ENUM_\w+)\s+(\w+)\s*\(", s, re.M)
     dup = sorted({f for f in allf if allf.count(f) > 1})
     print("Hàm định nghĩa trùng:", dup or "không có")
     # biến toàn cục g_ khai báo và dùng

@@ -1581,3 +1581,20 @@ tôi có thể gửi bạn 1 số phương pháp tài liệu fibo để bạn nh
 | Tài khoản Phoenix | Exness-MT5Real20, Standard Cent, USC. Đang có 3 vị thế mở. Tài khoản riêng phải hết vị thế lạ trước khi chạy bất kỳ bản EA nào gửi lệnh |
 | EA | Làm song song theo từng bậc, bắt đầu từ V0.10 quan sát ([`04_EA_V0_10_QUAN_SAT.md`](04_EA_V0_10_QUAN_SAT.md)). Không thay đổi cổng nghiên cứu, ma trận hay tiêu chí nghiệm thu |
 | Tài liệu Fibonacci | Khi bạn gửi, tôi chuyển thành quy tắc kiểm định được và đánh giá như một phương pháp ứng viên (ví dụ PP10), so với mốc ngẫu nhiên cùng cấu trúc. Thêm vào ma trận cần bạn duyệt (phiên bản kế hoạch mới). Tiêu chí nghiệm thu đã đóng băng không đổi |
+
+### Quyết định ngày 30/09/2026 — EA giao dịch V0.20
+
+Bạn quyết định:
+
+- chạy EA giao dịch ngay trên tài khoản thật và demo ("Tôi cho phép thiết lập trên mọi loại tài khoản Real, Demo");
+- không cắt lỗ, cháy tài khoản thì nạp lại;
+- ưu tiên clear lệnh để bắt đầu chu kỳ mới với DD chuỗi DCA thấp, lot mặc định 0,01.
+
+Với riêng EA V0.20, quyết định này thay:
+
+- điểm 2 ở trên (lỗ ngày, tầng DD);
+- ngân sách r_b;
+- cổng A và forward demo G3 trước khi chạy tiền thật.
+
+Mục 16 (tiêu chí nghiệm thu) không đổi. V0.20 chưa qua tiêu chí nào. Chi tiết:
+[`06_EA_V0_20_DCA_TIA.md`](06_EA_V0_20_DCA_TIA.md).

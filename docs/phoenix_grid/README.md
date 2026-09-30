@@ -16,7 +16,12 @@ Breakout → Hedge → giao dịch vùng mới và tỉa lệnh → chu kỳ m�
 > - **Fibonacci + Bollinger (30/09/2026)**: kế hoạch nghiên cứu PG-MI-0.1 **chờ duyệt**, chưa sửa mã nguồn. Trọng tâm:
 >   tối ưu lệnh vào đầu tiên, bộ PP riêng, kiểm soát volume. Bản nháp V0.20 tạm dừng theo yêu cầu "chưa sửa code".
 >
-> Chưa có EA giao dịch, chưa chạy backtest nào. Không có con số hiệu suất nào trong thư mục này.
+> - **EA V0.20 TEST (30/09/2026)**: bản đầu tiên **gửi lệnh**:
+>   - Phoenix DCA + tỉa lệnh tuần hoàn + clear chu kỳ, không cắt lỗ.
+>   - Chạy trên tài khoản thật, demo và tester, theo quyết định của bạn ngày 30/09/2026.
+>   - **Chưa compile.**
+>
+> Chưa chạy backtest nào. Không có con số hiệu suất nào trong thư mục này.
 
 | File | Nội dung |
 |---|---|
@@ -24,9 +29,10 @@ Breakout → Hedge → giao dịch vùng mới và tỉa lệnh → chu kỳ m�
 | [`02_PHU_LUC_THONG_KE_DU_LIEU.md`](02_PHU_LUC_THONG_KE_DU_LIEU.md) | Thống kê mô tả 9 tháng nến M1 XAUUSDm. Không phải backtest |
 | [`03_R01_THONG_SO_VA_DU_LIEU.md`](03_R01_THONG_SO_VA_DU_LIEU.md) | PG-R0.1: hướng dẫn chạy script đọc thông số, đo margin hedge trên demo, xuất tick XAUUSDc; kết quả kiểm tra tick hiện có |
 | [`05_KE_HOACH_FIB_BOLLINGER.md`](05_KE_HOACH_FIB_BOLLINGER.md) | Kế hoạch Market Intelligence Fib + Bollinger (chờ duyệt): hiện trạng Phoenix, phân tích SET M2 và tài liệu ảnh, điểm tác động, kiến trúc module, kế hoạch kiểm định T0–T3, định lượng các phần chưa rõ |
+| [`06_EA_V0_20_DCA_TIA.md`](06_EA_V0_20_DCA_TIA.md) | EA V0.20 TEST: quyết định 30/09/2026, luồng hoạt động, bốn cơ chế clear, kiểm soát volume, cách hiểu SET M2, tham khảo Hydra, log hằng ngày, rủi ro cháy, cài demo 24/7 |
 | [`04_EA_V0_10_QUAN_SAT.md`](04_EA_V0_10_QUAN_SAT.md) | EA quan sát V0.10 / V0.11 TEST: lộ trình EA, cách chạy, đặc tả thuật toán cho bộ Python R0.2, chi tiết cần duyệt |
 | [`../../MQL5/Scripts/PhoenixGrid/`](../../MQL5/Scripts/PhoenixGrid/) | Script MT5 chỉ đọc `PG_R01_DocThongSo.mq5` (đã compile và chạy trên máy bạn) |
-| [`../../MQL5/Experts/PhoenixGrid/`](../../MQL5/Experts/PhoenixGrid/) | `EA_PHOENIX_GRID_V0_11_TEST.mq5` (hiện hành) và `EA_PHOENIX_GRID_V0_10_TEST.mq5` (rollback): EA quan sát, không gửi lệnh |
+| [`../../MQL5/Experts/PhoenixGrid/`](../../MQL5/Experts/PhoenixGrid/) | `EA_PHOENIX_GRID_V0_20_TEST.mq5` (giao dịch, hiện hành); `EA_PHOENIX_GRID_V0_11_TEST.mq5` và `EA_PHOENIX_GRID_V0_10_TEST.mq5` (quan sát, rollback) |
 | [`../../research/phoenix_grid/`](../../research/phoenix_grid/) | Công cụ Python và kết quả CSV |
 
 ## Kết quả bàn giao theo Phần 10 của yêu cầu
@@ -43,6 +49,42 @@ Breakout → Hedge → giao dịch vùng mới và tỉa lệnh → chu kỳ m�
 | 8 | Kế hoạch triển khai theo từng phiên bản nghiên cứu | Mục 18 (PG-R0.0 → PG-R1.0 → EA V1.00 TEST) |
 
 ## Nhật ký phiên bản
+
+### EA V0.20 TEST — DCA + tỉa lệnh tuần hoàn + clear chu kỳ, không cắt lỗ
+
+**Ngày:** 30/09/2026
+**Phiên bản gốc:** EA V0.11 TEST (commit `863590a`). Phần nhận diện Phoenix (hộp M5, breakout theo tick) giữ nguyên
+**Mục tiêu:** EA giao dịch theo quyết định của bạn ngày 30/09/2026:
+
+- tối ưu lệnh đầu bằng bộ PP (PP10 theo SET M2, PP1);
+- kiểm soát volume;
+- clear lệnh để bắt đầu chu kỳ mới với DD chuỗi DCA thấp;
+- log hằng ngày để tối ưu dần.
+
+**Trạng thái:** TEST, **chưa compile**, gửi lệnh trên tài khoản thật / demo / tester.
+
+**Thay đổi:**
+
+- `EA_PHOENIX_GRID_V0_20_TEST.mq5` (file mới; V0.11, V0.10 giữ nguyên):
+  - PP10, PP1, bộ lọc Phoenix.
+  - Basket DCA theo ATR M5, tỉa bằng TP phía server.
+  - Trailing clear, hòa vốn khi sâu, clear từng phần (lãi tỉa + gộp lệnh lãi).
+  - Bảng hệ số lot theo cấp (tắt).
+  - Thực thi có thử lại và phân loại lỗi.
+  - Lưu / nhận lại basket; nút điều khiển thật; bảo vệ vốn (tắt); thông báo điện thoại.
+  - 6 loại log.
+- `06_EA_V0_20_DCA_TIA.md`: đặc tả và hướng dẫn.
+- `research/phoenix_grid/phan_tich_log_v020.py`: tóm tắt log hằng ngày.
+- `kiem_tra_tinh_mq5.py`: nhận thêm hàm giao dịch MQL5 và hàm trả về kiểu `ENUM_*`.
+
+**Kiểm tra kỹ thuật:**
+
+- Compile MQL5: **chưa làm được** (không có MetaEditor).
+- Kiểm tra tĩnh: đạt (139 hàm, 113 input).
+- `phan_tich_log_v020.py --tu-kiem-tra`: đạt.
+
+**Backtest:** chưa chạy.
+**Rollback:** V0.11 (commit `863590a`).
 
 ### PG-MI-0.1 — Kế hoạch Fibonacci + Bollinger (đề xuất)
 

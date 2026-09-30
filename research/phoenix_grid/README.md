@@ -2,7 +2,7 @@
 
 Bộ công cụ nghiên cứu Phoenix Grid. Kế hoạch (đã duyệt 29/09/2026): [`docs/phoenix_grid/`](../../docs/phoenix_grid/).
 
-Không có công cụ nào ở đây mô phỏng lệnh hay tính lợi nhuận chiến lược. Bộ mô phỏng chỉ được viết ở các phiên bản
+Không có công cụ nào ở đây mô phỏng lệnh hay tính lợi nhuận chiến lược (`phan_tich_log_v020.py` chỉ cộng số liệu EA đã ghi). Bộ mô phỏng chỉ được viết ở các phiên bản
 R0.3 trở đi, theo lộ trình đã duyệt.
 
 ```bash
@@ -14,6 +14,17 @@ pip install numpy pandas
 | File | Việc làm |
 |---|---|
 | `kiem_tra_tinh_mq5.py` | Kiểm tra tĩnh file MQL5: ngoặc, lời gọi hàm, hàm trùng, biến `g_`, từ khóa giao dịch trong mã, nhãn input. Không thay được compile |
+
+## EA V0.20 — đọc log hằng ngày
+
+| File | Việc làm |
+|---|---|
+| `phan_tich_log_v020.py` | Tóm tắt log `PG_V020_*.csv`: tổng kết ngày, basket (theo PP, hướng, cách clear, độ sâu), lệnh theo lý do đóng, lý do không vào lệnh, trượt giá và độ trễ gửi lệnh. `--tu-kiem-tra` đọc tiêu đề log thẳng từ file `.mq5` |
+
+```bash
+python3 phan_tich_log_v020.py --thu-muc <thư mục Common\Files\PhoenixGrid> --symbol XAUUSDc --out results_v020
+python3 phan_tich_log_v020.py --tu-kiem-tra
+```
 
 ```bash
 python3 cong_cu_ea/kiem_tra_tinh_mq5.py ../../MQL5/Experts/PhoenixGrid/EA_PHOENIX_GRID_V0_11_TEST.mq5
