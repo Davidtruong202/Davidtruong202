@@ -9,6 +9,21 @@ R0.3 trở đi, theo lộ trình đã duyệt.
 pip install numpy pandas
 ```
 
+## EA V0.10 — công cụ phụ trợ EA (`cong_cu_ea/`)
+
+| File | Việc làm |
+|---|---|
+| `bieu_tuong_phuong_hoang.py` | Vẽ biểu tượng phượng hoàng 64 × 64 (nền trong suốt) và nhúng mảng ARGB vào file EA `.mq5`, giữa hai dòng `// >>> PG_PHOENIX_DATA` và `// <<< PG_PHOENIX_DATA`. Giữ BOM nếu file có sẵn |
+| `kiem_tra_tinh_mq5.py` | Kiểm tra tĩnh file MQL5: ngoặc, lời gọi hàm, hàm trùng, biến `g_`, từ khóa giao dịch trong mã, nhãn input, mảng biểu tượng. Không thay được compile |
+
+```bash
+pip install pillow
+cd cong_cu_ea
+python3 bieu_tuong_phuong_hoang.py --png phuong_hoang_64.png \
+  --nhung ../../../MQL5/Experts/PhoenixGrid/EA_PHOENIX_GRID_V0_10_TEST.mq5
+python3 kiem_tra_tinh_mq5.py ../../../MQL5/Experts/PhoenixGrid/EA_PHOENIX_GRID_V0_10_TEST.mq5
+```
+
 ## PG-R0.1 — thông số MT5 và chất lượng dữ liệu tick
 
 | File | Việc làm |

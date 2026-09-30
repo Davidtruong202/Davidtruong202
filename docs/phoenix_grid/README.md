@@ -8,8 +8,9 @@ Breakout → Hedge → giao dịch vùng mới và tỉa lệnh → chu kỳ m�
 > **Trạng thái:**
 >
 > - Kế hoạch PG-R0.0 **đã được duyệt ngày 29/09/2026** (commit `47480fe`).
-> - Đang ở **PG-R0.1**: đọc thông số MT5 và kiểm tra dữ liệu. Lần chạy 2 (30/09/2026) trên tài khoản thật
->   Standard Cent: **H_K đạt**, 7/8 điều kiện đạt. Chờ xác nhận thông số, làm rõ tài khoản riêng và tick XAUUSDc.
+> - **PG-R0.1**: thông số XAUUSDc trên tài khoản thật Standard Cent đã được bạn xác nhận ngày 30/09/2026 (**H_K
+>   đạt**). Exness-MT5Real20 là tài khoản Phoenix. Chờ tick XAUUSDc để kiểm tra dữ liệu.
+> - **EA V0.10 TEST (30/09/2026)**: chế độ quan sát, **không gửi lệnh**, **chưa compile**.
 >
 > Chưa có EA giao dịch, chưa chạy backtest nào. Không có con số hiệu suất nào trong thư mục này.
 
@@ -18,7 +19,9 @@ Breakout → Hedge → giao dịch vùng mới và tỉa lệnh → chu kỳ m�
 | [`01_KE_HOACH_NGHIEN_CUU.md`](01_KE_HOACH_NGHIEN_CUU.md) | Kế hoạch đầy đủ (đã duyệt): phân tích ảnh, kiến trúc, công thức, PP1–PP9, lot/rủi ro/stress, DCA, Hedge, Recovery, state machine, ma trận A–G, chia dữ liệu, tiêu chí nghiệm thu, dữ liệu còn thiếu, lộ trình phiên bản |
 | [`02_PHU_LUC_THONG_KE_DU_LIEU.md`](02_PHU_LUC_THONG_KE_DU_LIEU.md) | Thống kê mô tả 9 tháng nến M1 XAUUSDm. Không phải backtest |
 | [`03_R01_THONG_SO_VA_DU_LIEU.md`](03_R01_THONG_SO_VA_DU_LIEU.md) | PG-R0.1: hướng dẫn chạy script đọc thông số, đo margin hedge trên demo, xuất tick XAUUSDc; kết quả kiểm tra tick hiện có |
-| [`../../MQL5/Scripts/PhoenixGrid/`](../../MQL5/Scripts/PhoenixGrid/) | Script MT5 chỉ đọc `PG_R01_DocThongSo.mq5` (chưa compile) |
+| [`04_EA_V0_10_QUAN_SAT.md`](04_EA_V0_10_QUAN_SAT.md) | EA V0.10 TEST (quan sát): lộ trình EA, cách chạy, đặc tả thuật toán cho bộ Python R0.2, chi tiết cần duyệt |
+| [`../../MQL5/Scripts/PhoenixGrid/`](../../MQL5/Scripts/PhoenixGrid/) | Script MT5 chỉ đọc `PG_R01_DocThongSo.mq5` (đã compile và chạy trên máy bạn) |
+| [`../../MQL5/Experts/PhoenixGrid/`](../../MQL5/Experts/PhoenixGrid/) | `EA_PHOENIX_GRID_V0_10_TEST.mq5`: EA quan sát, không gửi lệnh (chưa compile) |
 | [`../../research/phoenix_grid/`](../../research/phoenix_grid/) | Công cụ Python và kết quả CSV |
 
 ## Kết quả bàn giao theo Phần 10 của yêu cầu
@@ -35,6 +38,43 @@ Breakout → Hedge → giao dịch vùng mới và tỉa lệnh → chu kỳ m�
 | 8 | Kế hoạch triển khai theo từng phiên bản nghiên cứu | Mục 18 (PG-R0.0 → PG-R1.0 → EA V1.00 TEST) |
 
 ## Nhật ký phiên bản
+
+### EA V0.10 TEST — Chế độ quan sát
+
+**Ngày:** 30/09/2026
+**Phiên bản gốc:** không có (EA đầu tiên của Phoenix Grid). Trước bản này repo ở commit `40a11a4`
+**Mục tiêu:**
+
+- Có EA chạy được trên chart để quan sát trạng thái thị trường theo Mục 6.
+- Có bảng điều khiển Phoenix Grid và ước tính rủi ro bằng thông số thật.
+- Ghi log để đối chiếu với bộ phân loại Python ở R0.2.
+
+**Trạng thái:** TEST, **chưa compile**, **không gửi lệnh**.
+
+**Thay đổi:**
+
+- `MQL5/Experts/PhoenixGrid/EA_PHOENIX_GRID_V0_10_TEST.mq5`:
+  - Nhận diện SIDEWAYS / TĂNG / GIẢM, có chống nhấp nháy.
+  - Cảnh báo, xác nhận, breakout giả và vùng mới theo tick.
+  - Bộ lọc vào lệnh (chỉ hiển thị).
+  - Bảng điều khiển có biểu tượng phượng hoàng nhúng trong mã.
+  - Ước tính D phòng thủ tối đa theo Mục 8.2.
+  - Log CSV.
+- `research/phoenix_grid/cong_cu_ea/bieu_tuong_phuong_hoang.py`: vẽ biểu tượng và nhúng mảng ARGB vào file `.mq5`.
+- `04_EA_V0_10_QUAN_SAT.md`: lộ trình EA, hướng dẫn chạy, đặc tả thuật toán, 12 chi tiết cài đặt cần bạn duyệt
+  (Mục 8 của tài liệu).
+- Kế hoạch: ghi nhận quyết định 30/09/2026 (Mục 21), lộ trình EA song song (Mục 18), thông số đã xác nhận
+  (Mục 17.2). Mục 16 (tiêu chí nghiệm thu) không đổi so với `47480fe`.
+
+**Kiểm tra kỹ thuật:**
+
+- Compile MQL5: **chưa làm**, vì môi trường này không có MetaEditor. Cần bạn compile và gửi lỗi/cảnh báo.
+- Kiểm tra tĩnh: đạt. Ngoặc cân bằng; mọi lời gọi hàm có định nghĩa; không có từ khóa giao dịch; mảng biểu tượng đủ
+  4.096 phần tử; 45 input có nhãn tiếng Việt.
+- Công thức D phòng thủ: khớp Bảng C của kế hoạch (49,7 / 27,7 / 22,4 USD).
+
+**Backtest:** không áp dụng (EA không giao dịch).
+**Rollback:** commit `40a11a4`.
 
 ### PG-R0.1 — Đọc thông số MT5 và kiểm tra dữ liệu tick
 

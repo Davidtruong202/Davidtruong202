@@ -6,7 +6,7 @@
 |---|---|
 | Phiên bản tài liệu | **PG-R0.0**, kế hoạch nghiên cứu |
 | Ngày lập | 29/09/2026 |
-| Trạng thái | **ĐÃ PHÊ DUYỆT ngày 29/09/2026** (Mục 21). Nội dung được duyệt đóng băng tại commit `47480fe`. Chưa viết EA giao dịch, chưa chạy backtest nào |
+| Trạng thái | **ĐÃ PHÊ DUYỆT ngày 29/09/2026** (Mục 21). Nội dung được duyệt đóng băng tại commit `47480fe`. Chưa có EA giao dịch (từ 30/09/2026 có EA quan sát V0.10, không gửi lệnh), chưa chạy backtest nào |
 | Sản phẩm | XAUUSD trên Exness Standard Cent (XAUUSDc), MetaTrader 5, vốn nghiên cứu 5.000 USC |
 | Khung | Giao dịch M1, cấu trúc M5, xử lý tín hiệu theo tick |
 | Quan hệ với David Hunter | Dòng sản phẩm **mới, độc lập**. Không đụng tới Baseline V4.52 trong EA-PRO |
@@ -1426,6 +1426,9 @@ thì cần khoảng 385 lệnh để phân biệt với 0 ở mức 5%. Với μ
 [`03_R01_THONG_SO_VA_DU_LIEU.md`](03_R01_THONG_SO_VA_DU_LIEU.md), Mục 8). Chỉ còn số đo tay margin cặp hedge trên demo
 (phần thứ hai của TS-04), không gấp.
 
+Bạn đã xác nhận các thông số này ngày 30/09/2026 (Mục 21, ghi nhận 30/09/2026). Phần dữ liệu của R0.1 còn chờ tick
+XAUUSDc (DL-01).
+
 Có hai cách lấy TS-01…TS-10:
 
 1. **Thủ công.** Chụp màn hình Specification của XAUUSDc, cửa sổ Account, và kết quả mở/đóng một cặp BUY + SELL
@@ -1463,6 +1466,10 @@ Quy tắc chung (theo AGENTS.md):
 
 Nếu một giai đoạn cho kết quả âm (ví dụ không PP nào qua cổng A), dừng ở đó và báo cáo. Không "cứu" bằng cách mở rộng
 lưới.
+
+**Lộ trình EA song song (thêm 30/09/2026 theo yêu cầu "làm EA dần").** EA được làm từng bậc, song song với lộ trình
+trên. Bậc đầu là V0.10, chỉ quan sát, không gửi lệnh. Không module giao dịch nào vào EA trước khi qua cổng nghiên cứu
+của nó và được bạn duyệt. Chi tiết ở [`04_EA_V0_10_QUAN_SAT.md`](04_EA_V0_10_QUAN_SAT.md), Mục 2.
 
 ---
 
@@ -1562,3 +1569,15 @@ Bạn trả lời: "đồng ý, phoenix chạy tài khoản riêng". Ghi nhận 
 | 11 | **Tài khoản riêng** cho Phoenix Grid, Magic riêng |
 
 Nếu cách ghi nhận ở điểm 1, 3 hoặc 8 không đúng ý bạn, cần sửa trước khi bắt đầu Giai đoạn A.
+
+### Ghi nhận ngày 30/09/2026
+
+Bạn trả lời: "OK đúng, đây sẽ là tài khoản dành cho Phoenix, giờ tôi sẽ xuất dữ liệu ticks. Bạn làm EA dần đi, nếu cần
+tôi có thể gửi bạn 1 số phương pháp tài liệu fibo để bạn nhận định thử." Ghi nhận như sau:
+
+| Nội dung | Ghi nhận |
+|---|---|
+| Thông số XAUUSDc (R0.1, lần chạy 2) | Bạn xác nhận. Cổng duyệt thông số của R0.1: **đạt**. Phần dữ liệu của R0.1 chờ tick XAUUSDc |
+| Tài khoản Phoenix | Exness-MT5Real20, Standard Cent, USC. Đang có 3 vị thế mở. Tài khoản riêng phải hết vị thế lạ trước khi chạy bất kỳ bản EA nào gửi lệnh |
+| EA | Làm song song theo từng bậc, bắt đầu từ V0.10 quan sát ([`04_EA_V0_10_QUAN_SAT.md`](04_EA_V0_10_QUAN_SAT.md)). Không thay đổi cổng nghiên cứu, ma trận hay tiêu chí nghiệm thu |
+| Tài liệu Fibonacci | Khi bạn gửi, tôi chuyển thành quy tắc kiểm định được và đánh giá như một phương pháp ứng viên (ví dụ PP10), so với mốc ngẫu nhiên cùng cấu trúc. Thêm vào ma trận cần bạn duyệt (phiên bản kế hoạch mới). Tiêu chí nghiệm thu đã đóng băng không đổi |
