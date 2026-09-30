@@ -1,16 +1,17 @@
-"""Đọc log hằng ngày của EA Phoenix Grid V0.20 / V0.21 TEST và tóm tắt để tối ưu dần.
+"""Đọc log hằng ngày của EA Phoenix Grid V0.20 / V0.21 / V0.23 TEST và tóm tắt để tối ưu dần.
 
-Log do EA ghi trong <Common>\\Files\\PhoenixGrid\\ (phân cách ';', UTF-8), tiền tố PG_V020_ hoặc PG_V021_:
+Log do EA ghi trong <Common>\\Files\\PhoenixGrid\\ (phân cách ';', UTF-8), tiền tố PG_V020_, PG_V021_ hoặc PG_V023_:
   PG_V02x_basket_<symbol>_<YYYYMMDD>.csv         mỗi basket đã kết thúc một dòng
   PG_V02x_giao_dich_<symbol>_<YYYYMMDD>.csv      mỗi tầng (lệnh) đã đóng một dòng
-  PG_V02x_tin_hieu_<symbol>_<YYYYMMDD>.csv       mỗi lần bộ PP xét tín hiệu một dòng (V0.21 thêm cột ma_pp0)
+  PG_V02x_tin_hieu_<symbol>_<YYYYMMDD>.csv       mỗi lần bộ PP xét tín hiệu một dòng (V0.21 thêm cột ma_pp0; V0.23 bỏ PP10, 9 cột của PP10 để trống)
   PG_V02x_thuc_thi_<symbol>_<YYYYMMDD>.csv       mỗi lần gửi lệnh một dòng (giá yêu cầu / khớp, retcode, độ trễ)
   PG_V02x_tong_ket_ngay_<symbol>_<YYYYMM>.csv    mỗi ngày giao dịch một dòng (gồm nạp / rút)
   PG_V02x_trang_thai_<symbol>_<YYYYMM>.csv       trạng thái thị trường Phoenix theo nến M5 (không tóm tắt ở đây)
-Chạy trong Strategy Tester, tên file có thêm "_tester". Mặc định đọc cả hai phiên bản; --phien-ban V021 để chỉ đọc V0.21.
+Chạy trong Strategy Tester, tên file có thêm "_tester". Mặc định đọc mọi phiên bản V0.2x; --phien-ban để chỉ đọc một bản.
+V0.22 (hedge) không phát hành nên không có log PG_V022_.
 
 Chạy:
-  python3 phan_tich_log_v020.py --thu-muc <thư mục chứa log> [--symbol XAUUSDc] [--tester] [--phien-ban V021]
+  python3 phan_tich_log_v020.py --thu-muc <thư mục chứa log> [--symbol XAUUSDc] [--tester] [--phien-ban V023]
                                 [--out results_v021]
   python3 phan_tich_log_v020.py --tu-kiem-tra
 
@@ -27,7 +28,7 @@ import pandas as pd
 
 LOAI = ["basket", "giao_dich", "tin_hieu", "thuc_thi", "tong_ket_ngay"]
 EA = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "MQL5", "Experts", "PhoenixGrid",
-                  "EA_PHOENIX_GRID_V0_21_TEST.mq5")
+                  "EA_PHOENIX_GRID_V0_23_TEST.mq5")
 
 
 def doc_loai(thu_muc, loai, symbol=None, tester=False, phien_ban=None):
@@ -79,7 +80,7 @@ def tom_tat(thu_muc, symbol=None, tester=False, phien_ban=None):
     nguon = {}
     for loai in LOAI:
         d[loai], nguon[loai] = doc_loai(thu_muc, loai, symbol, tester, phien_ban)
-    out = [f"# Tóm tắt log Phoenix Grid {phien_ban or 'V0.20 / V0.21'}", "",
+    out = [f"# Tóm tắt log Phoenix Grid {phien_ban or 'V0.20 / V0.21 / V0.23'}", "",
            f"Thư mục: `{thu_muc}`" + (f", symbol `{symbol}`" if symbol else "") + (", log Strategy Tester" if tester else ""), ""]
     out.append("| Loại log | Số file | Số dòng |")
     out.append("|---|---|---|")
@@ -193,7 +194,7 @@ def tu_kiem_tra():
     so_cot = {k: len(v.split(";")) for k, v in td.items()}
     assert so_cot == {"basket": 19, "giao_dich": 13, "tin_hieu": 23, "thuc_thi": 19, "tong_ket_ngay": 15}, so_cot
     with tempfile.TemporaryDirectory() as tmp:
-        def ghi(loai, ky, dong, tester=False, pb="V021"):
+        def ghi(loai, ky, dong, tester=False, pb="V023"):
             ten = os.path.join(tmp, f"PG_{pb}_{loai}_XAUUSDc_{'tester_' if tester else ''}{ky}.csv")
             with open(ten, "w", encoding="utf-8", newline="") as f:
                 f.write(td[loai] + "\r\n")
@@ -241,18 +242,18 @@ def tu_kiem_tra():
         md_t, kq_t = tom_tat(tmp, "XAUUSDc", tester=True)
         assert kq_t["basket"] == 1, kq_t
         assert "TRAIL_CLEAR" in md and "HOA_VON" in md and "ADX thấp" in md and "Chờ sau clear basket" in md
-        md_21, kq_21 = tom_tat(tmp, "XAUUSDc", phien_ban="V021")
-        assert kq_21["basket"] == 2, kq_21            # chỉ V0.21: bỏ file basket V0.20
-    print("tự kiểm tra: đạt (tiêu đề khớp EA V0.21: basket 19, giao_dich 13, tin_hieu 23, thuc_thi 19, tong_ket_ngay 15 cột;"
-          " đọc được cả PG_V020_ và PG_V021_)")
+        md_23, kq_23 = tom_tat(tmp, "XAUUSDc", phien_ban="V023")
+        assert kq_23["basket"] == 2, kq_23            # chỉ V0.23: bỏ file basket V0.20
+    print("tự kiểm tra: đạt (tiêu đề khớp EA V0.23: basket 19, giao_dich 13, tin_hieu 23, thuc_thi 19, tong_ket_ngay 15 cột;"
+          " đọc được nhiều tiền tố PG_V02x_)")
 
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--thu-muc", help="thư mục chứa các file PG_V020_*.csv / PG_V021_*.csv")
+    ap.add_argument("--thu-muc", help="thư mục chứa các file PG_V02x_*.csv")
     ap.add_argument("--symbol", help="lọc theo symbol, ví dụ XAUUSDc")
     ap.add_argument("--tester", action="store_true", help="đọc log Strategy Tester (tên có _tester_)")
-    ap.add_argument("--phien-ban", choices=["V020", "V021"], help="chỉ đọc log của một phiên bản (mặc định: cả hai)")
+    ap.add_argument("--phien-ban", choices=["V020", "V021", "V023"], help="chỉ đọc log của một phiên bản (mặc định: mọi V0.2x)")
     ap.add_argument("--out", help="thư mục ghi tom_tat_log.md")
     ap.add_argument("--tu-kiem-tra", action="store_true")
     a = ap.parse_args()

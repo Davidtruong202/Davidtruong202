@@ -65,6 +65,29 @@ def ghi_set(file_mq5, ten_set, sua, mo_ta):
     return len(ds)
 
 
+def sua_tu_cau_hinh(c):
+    """Cấu hình của do_tim_set_cent.py -> giá trị input của EA (V0.21 / V0.23). Không cắt lệnh theo DD, không dừng lỗ."""
+    def so(x):
+        return repr(float(x))
+    bang = c["kieu_lot"] == "bang"
+    sua = {"InpLotCoSo": so(c["lot0"]), "InpDungBangLot": "true" if bang else "false",
+           "InpHeSoLot": "1.0" if bang else so(c["kieu_lot"]), "InpLotTangToiDa": so(c["lot_max"]),
+           "InpBuocMinUSD": so(c["buoc_min"]), "InpBuocATR": so(c["buoc_atr"]), "InpSoTangToiDa": str(int(c["so_tang"])),
+           "InpTiaTPBuoc": so(c["tia_tp"]), "InpGioTPATR": so(c["tp_atr"]),
+           "InpTrailClear": "false" if c["trail"] == "tat" else "true",
+           "InpHoaVonTuTang": str(int(c["hoa_von_tang"])), "InpXoaTangLo": "false" if c["xoa"] == "tat" else "true",
+           "InpXoaTuSoTang": str(int(c["xoa_tu"])), "InpChanNguocXH": "true" if c["loc_xh"] else "false",
+           "InpPP0MA": str(int(c["ma_h1"])), "InpGiayGiuaDCA": str(int(c["giay_dca"])),
+           "InpTiaLapLai": "true" if c["tia_lap_lai"] else "false", "InpGiayChoSauClear": str(int(c["cho_clear"])),
+           # như mô phỏng: chỉ PP0 mở basket; không cắt lệnh theo DD, không dừng lỗ
+           "InpDungPP1": "false", "InpBaoVeVonPT": "0.0", "InpDDDungMoiPT": "0.0", "InpSauTuTang": "0"}
+    if c["trail"] != "tat":
+        sua["InpTrailGiuPT"] = so(c["trail"])
+    if c["xoa"] != "tat":
+        sua["InpXoaGomLai"] = str(int(c["xoa"]))
+    return sua
+
+
 BO_SET = [
     ("EA_PHOENIX_GRID_V0_21_TEST.mq5", "PG_V021_DEMO_5000USD.set",
      {"InpChoPhepTKThat": "false"},
@@ -90,11 +113,11 @@ BO_SET = [
       "InpChoPhepTKThat=false: nếu lỡ nạp file này trên tài khoản thật, EA không gửi lệnh."]),
     ("EA_PHOENIX_MI_SHADOW_V0_01_TEST.mq5", "PMI_V001_THEO_PHOENIX_d60n2.set",
      {"InpMagicTheoDoi": "20260930"},
-     ["Shadow Breakout Detection, theo dõi basket Phoenix V0.20 / V0.21 (cùng magic 20260930). Chỉ ghi log, không gửi lệnh.",
+     ["Shadow Breakout Detection, theo dõi basket Phoenix V0.20 / V0.21 / V0.23 (cùng magic 20260930). Chỉ ghi log, không gửi lệnh.",
       "Ngưỡng xác nhận mặc định: điểm 60, 2 nến."]),
     ("EA_PHOENIX_MI_SHADOW_V0_01_TEST.mq5", "PMI_V001_THEO_PHOENIX_d80n3.set",
      {"InpMagicTheoDoi": "20260930", "InpDiemXacNhanBO": "80", "InpSoNenXacNhan": "3"},
-     ["Shadow Breakout Detection, theo dõi basket Phoenix V0.20 / V0.21 (cùng magic 20260930). Chỉ ghi log, không gửi lệnh.",
+     ["Shadow Breakout Detection, theo dõi basket Phoenix V0.20 / V0.21 / V0.23 (cùng magic 20260930). Chỉ ghi log, không gửi lệnh.",
       "Ngưỡng xác nhận chặt: điểm 80, 3 nến (chạy song song với d60n2 trên chart khác để so sánh)."]),
     ("EA_PHOENIX_MI_SHADOW_V0_01_TEST.mq5", "PMI_V001_THEO_HYDRA_d60n2.set",
      {"InpMagicTheoDoi": "0"},
