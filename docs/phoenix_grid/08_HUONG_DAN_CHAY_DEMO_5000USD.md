@@ -63,6 +63,7 @@ trừ commission, nên kết quả lệch real cent.
 | File SET | Dùng cho | Khác mặc định |
 |---|---|---|
 | `PG_V021_DEMO_5000USD.set` | Phoenix V0.21 trên demo | `InpChoPhepTKThat = false`: lỡ nạp trên tài khoản thật thì EA không gửi lệnh |
+| `PG_V021_DEMO_5000USD_HESO_1_2.set` | Phoenix V0.21, lot nhân 1,2 mỗi tầng (yêu cầu 30/09/2026) | Như trên + `InpHeSoLot = 1.2`; bảo vệ vốn và dừng mở basket theo DD ghi rõ = 0 (không cắt lệnh, không dừng lỗ). Vốn cạn khi giá ngược khoảng 115 USD (lot đều: khoảng 242 USD) |
 | `PG_V020_DEMO_5000USD.set` | Phoenix V0.20 (quay lại) | như trên |
 | `PMI_V001_THEO_PHOENIX_d60n2.set` | MI Shadow theo dõi Phoenix (magic 20260930) | ngưỡng 60 điểm / 2 nến |
 | `PMI_V001_THEO_PHOENIX_d80n3.set` | MI Shadow thứ hai để so sánh (tùy chọn) | ngưỡng 80 điểm / 3 nến |
