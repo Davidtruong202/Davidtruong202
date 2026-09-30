@@ -1,0 +1,161 @@
+{
+ "luat": {
+  "DD_TOI_DA": 30.0,
+  "VAL": [
+   "2026-05-08",
+   "2026-07-01"
+  ],
+  "TEST": [
+   "2026-07-08",
+   "2026-09-28"
+  ],
+  "NHIEU_VT": [
+   {
+    "hat": 11
+   },
+   {
+    "hat": 12
+   },
+   {
+    "hat": 13
+   },
+   {
+    "hat": 14
+   }
+  ],
+  "SO_CHON": 3,
+  "chon_dev": "bền trên 5 đường giá (gốc + NHIEU_VT), xếp theo mức rồi điểm vùng"
+ },
+ "ung_vien": [
+  {
+   "hat": "U1",
+   "nguon": "trail=60",
+   "muc": "B",
+   "cau_hinh": {
+    "lot0": 0.01,
+    "kieu_lot": "1.3",
+    "lot_max": 0.02,
+    "buoc_min": 10.0,
+    "buoc_atr": 4.0,
+    "so_tang": 30,
+    "tia_tp": 1.5,
+    "tp_atr": 2.0,
+    "trail": 60,
+    "hoa_von_tang": 4,
+    "xoa": "tat",
+    "xoa_tu": 2,
+    "loc_xh": false,
+    "ma_h1": 200,
+    "giay_dca": 180,
+    "tia_lap_lai": true,
+    "cho_clear": 10
+   },
+   "diem_vung": 1.98,
+   "dd_max_duong": 41.9
+  },
+  {
+   "hat": "U2",
+   "nguon": "N029",
+   "muc": "C",
+   "cau_hinh": {
+    "lot0": 0.01,
+    "kieu_lot": "1.15",
+    "lot_max": 0.05,
+    "buoc_min": 8.0,
+    "buoc_atr": 0.5,
+    "so_tang": 20,
+    "tia_tp": 1.5,
+    "tp_atr": 1.5,
+    "trail": 60,
+    "hoa_von_tang": 2,
+    "xoa": 0,
+    "xoa_tu": 4,
+    "loc_xh": false,
+    "ma_h1": 200,
+    "giay_dca": 180,
+    "tia_lap_lai": true,
+    "cho_clear": 60
+   },
+   "diem_vung": 2.215,
+   "dd_max_duong": 99.0
+  },
+  {
+   "hat": "U3",
+   "nguon": "tia_lap_lai=False",
+   "muc": "C",
+   "cau_hinh": {
+    "lot0": 0.01,
+    "kieu_lot": "bang",
+    "lot_max": 0.02,
+    "buoc_min": 15.0,
+    "buoc_atr": 2.0,
+    "so_tang": 40,
+    "tia_tp": 1.5,
+    "tp_atr": 1.0,
+    "trail": 60,
+    "hoa_von_tang": 0,
+    "xoa": "tat",
+    "xoa_tu": 4,
+    "loc_xh": false,
+    "ma_h1": 200,
+    "giay_dca": 180,
+    "tia_lap_lai": false,
+    "cho_clear": 10
+   },
+   "diem_vung": 1.97,
+   "dd_max_duong": 75.2
+  },
+  {
+   "hat": "U4",
+   "nguon": "N309",
+   "muc": "C",
+   "cau_hinh": {
+    "lot0": 0.01,
+    "kieu_lot": "1.3",
+    "lot_max": 0.03,
+    "buoc_min": 10.0,
+    "buoc_atr": 3.0,
+    "so_tang": 40,
+    "tia_tp": 2.0,
+    "tp_atr": 1.5,
+    "trail": 40,
+    "hoa_von_tang": 0,
+    "xoa": 4,
+    "xoa_tu": 3,
+    "loc_xh": false,
+    "ma_h1": 200,
+    "giay_dca": 180,
+    "tia_lap_lai": true,
+    "cho_clear": 10
+   },
+   "diem_vung": 1.58,
+   "dd_max_duong": 66.4
+  },
+  {
+   "hat": "U5",
+   "nguon": "so_tang=12",
+   "muc": "C",
+   "cau_hinh": {
+    "lot0": 0.01,
+    "kieu_lot": "1.3",
+    "lot_max": 0.05,
+    "buoc_min": 1.5,
+    "buoc_atr": 2.0,
+    "so_tang": 12,
+    "tia_tp": 2.0,
+    "tp_atr": 3.0,
+    "trail": "tat",
+    "hoa_von_tang": 4,
+    "xoa": 4,
+    "xoa_tu": 3,
+    "loc_xh": false,
+    "ma_h1": 200,
+    "giay_dca": 20,
+    "tia_lap_lai": false,
+    "cho_clear": 10
+   },
+   "diem_vung": 1.46,
+   "dd_max_duong": 79.6
+  }
+ ]
+}
