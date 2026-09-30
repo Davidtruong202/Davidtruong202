@@ -36,6 +36,8 @@ Chạy:
   python3 do_tim_set_cent.py dev-them --m1 <nen_M1.csv> --out <thư mục>  (thông tin: ứng viên trên 16 đường giá DEV nữa)
   python3 do_tim_set_cent.py val  --m1 <nen_M1.csv> --out <thư mục>      (đọc ung_vien_dang_ky.json)
   python3 do_tim_set_cent.py test --m1 <nen_M1.csv> --out <thư mục>      (đọc chon_sau_val.json)
+  python3 do_tim_set_cent.py von-cao --m1 <nen_M1.csv> --out <thư mục>   (VAL không chọn được: thử vốn VON_CAO)
+  python3 do_tim_set_cent.py test-von-cao --m1 <nen_M1.csv> --out <thư mục>  (TEST một lần cho set chọn ở vốn cao)
   python3 do_tim_set_cent.py bao-cao --out <thư mục>                      (BAO_CAO_DO_TIM.md từ mọi CSV đã có)
   python3 do_tim_set_cent.py --tu-kiem-tra
 Mã của lần dò với 5.000 USC (có thêm bước hạt giống / láng giềng / nhiễu cũ): xem lịch sử git của file này.
@@ -66,6 +68,7 @@ SO_CHON = 3
 HAT_NGAU_NHIEN = 20260930
 NHIEU_VT = [dict(hat=11), dict(hat=12), dict(hat=13), dict(hat=14)]
 SO_DUONG_THEM = 16
+VON_CAO = [20000.0, 50000.0]      # 200 USD, 500 USD trên tài khoản cent, lot tầng 0 vẫn 0,01
 
 # (khóa, input của EA, các giá trị theo thứ tự — láng giềng là giá trị liền kề)
 KG = [
@@ -281,14 +284,15 @@ def giai_doan_dev(pool, out):
     giai_doan_dev_ben(pool, out)
 
 
-def chay_vt(pool, out, ten_gd, khoang, ung_vien, ten_csv):
+def chay_vt(pool, out, ten_gd, khoang, ung_vien, ten_csv, von=None):
     tu, den = khoang
     ds = []
     for u in ung_vien:
-        ds.append(dict(giai_doan=ten_gd, nhom="goc", ten=u["hat"], c=u["cau_hinh"], tu=tu, den=den))
+        ds.append(dict(giai_doan=ten_gd, nhom="goc", ten=u["hat"], c=u["cau_hinh"], tu=tu, den=den,
+                       von=VON if von is None else von))
         for nh in NHIEU_VT:
             ds.append(dict(giai_doan=ten_gd, nhom="nhieu", ten=u["hat"], c=u["cau_hinh"], tu=tu, den=den,
-                           hat=nh["hat"]))
+                           hat=nh["hat"], von=VON if von is None else von))
     p = os.path.join(out, ten_csv)
     if os.path.exists(p):
         os.remove(p)
@@ -463,6 +467,77 @@ def giai_doan_test(pool, out):
         os.remove(p)
     chay_ds(pool, ds, p, "9 tháng tham khảo")
 
+def giai_doan_von_cao(pool, out):
+    """Thêm sau khi VAL ở vốn VON không chọn được set nào (ứng viên đăng ký ở commit be553dc; kết quả VAL trong val.csv).
+    Luật (ghi trước khi chạy bước này): 5 ứng viên đã đăng ký chạy lại với vốn VON_CAO (lot tầng 0 vẫn 0,01) trên DEV
+    (đường gốc + NHIEU_VT + SO_DUONG_THEM đường thêm) và VAL (đường gốc + NHIEU_VT). Đạt ở một mức vốn = không cháy trên
+    mọi đường DEV + VAL, DD lớn nhất ≤ DD_TOI_DA %, lãi > 0 ở đường gốc của DEV và của VAL. Mức vốn chọn = mức nhỏ nhất có
+    ứng viên đạt; set = các ứng viên đạt ở mức đó xếp theo trung vị điểm của mọi đường DEV + VAL, tối đa SO_CHON, hạng 1
+    là set chính. VAL đã được xem ở vốn VON, nên lần chọn này dùng cả DEV lẫn VAL; TEST (chưa chạy) là kiểm định sạch
+    duy nhất — chạy một lần bằng test-von-cao."""
+    with open(os.path.join(out, "ung_vien_dang_ky.json"), encoding="utf-8") as f:
+        dk = json.load(f)
+    p = os.path.join(out, "von_cao.csv")
+    if os.path.exists(p):
+        os.remove(p)
+    hat_dev = [None] + [n["hat"] for n in NHIEU_VT] + [100 + i for i in range(1, SO_DUONG_THEM + 1)]
+    hat_val = [None] + [n["hat"] for n in NHIEU_VT]
+    ds = []
+    for von in VON_CAO:
+        for u in dk["ung_vien"]:
+            for gd, (tu, den), hats in (("DEV", DEV, hat_dev), ("VAL", VAL, hat_val)):
+                for h in hats:
+                    ds.append(dict(giai_doan=gd, nhom="goc" if h is None else "nhieu", ten=u["hat"], c=u["cau_hinh"],
+                                   tu=tu, den=den, hat=h, von=von))
+    kq = chay_ds(pool, ds, p, "vốn cao")
+    ket = []
+    for von in VON_CAO:
+        for u in dk["ung_vien"]:
+            rr = [r for r in kq if r["ten"] == u["hat"] and float(r["von"]) == von]
+            goc = {r["giai_doan"]: r for r in rr if r["nhom"] == "goc"}
+            ok = (all(r["chay"] == 0 and r["vi_pham"] == 0 and r["dd_pt"] <= DD_TOI_DA for r in rr)
+                  and goc["DEV"]["net"] > 0 and goc["VAL"]["net"] > 0)
+            ket.append(dict(von=von, hat=u["hat"], dat=ok, so_duong=len(rr), so_duong_chay=sum(r["chay"] > 0 for r in rr),
+                            dd_max=max(r["dd_pt"] for r in rr), trung_vi_diem=float(np.median([diem(r) for r in rr])),
+                            net_dev_goc=goc["DEV"]["net"], net_val_goc=goc["VAL"]["net"], cau_hinh=u["cau_hinh"]))
+    muc = [v for v in VON_CAO if any(k["dat"] and k["von"] == v for k in ket)]
+    von_chon = min(muc) if muc else None
+    chon = sorted([k for k in ket if k["dat"] and k["von"] == von_chon], key=lambda k: -k["trung_vi_diem"])[:SO_CHON]
+    with open(os.path.join(out, "chon_von_cao.json"), "w", encoding="utf-8") as f:
+        json.dump(dict(von=von_chon, nguong_dd_test=DD_TOI_DA,
+                       luat_test="không cháy và DD ≤ %.0f%% trên mọi đường TEST, lãi > 0 và bỏ tháng tốt nhất vẫn ≥ 0 ở "
+                                 "đường gốc; set chính = hạng 1, TEST không dùng để đổi set" % DD_TOI_DA,
+                       ket_qua=[{k: v for k, v in x.items() if k != "cau_hinh"} for x in ket],
+                       chon=[dict(hat=k["hat"], cau_hinh=k["cau_hinh"], hang=i + 1, von=von_chon)
+                             for i, k in enumerate(chon)]), f, ensure_ascii=False, indent=1)
+    for k in ket:
+        print({x: v for x, v in k.items() if x != "cau_hinh"}, flush=True)
+    print("vốn chọn:", von_chon, "set:", [k["hat"] for k in chon], flush=True)
+
+
+def giai_doan_test_von_cao(pool, out):
+    with open(os.path.join(out, "chon_von_cao.json"), encoding="utf-8") as f:
+        ch = json.load(f)
+    if not ch["chon"]:
+        raise SystemExit("không có set nào được chọn ở vốn cao — không chạy TEST")
+    if os.path.exists(os.path.join(out, "test_von_cao.csv")):
+        raise SystemExit("TEST đã chạy (test_von_cao.csv đã có) — chỉ được chạy một lần")
+    von = float(ch["von"])
+    kq = chay_vt(pool, out, "TEST", TEST, ch["chon"], "test_von_cao.csv", von=von)
+    for u in ch["chon"]:
+        rr = [r for r in kq if r["ten"] == u["hat"]]
+        r0 = [r for r in rr if r["nhom"] == "goc"][0]
+        ok = (all(r["chay"] == 0 and r["vi_pham"] == 0 and r["dd_pt"] <= float(ch["nguong_dd_test"]) for r in rr)
+              and r0["net"] > 0 and r0["bo1thang"] >= 0)
+        print(u["hat"], "hạng", u["hang"], "ĐẠT" if ok else "KHÔNG ĐẠT", {k: r0[k] for k in COT_KQ}, flush=True)
+    ds = [dict(giai_doan="CA_9_THANG", nhom="tham_khao", ten=u["hat"], c=u["cau_hinh"], tu=DEV[0], den=TEST[1], von=von)
+          for u in ch["chon"]]
+    p = os.path.join(out, "ca_9_thang_von_cao.csv")
+    if os.path.exists(p):
+        os.remove(p)
+    chay_ds(pool, ds, p, "9 tháng tham khảo")
+
+
 # ------------------------------------------------------------------ báo cáo
 TEN_P = {k: ten for k, ten, _ in KG}
 COT_BANG = ["net", "chay", "dd_pt", "net_dd", "bo2thang", "basket", "basket_ngay", "so_lenh", "gio_tv", "gio_p95",
@@ -591,8 +666,20 @@ def bao_cao(out):
               "`v022` = hedge như V0.22 đã dựng; `sau15_khoa` = hedge từ 15 khoảng tầng, không giảm cấp, khóa DCA sau "
               "khi đã hedge.", ""]
         L.append(_md(d4[["ten", "hedge"] + COT_BANG + ["co_hd", "gio_khoa"]]))
+    vc, tvc, cvc = (doc(x) for x in ("von_cao.csv", "test_von_cao.csv", "ca_9_thang_von_cao.csv"))
+    if vc is not None:
+        L += ["## Vốn cao hơn (VAL ở vốn gốc không chọn được set): DEV 21 đường + VAL 5 đường", ""]
+        g = vc.groupby(["von", "ten", "giai_doan"]).agg(
+            so_duong=("net", "size"), so_duong_chay=("chay", lambda x: int((x > 0).sum())), dd_lon_nhat=("dd_pt", "max"),
+            dd_trung_vi=("dd_pt", "median"), lai_goc=("net", "first"), lai_trung_vi=("net", "median"),
+            **({"lai_ngay_tv": ("lai_ngay_tb", "median"), "lot_ngay_tv": ("lot_ngay", "median"),
+                "basket_ngay_tv": ("basket_ngay", "median"), "gio_p95_tv": ("gio_p95", "median")}
+               if "lai_ngay_tb" in vc.columns else {})).reset_index()
+        L.append(_md(g))
     for ten_gd, df in (("VAL 08/05–30/06/2026", val), ("TEST 08/07–27/09/2026 (chạy một lần)", tst),
-                       ("Cả 01/01–27/09/2026 (tham khảo, lẫn dữ liệu DEV)", ca)):
+                       ("Cả 01/01–27/09/2026 (tham khảo, lẫn dữ liệu DEV)", ca),
+                       ("TEST 08/07–27/09/2026 ở vốn cao (chạy một lần)", tvc),
+                       ("Cả 01/01–27/09/2026 ở vốn cao (tham khảo, lẫn dữ liệu DEV + VAL)", cvc)):
         if df is not None:
             L += [f"## {ten_gd}", ""]
             L.append(_md(df[["ten", "nhom", "hat"] + COT_BANG + ["bo1thang", "thang_am"] +
@@ -608,7 +695,9 @@ def dang_ky_md(out):
     luat = __doc__[__doc__.index("Luật (cố định"):__doc__.index("Kết luận cao nhất")]
     for ten_json, ten_md, tieu_de, khoa in (
             ("ung_vien_dang_ky.json", "DANG_KY_TRUOC_VAL.md", "Đăng ký trước VAL — ứng viên sau DEV", "ung_vien"),
-            ("chon_sau_val.json", "DANG_KY_TRUOC_TEST.md", "Đăng ký trước TEST — set chọn sau VAL", "chon")):
+            ("chon_sau_val.json", "DANG_KY_TRUOC_TEST.md", "Đăng ký trước TEST — set chọn sau VAL", "chon"),
+            ("chon_von_cao.json", "DANG_KY_TRUOC_TEST_VON_CAO.md",
+             "Đăng ký trước TEST — set chọn ở vốn cao (DEV + VAL)", "chon")):
         p = os.path.join(out, ten_json)
         if not os.path.exists(p):
             continue
@@ -617,8 +706,13 @@ def dang_ky_md(out):
         L = [f"# {tieu_de}", "", "Ghi (commit) trước khi chạy giai đoạn kế tiếp; không sửa sau khi đã chạy.", "",
              "## Luật (trích `do_tim_set_cent.py`)", "", "```", luat.rstrip(), "```", ""]
         if khoa == "chon":
-            L += ["Luật TEST: " + j["luat_test"], "", "## Xếp hạng VAL", ""]
-            L += ["- " + ", ".join(f"{k}={v}" for k, v in h.items()) for h in j["xep_hang_val"]]
+            L += ["Luật TEST: " + j["luat_test"], ""]
+            if "von" in j:
+                L += [f"Vốn chọn: {j['von']} USC (lot tầng 0 = 0,01)", "", "## Kết quả theo mức vốn", ""]
+                L += ["- " + ", ".join(f"{k}={v}" for k, v in h.items()) for h in j["ket_qua"]]
+            else:
+                L += ["## Xếp hạng VAL", ""]
+                L += ["- " + ", ".join(f"{k}={v}" for k, v in h.items()) for h in j["xep_hang_val"]]
             L.append("")
         L += ["## " + ("Ứng viên" if khoa == "ung_vien" else "Set đã chọn (hạng 1 = set chính)"), ""]
         for u in j[khoa]:
@@ -688,7 +782,8 @@ def tu_kiem_tra():
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("giai_doan", nargs="?", choices=["dev", "dev-ben", "dev-them", "val", "test", "bao-cao"])
+    ap.add_argument("giai_doan", nargs="?", choices=["dev", "dev-ben", "dev-them", "val", "test", "von-cao",
+                                                     "test-von-cao", "bao-cao"])
     ap.add_argument("--m1")
     ap.add_argument("--out")
     ap.add_argument("--luong", type=int, default=4)
@@ -704,7 +799,8 @@ def main():
         return 0
     with Pool(a.luong, initializer=_khoi, initargs=(a.m1,)) as pool:
         {"dev": giai_doan_dev, "dev-ben": giai_doan_dev_ben, "dev-them": giai_doan_dev_them, "val": giai_doan_val,
-         "test": giai_doan_test}[a.giai_doan](pool, a.out)
+         "test": giai_doan_test, "von-cao": giai_doan_von_cao,
+         "test-von-cao": giai_doan_test_von_cao}[a.giai_doan](pool, a.out)
     return 0
 
 

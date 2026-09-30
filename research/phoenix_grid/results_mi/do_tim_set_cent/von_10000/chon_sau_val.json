@@ -1,0 +1,53 @@
+{
+ "muc_val": "B",
+ "nguong_dd_test": 35.0,
+ "luat_test": "không cháy và DD ≤ 35% trên mọi đường, lãi > 0 ở đường gốc, bỏ tháng tốt nhất vẫn ≥ 0; set chính = hạng 1, TEST không dùng để đổi set",
+ "xep_hang_val": [
+  {
+   "hat": "U3",
+   "dat_val": false,
+   "dat_val_b": false,
+   "trung_vi_diem": 1.32,
+   "net_goc": -1690.7,
+   "dd_goc": 58.3,
+   "dd_max": 58.3
+  },
+  {
+   "hat": "U4",
+   "dat_val": false,
+   "dat_val_b": false,
+   "trung_vi_diem": 0.7,
+   "net_goc": 3431.9,
+   "dd_goc": 40.7,
+   "dd_max": 41.6
+  },
+  {
+   "hat": "U2",
+   "dat_val": false,
+   "dat_val_b": false,
+   "trung_vi_diem": 0.57,
+   "net_goc": 5320.1,
+   "dd_goc": 61.3,
+   "dd_max": 66.3
+  },
+  {
+   "hat": "U1",
+   "dat_val": false,
+   "dat_val_b": false,
+   "trung_vi_diem": -0.89,
+   "net_goc": -3635.7,
+   "dd_goc": 40.3,
+   "dd_max": 48.6
+  },
+  {
+   "hat": "U5",
+   "dat_val": false,
+   "dat_val_b": false,
+   "trung_vi_diem": -1.0,
+   "net_goc": -6131.3,
+   "dd_goc": 100.1,
+   "dd_max": 100.7
+  }
+ ],
+ "chon": []
+}
