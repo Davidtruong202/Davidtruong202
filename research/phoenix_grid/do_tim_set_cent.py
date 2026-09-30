@@ -4,8 +4,11 @@ Vốn: VON USC trên lot tầng 0 = 0,01 (mặc định 10.000 USC = 100 USD; b�
 có thể 500 USD). Mục tiêu theo lời bạn: "quan trọng không cháy", "set DD thấp, tư duy thoát lệnh nhanh, nhiều lệnh và
 lãi cao". Lần dò trước với 5.000 USC nằm trong results_mi/do_tim_set_cent/von_5000/ (chỉ DEV).
 Lần dò 10.000 USC (von_10000/): VAL không chọn được set; 5 ứng viên của lần đó ở 20.000 / 50.000 USC cũng không đạt.
-Lần dò 50.000 USC (von_50000/, 500 USD, lot 0,01) chạy lại từ bước 1 với cùng luật; VAL đã được xem với các cấu hình
-của lần 10.000 USC nên không còn hoàn toàn sạch — TEST (chưa chạy với cấu hình nào) là kiểm định sạch duy nhất.
+Lần dò 50.000 USC (von_50000/, 500 USD, lot 0,01) chạy lại từ bước 1; VAL đã được xem với các cấu hình của lần
+10.000 USC nên không còn hoàn toàn sạch — TEST (chưa chạy với cấu hình nào) là kiểm định sạch duy nhất. Trong lúc bước 1
+đang chạy (chưa xem kết quả), bạn đặt tiêu chí 30/09/2026: "trung bình kiếm 10–30$ 1 ngày và phải x2 trước khi cháy, dd
+dưới 35% là đạt, tối ưu thêm càng tốt" — lần 50.000 USC dùng --dd-dat 35 --dd-b 50 (đạt = DD ≤ 35%) và có thêm bước
+tối ưu lot (toi-uu-lot) trước TEST; chỉ số thêm: số ngày tới khi Equity gấp đôi (ngay_x2), tới lần cháy đầu (ngay_chay_dau).
 
 Quy trình (kế hoạch §13.9, §14 Phương án 2 — chỉ dữ liệu 2026, giá XAUUSDm M1, spread cố định 0,26 như XAUUSDc):
   DEV   01/01–30/04/2026  dò ngẫu nhiên trên các input của EA; độ bền trên 5 đường giá; láng giềng một bước (vùng
@@ -41,6 +44,8 @@ Chạy:
   python3 do_tim_set_cent.py test --m1 <nen_M1.csv> --out <thư mục>      (đọc chon_sau_val.json)
   python3 do_tim_set_cent.py von-cao --m1 <nen_M1.csv> --out <thư mục>   (VAL không chọn được: thử vốn VON_CAO)
   python3 do_tim_set_cent.py test-von-cao --m1 <nen_M1.csv> --out <thư mục>  (TEST một lần cho set chọn ở vốn cao)
+  python3 do_tim_set_cent.py toi-uu-lot --m1 <nen_M1.csv> --out <thư mục>  (sau VAL: lot lớn nhất vẫn đạt DD)
+  python3 do_tim_set_cent.py test-lot --m1 <nen_M1.csv> --out <thư mục>    (TEST một lần cho set + lot đã chọn)
   python3 do_tim_set_cent.py bao-cao --out <thư mục>                      (BAO_CAO_DO_TIM.md từ mọi CSV đã có)
   python3 do_tim_set_cent.py --tu-kiem-tra
 Mã của lần dò với 5.000 USC (có thêm bước hạt giống / láng giềng / nhiễu cũ): xem lịch sử git của file này.
@@ -72,6 +77,7 @@ HAT_NGAU_NHIEN = 20260930
 NHIEU_VT = [dict(hat=11), dict(hat=12), dict(hat=13), dict(hat=14)]
 SO_DUONG_THEM = 16
 VON_CAO = [20000.0, 50000.0]      # 200 USD, 500 USD trên tài khoản cent, lot tầng 0 vẫn 0,01
+LOT_THU = [0.01, 0.02, 0.03, 0.04, 0.05, 0.07, 0.10]   # tối ưu lot: lot tầng 0 thử tăng dần, trần lot nhân cùng hệ số
 
 # (khóa, input của EA, các giá trị theo thứ tự — láng giềng là giá trị liền kề)
 KG = [
@@ -107,7 +113,8 @@ THAM_CHIEU = [
 COT_KQ = ["net", "chay", "dd_pt", "dd_tien", "net_dd", "basket", "vi_pham", "swap", "thang_am", "bo1thang", "bo2thang",
           "gio_max", "sau_max", "lot_max", "buy", "sell", "gio_chan_ml", "chan_ml_dau", "lenh_max_ngay", "chan_ngay",
           "co_hd", "gio_khoa", "gio_tv", "gio_p95", "so_lenh", "basket_ngay", "von_thap", "so_ngay", "lai_ngay_tb",
-          "lai_ngay_tv", "ngay_lo_pt", "ngay_xau", "ngay_tot", "chot_ngay_tb", "lot_gd", "lot_ngay"]
+          "lai_ngay_tv", "ngay_lo_pt", "ngay_xau", "ngay_tot", "chot_ngay_tb", "lot_gd", "lot_ngay", "ngay_x2",
+          "ngay_chay_dau"]
 COT = ["giai_doan", "nhom", "ten", "tu", "den", "hat", "von", "giay"] + ["p_" + k for k in KHOA] + ["hedge"] + COT_KQ
 
 
@@ -541,6 +548,92 @@ def giai_doan_test_von_cao(pool, out):
     chay_ds(pool, ds, p, "9 tháng tham khảo")
 
 
+def doi_lot(c, lot0):
+    """Cùng cấu hình, lot tầng 0 = lot0; trần lot mỗi tầng nhân cùng hệ số."""
+    return dict(c, lot0=lot0, lot_max=round(float(c["lot_max"]) * lot0 / 0.01, 2))
+
+
+def giai_doan_toi_uu_lot(pool, out):
+    """Tối ưu lot (tiêu chí của bạn 30/09/2026: lãi 10–30 USD / ngày, DD dưới 35%, gấp đôi trước khi cháy). Với từng
+    set đã chọn sau VAL (chon_sau_val.json), thử lot tầng 0 theo LOT_THU tăng dần ở vốn VON trên DEV (đường gốc +
+    NHIEU_VT + SO_DUONG_THEM đường thêm) và VAL (gốc + NHIEU_VT). Đạt ở một mức lot = không cháy trên mọi đường, DD lớn
+    nhất ≤ DD_TOI_DA %, lãi > 0 ở đường gốc DEV và VAL; dừng tăng lot ở mức đầu tiên không đạt. Lot chọn cho mỗi set =
+    mức lớn nhất đạt; set chính = hạng 1 sau VAL. Ghi chon_lot.json trước TEST (test-lot)."""
+    with open(os.path.join(out, "chon_sau_val.json"), encoding="utf-8") as f:
+        ch = json.load(f)
+    if not ch["chon"]:
+        raise SystemExit("không có set nào sau VAL — không tối ưu lot")
+    p = os.path.join(out, "toi_uu_lot.csv")
+    if os.path.exists(p):
+        os.remove(p)
+    hat_dev = [None] + [n["hat"] for n in NHIEU_VT] + [100 + i for i in range(1, SO_DUONG_THEM + 1)]
+    hat_val = [None] + [n["hat"] for n in NHIEU_VT]
+    ket = []
+    for u in ch["chon"]:
+        for lot0 in LOT_THU:
+            c = doi_lot(u["cau_hinh"], lot0)
+            ds = []
+            for gd, (tu, den), hats in (("DEV", DEV, hat_dev), ("VAL", VAL, hat_val)):
+                for h in hats:
+                    ds.append(dict(giai_doan=gd, nhom="goc" if h is None else "nhieu", ten=f"{u['hat']}@{lot0}", c=c,
+                                   tu=tu, den=den, hat=h))
+            rr = chay_ds(pool, ds, p, f"lot {u['hat']} {lot0}")
+            goc = {r["giai_doan"]: r for r in rr if r["nhom"] == "goc"}
+            ok = (all(r["chay"] == 0 and r["vi_pham"] == 0 and r["dd_pt"] <= DD_TOI_DA for r in rr)
+                  and goc["DEV"]["net"] > 0 and goc["VAL"]["net"] > 0)
+            ket.append(dict(hat=u["hat"], hang=u["hang"], lot0=lot0, lot_max=c["lot_max"], dat=ok,
+                            so_duong=len(rr), so_duong_chay=sum(r["chay"] > 0 for r in rr),
+                            dd_max=max(r["dd_pt"] for r in rr),
+                            lai_ngay_dev_goc=goc["DEV"].get("lai_ngay_tb"), lai_ngay_val_goc=goc["VAL"].get("lai_ngay_tb"),
+                            lai_ngay_tv_moi_duong=float(np.median([r["lai_ngay_tb"] for r in rr])),
+                            lot_ngay_dev_goc=goc["DEV"].get("lot_ngay")))
+            print({k: v for k, v in ket[-1].items()}, flush=True)
+            if not ok:
+                break
+    chon = []
+    for u in ch["chon"]:
+        dat = [k for k in ket if k["hat"] == u["hat"] and k["dat"]]
+        if dat:
+            k = max(dat, key=lambda x: x["lot0"])
+            chon.append(dict(hat=u["hat"], hang=u["hang"], lot0=k["lot0"],
+                             cau_hinh=doi_lot(u["cau_hinh"], k["lot0"]), cau_hinh_lot_001=u["cau_hinh"]))
+    with open(os.path.join(out, "chon_lot.json"), "w", encoding="utf-8") as f:
+        json.dump(dict(von=VON, nguong_dd_test=DD_TOI_DA,
+                       luat_test="set chính (hạng 1) ở lot đã chọn: không cháy và DD ≤ %.0f%% trên mọi đường TEST, lãi > 0 "
+                                 "và bỏ tháng tốt nhất vẫn ≥ 0 ở đường gốc; cùng set ở lot 0,01 chạy kèm để tham khảo; TEST "
+                                 "không dùng để đổi set hay lot" % DD_TOI_DA,
+                       ket_qua=ket, chon=chon), f, ensure_ascii=False, indent=1)
+    print("chọn lot:", [(c["hat"], c["lot0"]) for c in chon], flush=True)
+
+
+def giai_doan_test_lot(pool, out):
+    with open(os.path.join(out, "chon_lot.json"), encoding="utf-8") as f:
+        ch = json.load(f)
+    if not ch["chon"]:
+        raise SystemExit("không có set / lot nào được chọn — không chạy TEST")
+    if os.path.exists(os.path.join(out, "test_lot.csv")):
+        raise SystemExit("TEST đã chạy (test_lot.csv đã có) — chỉ được chạy một lần")
+    u = sorted(ch["chon"], key=lambda x: x["hang"])[0]
+    ung = [dict(hat=f"{u['hat']}@{u['lot0']}", cau_hinh=u["cau_hinh"]),
+           dict(hat=f"{u['hat']}@0.01", cau_hinh=u["cau_hinh_lot_001"])]
+    if u["lot0"] == 0.01:
+        ung = ung[:1]
+    kq = chay_vt(pool, out, "TEST", TEST, ung, "test_lot.csv")
+    for x in ung:
+        rr = [r for r in kq if r["ten"] == x["hat"]]
+        r0 = [r for r in rr if r["nhom"] == "goc"][0]
+        ok = (all(r["chay"] == 0 and r["vi_pham"] == 0 and r["dd_pt"] <= float(ch["nguong_dd_test"]) for r in rr)
+              and r0["net"] > 0 and r0["bo1thang"] >= 0)
+        print(x["hat"], "ĐẠT" if ok else "KHÔNG ĐẠT", "DD lớn nhất", max(r["dd_pt"] for r in rr),
+              {k: r0[k] for k in COT_KQ}, flush=True)
+    ds = [dict(giai_doan="CA_9_THANG", nhom="tham_khao", ten=x["hat"], c=x["cau_hinh"], tu=DEV[0], den=TEST[1])
+          for x in ung]
+    p = os.path.join(out, "ca_9_thang_lot.csv")
+    if os.path.exists(p):
+        os.remove(p)
+    chay_ds(pool, ds, p, "9 tháng tham khảo")
+
+
 # ------------------------------------------------------------------ báo cáo
 TEN_P = {k: ten for k, ten, _ in KG}
 COT_BANG = ["net", "chay", "dd_pt", "net_dd", "bo2thang", "basket", "basket_ngay", "so_lenh", "gio_tv", "gio_p95",
@@ -786,24 +879,28 @@ def tu_kiem_tra():
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("giai_doan", nargs="?", choices=["dev", "dev-ben", "dev-them", "val", "test", "von-cao",
-                                                     "test-von-cao", "bao-cao"])
+                                                     "test-von-cao", "toi-uu-lot", "test-lot", "bao-cao"])
     ap.add_argument("--m1")
     ap.add_argument("--out")
     ap.add_argument("--luong", type=int, default=4)
     ap.add_argument("--von", type=float, default=VON, help="vốn USC cho lot tầng 0 = 0,01 (mặc định 10000)")
+    ap.add_argument("--dd-dat", type=float, default=DD_TOI_DA, help="ngưỡng DD đạt (%%, mặc định 20)")
+    ap.add_argument("--dd-b", type=float, default=DD_MUC_B, help="ngưỡng DD dự phòng mức B (%%, mặc định 35)")
     ap.add_argument("--tu-kiem-tra", action="store_true")
     a = ap.parse_args()
     if a.tu_kiem_tra:
         return tu_kiem_tra()
     globals()["VON"] = a.von
+    globals()["DD_TOI_DA"] = a.dd_dat
+    globals()["DD_MUC_B"] = a.dd_b
     os.makedirs(a.out, exist_ok=True)
     if a.giai_doan == "bao-cao":
         bao_cao(a.out)
         return 0
     with Pool(a.luong, initializer=_khoi, initargs=(a.m1,)) as pool:
         {"dev": giai_doan_dev, "dev-ben": giai_doan_dev_ben, "dev-them": giai_doan_dev_them, "val": giai_doan_val,
-         "test": giai_doan_test, "von-cao": giai_doan_von_cao,
-         "test-von-cao": giai_doan_test_von_cao}[a.giai_doan](pool, a.out)
+         "test": giai_doan_test, "von-cao": giai_doan_von_cao, "test-von-cao": giai_doan_test_von_cao,
+         "toi-uu-lot": giai_doan_toi_uu_lot, "test-lot": giai_doan_test_lot}[a.giai_doan](pool, a.out)
     return 0
 
 

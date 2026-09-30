@@ -169,6 +169,8 @@ class MoPhong:
         self.tong_lot = 0.0           # tổng khối lượng các lệnh đã mở (lot)
         self.eq_ngay = {}             # ngày -> Equity cuối ngày (không tính tiền nạp lại), trước swap qua đêm
         self.chot_ngay = {}           # ngày -> lãi đã chốt lũy kế cuối ngày
+        self.t_dau = None             # thời điểm tick đầu tiên của lần chạy
+        self.t_x2 = None              # lần đầu Equity (không tính tiền nạp lại) ≥ 2 × vốn
         self.so_ngay = 0              # số ngày có nến đã chạy
         self._ag = None               # tổng của basket, tính lại khi vị thế thay đổi
 
@@ -568,8 +570,12 @@ class MoPhong:
 
     def kiem_von(self):
         eq = self.equity()
+        if self.t_dau is None:
+            self.t_dau = self.t
         if eq - self.nap < self.von_thap:
             self.von_thap = eq - self.nap
+        if self.t_x2 is None and eq - self.nap >= 2.0 * self.ts.von:
+            self.t_x2 = self.t
         if eq > self.eq_dinh:
             self.eq_dinh = eq
         if self.eq_dinh > 0:
@@ -825,6 +831,9 @@ def tom_tat(sim, eq_thang, ts):
              bo2thang=round(loi_thang.sum() - loi_thang.nlargest(2).sum(), 1),
              gio_chan_ml=round(sim.tick_chan_ml * 15 / 3600, 1), chan_ml_dau=sim.lan_chan_ml_dau,
              lenh_max_ngay=max(sim.lenh_max_ngay, sim.lenh_hom_nay), chan_ngay=sim.tick_chan_ngay)
+    t0 = sim.t_dau if sim.t_dau is not None else 0.0
+    r.update(ngay_x2=round((sim.t_x2 - t0) / 86400, 1) if sim.t_x2 is not None else None,
+             ngay_chay_dau=round((sim.chay[0]["t"] - t0) / 86400, 1) if sim.chay else None)
     r.update(so_lenh=sim.id, von_thap=round(sim.von_thap, 1),
              basket_ngay=round(len(kq) / sim.so_ngay, 2) if sim.so_ngay else 0.0)
     # tiền mỗi ngày (theo Equity cuối ngày, gồm cả thả nổi) và khối lượng giao dịch
