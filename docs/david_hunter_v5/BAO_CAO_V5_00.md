@@ -20,7 +20,7 @@
    - khôi phục đúng sau 6 lần khởi động lại khi đang giữ lệnh;
    - nạp/rút tiền không làm cầu dao sập nhầm;
    - tài khoản thật chưa được cho phép thì không gửi lệnh nào.
-3. **Chưa phương pháp nào chứng minh được lợi thế.** Trên 9 tháng mô phỏng, mọi cấu hình đều lãi ở T1–T6 nhưng lỗ ở T7–T9. Kỳ vọng của toàn bộ tín hiệu thô xấp xỉ −0,03R. Điểm chất lượng tín hiệu không dự báo được kết quả. Kết quả thay đổi mạnh chỉ vì đổi một ngưỡng (xem mục 7). Kết luận này khớp với kiểm chứng MT5 9 tháng của V4.39: 6 phương pháp chọn từ dữ liệu ngắn đều lỗ.
+3. **Chưa phương pháp nào chứng minh được lợi thế.** Trên 9 tháng mô phỏng, mọi cấu hình đều lỗ ở T7–T9. Các cấu hình có học lãi ở T1–T6 (riêng lượt stress chi phí xấp xỉ hòa vốn); tắt học thì lỗ cả hai nửa. Kỳ vọng của toàn bộ tín hiệu thô xấp xỉ −0,03R. Điểm chất lượng tín hiệu không dự báo được kết quả. Kết quả thay đổi mạnh chỉ vì đổi một ngưỡng (xem mục 7). Kết luận này khớp với kiểm chứng MT5 9 tháng của V4.39: 6 phương pháp chọn từ dữ liệu ngắn đều lỗ.
 4. **Vì vậy mặc định rất thận trọng:**
    - tài khoản THẬT chỉ phân tích, trừ khi bật công tắc riêng;
    - học theo chế độ "chứng minh trước": chỉ vào lệnh thật ở ô PP × hướng × phiên đã có kỳ vọng dương bằng lệnh ảo;
