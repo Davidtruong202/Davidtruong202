@@ -1,0 +1,100 @@
+{
+ "muc_val": "A",
+ "nguong_dd_test": 35.0,
+ "luat_test": "không cháy và DD ≤ 35% trên mọi đường, lãi > 0 ở đường gốc, bỏ tháng tốt nhất vẫn ≥ 0; set chính = hạng 1, TEST không dùng để đổi set",
+ "xep_hang_val": [
+  {
+   "hat": "U4",
+   "dat_val": true,
+   "dat_val_b": true,
+   "trung_vi_diem": 1.75,
+   "net_goc": 3310.6,
+   "dd_goc": 4.8,
+   "dd_max": 4.8
+  },
+  {
+   "hat": "U1",
+   "dat_val": true,
+   "dat_val_b": true,
+   "trung_vi_diem": 0.57,
+   "net_goc": 5320.1,
+   "dd_goc": 14.1,
+   "dd_max": 14.2
+  },
+  {
+   "hat": "U3",
+   "dat_val": false,
+   "dat_val_b": false,
+   "trung_vi_diem": 1.32,
+   "net_goc": -1690.7,
+   "dd_goc": 13.9,
+   "dd_max": 13.9
+  },
+  {
+   "hat": "U5",
+   "dat_val": false,
+   "dat_val_b": false,
+   "trung_vi_diem": 0.17,
+   "net_goc": 5997.8,
+   "dd_goc": 42.3,
+   "dd_max": 98.8
+  },
+  {
+   "hat": "U2",
+   "dat_val": false,
+   "dat_val_b": false,
+   "trung_vi_diem": -1.0,
+   "net_goc": -47299.9,
+   "dd_goc": 100.1,
+   "dd_max": 100.1
+  }
+ ],
+ "chon": [
+  {
+   "hat": "U4",
+   "cau_hinh": {
+    "lot0": 0.01,
+    "kieu_lot": "1.2",
+    "lot_max": 0.5,
+    "buoc_min": 20.0,
+    "buoc_atr": 0.5,
+    "so_tang": 40,
+    "tia_tp": 2.0,
+    "tp_atr": 0.5,
+    "trail": 60,
+    "hoa_von_tang": 8,
+    "xoa": 2,
+    "xoa_tu": 2,
+    "loc_xh": false,
+    "ma_h1": 100,
+    "giay_dca": 180,
+    "tia_lap_lai": true,
+    "cho_clear": 10
+   },
+   "hang": 1
+  },
+  {
+   "hat": "U1",
+   "cau_hinh": {
+    "lot0": 0.01,
+    "kieu_lot": "1.15",
+    "lot_max": 0.05,
+    "buoc_min": 8.0,
+    "buoc_atr": 0.5,
+    "so_tang": 20,
+    "tia_tp": 1.5,
+    "tp_atr": 1.5,
+    "trail": 60,
+    "hoa_von_tang": 2,
+    "xoa": 0,
+    "xoa_tu": 4,
+    "loc_xh": false,
+    "ma_h1": 200,
+    "giay_dca": 180,
+    "tia_lap_lai": true,
+    "cho_clear": 60
+   },
+   "hang": 2
+  }
+ ]
+}
