@@ -1,0 +1,1 @@
+Tick that 01-12/01, mo phong LIVE tai khoan REAL, InpChoPhepTaiKhoanThat=false -> khong duoc gui lenh

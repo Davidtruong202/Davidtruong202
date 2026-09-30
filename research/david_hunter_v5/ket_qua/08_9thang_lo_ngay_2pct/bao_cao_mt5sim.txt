@@ -1,0 +1,27 @@
+=== BAO CAO MT5SIM ===
+che do du lieu: gen | tu 2026.01.01 23:05:00 den 2026.09.27 23:58:58 | tick da chay: 50986271
+von ban dau: 10000 | balance cuoi: 9944.59 | equity cuoi: 9944.59
+spread x1 +0 | truot gia toi da 0 | phi/lot/chieu 0
+so lenh: 620 | thang: 217 | win rate: 35.00%
+net: -55.41 | loi gop: 28866.23 | lo gop: 28921.64 | PF: 0.998
+ky vong/lenh: -0.089 | ky vong R: 0.0051 | TB thang: 133.02 | TB thua: 71.77
+chuoi thua dai nhat: 14 | R xau nhat: -1.247 | so lenh lo vuot 1.1R: 5
+max DD equity: 2494.17 (23.774%) | recovery factor: -0.022
+--- KIEM TOAN RUI RO (doc lap voi EA) ---
+rui ro du kien lon nhat mot lenh: 0.9787% cua min(balance, equity)  [DAT <=1%]
+lo trong ngay lon nhat: 1.974% balance dau ngay  [DAT <=10%]
+so tick co vi the thieu SL/TP sau OnTick: 0 | vi the con mo sau gio dong cuoi ngay: 0 | tick cuoi tuan con vi the: 0 | so vi the dong thoi lon nhat: 1
+--- THEO COMMENT (PP) ---
+DH5|1: 219 lenh | WR 35.2% | PF 0.99 | net -115.19
+DH5|2: 234 lenh | WR 35.9% | PF 1.03 | net 319.36
+DH5|3: 167 lenh | WR 33.5% | PF 0.97 | net -259.58
+--- THEO THANG ---
+202601: -646.37
+202602: -973.39
+202603: 1678.30
+202604: -460.26
+202605: 951.08
+202606: -80.83
+202607: -344.67
+202608: -525.97
+202609: 346.70

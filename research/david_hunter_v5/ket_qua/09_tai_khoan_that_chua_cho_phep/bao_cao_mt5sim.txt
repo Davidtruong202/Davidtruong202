@@ -1,0 +1,15 @@
+=== BAO CAO MT5SIM ===
+che do du lieu: real | tu 2026.01.01 23:05:00 den 2026.01.12 12:59:59 | tick da chay: 2730810
+von ban dau: 10000 | balance cuoi: 10000.00 | equity cuoi: 10000.00
+spread x1 +0 | truot gia toi da 0 | phi/lot/chieu 0
+so lenh: 0 | thang: 0 | win rate: 0.00%
+net: 0.00 | loi gop: 0.00 | lo gop: 0.00 | PF: 0.000
+ky vong/lenh: 0.000 | ky vong R: 0.0000 | TB thang: 0.00 | TB thua: 0.00
+chuoi thua dai nhat: 0 | R xau nhat: 0.000 | so lenh lo vuot 1.1R: 0
+max DD equity: 0.00 (0.000%) | recovery factor: 0.000
+--- KIEM TOAN RUI RO (doc lap voi EA) ---
+rui ro du kien lon nhat mot lenh: 0.0000% cua min(balance, equity)  [DAT <=1%]
+lo trong ngay lon nhat: 0.000% balance dau ngay  [DAT <=10%]
+so tick co vi the thieu SL/TP sau OnTick: 0 | vi the con mo sau gio dong cuoi ngay: 0 | tick cuoi tuan con vi the: 0 | so vi the dong thoi lon nhat: 0
+--- THEO COMMENT (PP) ---
+--- THEO THANG ---
