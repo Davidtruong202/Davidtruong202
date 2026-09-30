@@ -88,6 +88,19 @@ def sua_tu_cau_hinh(c):
     return sua
 
 
+def bo_set_cent(json_chon, ten_goc, mo_ta, cho_phep_that="true"):
+    """Hai file set (V0.23 và V0.21 có InpDungPP10=false) cho set đã chọn trong json_chon (chon_lot.json: hạng 1)."""
+    import json
+    with open(json_chon, encoding="utf-8") as f:
+        ch = json.load(f)
+    u = sorted(ch["chon"], key=lambda x: x["hang"])[0]
+    sua = sua_tu_cau_hinh(u["cau_hinh"])
+    sua["InpChoPhepTKThat"] = cho_phep_that
+    return [("EA_PHOENIX_GRID_V0_23_TEST.mq5", f"PG_V023_{ten_goc}.set", dict(sua), mo_ta),
+            ("EA_PHOENIX_GRID_V0_21_TEST.mq5", f"PG_V021_{ten_goc}.set", dict(sua, InpDungPP10="false"),
+             mo_ta + ["Bản cho V0.21 (đã compile): giống file PG_V023 cùng tên, thêm InpDungPP10=false (tắt Fibo)."])]
+
+
 BO_SET = [
     ("EA_PHOENIX_GRID_V0_21_TEST.mq5", "PG_V021_DEMO_5000USD.set",
      {"InpChoPhepTKThat": "false"},
@@ -126,6 +139,22 @@ BO_SET = [
       "DCA 'Hydra N') và 20260827 (lệnh pyramid 'Hydra Py N'). Đặt 20260826 sẽ sót lệnh pyramid, nên giữ 0 và không",
       "đánh tay / chạy EA khác trên symbol này của tài khoản đó."]),
 ]
+
+
+# Set cho tài khoản cent 500 USD: set chính sau DEV / VAL / tối ưu lot / TEST (do_tim_set_cent.py, thư mục von_50000)
+JSON_CENT_500 = os.path.join(GOC, "research", "phoenix_grid", "results_mi", "do_tim_set_cent", "von_50000", "chon_lot.json")
+if os.path.exists(JSON_CENT_500):
+    BO_SET += bo_set_cent(JSON_CENT_500, "CENT_500USD", [
+        "Set chọn cho tài khoản Standard Cent 500 USD (= 50.000 USC), lot tầng 0 = 0,01 (ứng viên U4 / cấu hình N112).",
+        "Tìm bằng MÔ PHỎNG PYTHON trên nến XAUUSDm 01-09/2026 (không phải backtest MT5): DEV 01-04 DD lớn nhất 26,4% trên",
+        "21 đường giá, VAL 05-06 DD 4,8%, TEST 07-09 (chạy một lần) DD 4,2%, không cháy. Kết luận: đạt sơ bộ, cần forward.",
+        "Mô phỏng cả 9 tháng: lãi +28.400 USC (~+57%), trung bình ~1,2 USD / ngày, 18,7% ngày lỗ, 0,36 lot / ngày,",
+        "23 basket / ngày. Không cam kết lợi nhuận.",
+        "Không cắt lệnh theo DD, không dừng lỗ. PP1 tắt để EA chạy giống phần đã mô phỏng.",
+        "Vốn nhỏ hơn 500 USD hoặc lot lớn hơn 0,01: DD tăng mạnh, có thể cháy (bảng vốn - lot trong",
+        "docs/phoenix_grid/11_EA_V0_23_BO_PP10_SET_CENT.md).",
+        "InpChoPhepTKThat=true: EA GỬI LỆNH trên tài khoản thật. Nên chạy demo trước: Exness Standard demo số dư 50.000 USD",
+        "với lot 0,01 có cùng tỷ lệ rủi ro như cent 50.000 USC."])
 
 
 def kiem_tra():
