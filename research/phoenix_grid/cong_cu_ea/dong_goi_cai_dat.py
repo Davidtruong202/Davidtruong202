@@ -4,6 +4,7 @@ Người dùng chỉ cần giải nén và kéo thư mục MQL5 trong zip thả 
 - Gói 1 (MT5 demo): Phoenix V0.21 (vào lệnh liên tục) + MI Shadow theo dõi Phoenix. Gói V0.20 cũ giữ nguyên trong
   goi_cai_dat/ để quay lại khi cần.
 - Gói 2 (MT5 real đang chạy Hydra): MI Shadow theo dõi Hydra + script chỉ đọc xuất lịch sử giao dịch.
+- Gói 3 (tài khoản cent 500 USD): Phoenix V0.23 (bỏ PP10) + V0.21 dự phòng + file set đã dò cho cent 500 USD.
 
 Kiểm tra trước khi đóng gói:
 - mọi file nguồn tồn tại; file .mq5 / .mqh có BOM UTF-8; không file nào của gói 2 có lệnh giao dịch;
@@ -22,6 +23,8 @@ RA = os.path.join(GOC, "goi_cai_dat")
 
 # file .set -> EA dùng file đó
 SET_EA = {
+    "PG_V023_CENT_500USD.set": "EA_PHOENIX_GRID_V0_23_TEST.mq5",
+    "PG_V021_CENT_500USD.set": "EA_PHOENIX_GRID_V0_21_TEST.mq5",
     "PG_V021_DEMO_5000USD.set": "EA_PHOENIX_GRID_V0_21_TEST.mq5",
     "PG_V020_DEMO_5000USD.set": "EA_PHOENIX_GRID_V0_20_TEST.mq5",
     "PMI_V001_THEO_PHOENIX_d60n2.set": "EA_PHOENIX_MI_SHADOW_V0_01_TEST.mq5",
@@ -200,6 +203,73 @@ Hai MT5 trên cùng VPS dùng chung thư mục Common\Files\PhoenixGrid. Log kh�
 tên file có symbol (XAUUSDm là demo, XAUUSDc là real) và tên server.
 """
 
+HUONG_DAN_CENT = r"""DAVID HUNTER – PHOENIX GRID – 0941920986
+HƯỚNG DẪN TỪNG BƯỚC — Phoenix V0.23 + set tài khoản cent 500 USD
+
+GÓI NÀY LÀ GÌ
+  - EA_PHOENIX_GRID_V0_23_TEST.mq5: Phoenix V0.23 = V0.21 bỏ PP10 (Fibo + Bollinger). Xử lý lệnh giữ nguyên V0.21.
+    V0.23 CHƯA được compile trong môi trường phát triển: làm Phần C, có lỗi thì gửi ảnh tab Errors.
+  - EA_PHOENIX_GRID_V0_21_TEST.mq5: bản V0.21 (đã compile trên máy bạn 0 lỗi) để dùng nếu V0.23 báo lỗi.
+  - PG_V023_CENT_500USD.set (cho V0.23) và PG_V021_CENT_500USD.set (cho V0.21, tắt Fibo): cùng một set.
+
+SET NÀY TÌM RA THẾ NÀO (đọc trước khi chạy)
+  - Dò bằng MÔ PHỎNG PYTHON trên nến XAUUSDm 01-09/2026, KHÔNG phải backtest MT5.
+  - Chọn ở 01-04/2026, kiểm lại ở 05-06/2026, kiểm lần cuối một lần ở 07-09/2026: không cháy trên mọi đường giá
+    thử, DD lớn nhất 26% / 5% / 4%. Kết luận cao nhất: ĐẠT SƠ BỘ, CẦN CHẠY THỬ (forward) THÊM.
+  - Mô phỏng cả 9 tháng với vốn 500 USD, lot 0,01: lãi trung bình khoảng 1,2 USD / ngày (có ngày lỗ, xấu nhất
+    khoảng -20 USD), khoảng 0,36 lot / ngày, 23 basket / ngày. Không cam kết lợi nhuận.
+  - Vốn nhỏ hơn 500 USD hoặc lot lớn hơn 0,01 thì DD tăng mạnh: 100 USD lot 0,01 có đường giá bị CHÁY;
+    500 USD lot 0,05 có đường giá bị CHÁY. Muốn 10 USD / ngày với DD khoảng 30% cần khoảng 3.000 USD
+    (lot 0,08). Chi tiết: docs/phoenix_grid/11_EA_V0_23_BO_PP10_SET_CENT.md.
+  - Không cắt lệnh theo DD, không dừng lỗ (như bạn yêu cầu). PP1 tắt để EA chạy giống phần đã mô phỏng.
+
+TRONG GÓI NÀY
+  MQL5\Experts\PhoenixGrid\EA_PHOENIX_GRID_V0_23_TEST.mq5        EA giao dịch (bản mới)
+  MQL5\Experts\PhoenixGrid\EA_PHOENIX_GRID_V0_21_TEST.mq5        EA giao dịch (dự phòng)
+  MQL5\Presets\PG_V023_CENT_500USD.set                          set cho V0.23
+  MQL5\Presets\PG_V021_CENT_500USD.set                          set cho V0.21 (cùng set, tắt Fibo)
+  Không đổi tên file. Nếu trình duyệt tự thêm "(1)" vào tên file thì xóa phần đó đi.
+
+PHẦN A — CHỌN TÀI KHOẢN
+ A1. NÊN CHẠY THỬ TRƯỚC TRÊN DEMO: tạo Exness Standard demo, tiền USD, đòn bẩy 1:2000, số dư 50.000 USD.
+     Demo 50.000 USD với lot 0,01 có cùng tỷ lệ rủi ro như cent 500 USD (= 50.000 USC) với lot 0,01.
+     Dùng một MT5 riêng cho demo này (không dùng MT5 đang chạy Hydra).
+ A2. Tài khoản cent thật: Standard Cent, số dư 500 USD (hiện 50.000 USC). Dùng tài khoản RIÊNG cho Phoenix:
+     không chạy Phoenix và Hydra trên cùng một tài khoản (Phoenix tự tạm dừng khi thấy lệnh không phải của nó).
+     File set này để "Cho phép gửi lệnh trên tài khoản thật" = true: gắn lên tài khoản thật là EA gửi lệnh.
+
+PHẦN B — CHÉP FILE
+ B1. Giải nén zip. Trong MT5: File -> Open Data Folder.
+ B2. Kéo thư mục MQL5 trong zip thả vào cửa sổ đó -> chọn Yes khi Windows hỏi gộp / thay file.
+
+PHẦN C — COMPILE
+ C1. Bấm F4 (MetaEditor). Navigator -> Experts -> PhoenixGrid -> nhấp đúp EA_PHOENIX_GRID_V0_23_TEST.mq5 -> F7.
+     Tab Errors phải báo "0 errors" (cảnh báo "version ... must be xx.yyy" bỏ qua được).
+ C2. Nếu V0.23 có lỗi: chụp tab Errors gửi Claude, và tạm dùng V0.21 (đã compile được) với PG_V021_CENT_500USD.set.
+ C3. Về MT5: Navigator -> chuột phải "Expert Advisors" -> Refresh.
+
+PHẦN D — CÀI ĐẶT MT5
+ D1. Tools -> Options -> tab Expert Advisors -> tick "Allow algorithmic trading" -> OK.
+ D2. Bấm nút "Algo Trading" trên thanh công cụ cho sang màu xanh.
+
+PHẦN E — GẮN EA
+ E1. Market Watch (Ctrl+M) -> chuột phải -> Symbols: tài khoản cent dùng XAUUSDc; demo Standard dùng XAUUSDm
+     (hoặc XAUUSD). Mở chart symbol đó (nên chọn khung M5).
+ E2. Navigator -> Expert Advisors -> PhoenixGrid -> kéo EA_PHOENIX_GRID_V0_23_TEST thả vào chart.
+ E3. Tab Common: tick "Allow Algo Trading". Tab Inputs: Load -> PG_V023_CENT_500USD.set -> Open -> OK.
+     (Dùng V0.21 thì kéo EA_PHOENIX_GRID_V0_21_TEST và Load PG_V021_CENT_500USD.set.)
+ E4. Kiểm tra trên bảng PHOENIX: "Gửi lệnh" = DEMO hoặc THẬT (đúng tài khoản), "Tạm dừng" = Không;
+     khung THÔNG BÁO có "Khởi động V0.23 TEST"; lot tầng 0 = 0.01; khoảng tầng khoảng 20 USD.
+ E5. Nếu MT5 đang chạy Phoenix V0.21 trên chart này: kéo V0.23 thả vào chính chart đó -> Yes để thay EA.
+     Basket đang mở được nhận lại (cùng magic 20260930). Không chạy hai bản Phoenix cùng lúc trên một tài khoản.
+
+PHẦN F — HẰNG NGÀY
+ F1. Để MT5 chạy liên tục (VPS). Không đánh tay, không chạy EA khác trên tài khoản này.
+ F2. Ghi lại mỗi ngày: số dư, Equity, DD lớn nhất trong ngày (dòng trên bảng), số lệnh.
+ F3. Gửi log cho Claude: File -> Open Data Folder -> lùi lên 2 cấp -> Common -> Files -> nén thư mục PhoenixGrid
+     (log V0.23 có tên bắt đầu bằng PG_V023_).
+"""
+
 GOI = [
     {"zip": "PhoenixGrid_V0_21_MI_V0_01.zip", "huong_dan": "HUONG_DAN_CAI_DAT.txt", "text": HUONG_DAN_DEMO,
      "chi_doc": False,
@@ -210,6 +280,14 @@ GOI = [
          ("MQL5/Presets/PhoenixGrid/PG_V021_DEMO_5000USD.set", "MQL5/Presets/PG_V021_DEMO_5000USD.set"),
          ("MQL5/Presets/PhoenixGrid/PMI_V001_THEO_PHOENIX_d60n2.set", "MQL5/Presets/PMI_V001_THEO_PHOENIX_d60n2.set"),
          ("MQL5/Presets/PhoenixGrid/PMI_V001_THEO_PHOENIX_d80n3.set", "MQL5/Presets/PMI_V001_THEO_PHOENIX_d80n3.set"),
+     ]},
+    {"zip": "PhoenixGrid_V0_23_CENT_500USD.zip", "huong_dan": "HUONG_DAN_CENT_500USD.txt", "text": HUONG_DAN_CENT,
+     "chi_doc": False,
+     "file": [
+         ("MQL5/Experts/PhoenixGrid/EA_PHOENIX_GRID_V0_23_TEST.mq5", "MQL5/Experts/PhoenixGrid/EA_PHOENIX_GRID_V0_23_TEST.mq5"),
+         ("MQL5/Experts/PhoenixGrid/EA_PHOENIX_GRID_V0_21_TEST.mq5", "MQL5/Experts/PhoenixGrid/EA_PHOENIX_GRID_V0_21_TEST.mq5"),
+         ("MQL5/Presets/PhoenixGrid/PG_V023_CENT_500USD.set", "MQL5/Presets/PG_V023_CENT_500USD.set"),
+         ("MQL5/Presets/PhoenixGrid/PG_V021_CENT_500USD.set", "MQL5/Presets/PG_V021_CENT_500USD.set"),
      ]},
     {"zip": "PhoenixGrid_theo_doi_Hydra.zip", "huong_dan": "HUONG_DAN_THEO_DOI_HYDRA.txt", "text": HUONG_DAN_HYDRA,
      "chi_doc": True,

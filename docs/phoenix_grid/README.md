@@ -25,14 +25,20 @@ Breakout → Hedge → giao dịch vùng mới và tỉa lệnh → chu kỳ m�
 >   chữ "Label". **Đã compile trên máy bạn: 0 lỗi, 1 cảnh báo** (định dạng version cho MQL5 Market). Bản hiện hành
 >   cho demo.
 > - **Hydra 4.5 VIP (30/09/2026)**: giải mã từ file set + 3,2 giờ lịch sử (tài liệu 10). Không có mã nguồn Hydra.
+> - **EA V0.22 TEST (hedge theo Phoenix)**: **không phát hành**. Mô phỏng cho thấy làm drawdown tệ hơn; lưu ở
+>   `research/phoenix_grid/luu_tru_khong_phat_hanh/`.
+> - **EA V0.23 TEST (30/09/2026)**: V0.21 bỏ PP10 (Fibo + Bollinger) theo yêu cầu. **Chưa compile**; kiểm tra tĩnh đạt.
+> - **Set tài khoản cent 500 USD (30/09/2026)**: `PG_V023_CENT_500USD.set` (và bản V0.21). Dò bằng **mô phỏng Python**
+>   theo DEV → VAL → TEST, có đăng ký trước. Đạt sơ bộ, cần forward. Lãi mô phỏng khoảng 0,6–2 USD / ngày. Mục tiêu
+>   10–30 USD / ngày với DD dưới 35% cần khoảng 3.000–9.000 USD vốn (tài liệu 11).
 >
 > - **Market Intelligence + Breakout Defense — TEST 1 (30/09/2026)**:
 >   - Module `PHOENIX_MI_V0_01.mqh` và EA shadow **chỉ ghi log, không gửi lệnh**.
 >   - Chạy cạnh baseline, không sửa baseline. Chưa compile.
 >   - TEST 2+ cần source Hydra 4.5 nếu Hydra là baseline.
 >
-> Chưa chạy backtest nào. Không có con số hiệu suất nào trong thư mục này. Số liệu "xem trước" ở tài liệu 07 là bản
-> sao Python của logic nhận diện, không phải giao dịch.
+> Chưa chạy backtest MT5 nào. Số liệu hiệu suất duy nhất trong thư mục này là **mô phỏng Python** ở tài liệu 11
+> (kèm giới hạn). Số liệu "xem trước" ở tài liệu 07 là bản sao Python của logic nhận diện, không phải giao dịch.
 
 | File | Nội dung |
 |---|---|
@@ -40,17 +46,18 @@ Breakout → Hedge → giao dịch vùng mới và tỉa lệnh → chu kỳ m�
 | [`02_PHU_LUC_THONG_KE_DU_LIEU.md`](02_PHU_LUC_THONG_KE_DU_LIEU.md) | Thống kê mô tả 9 tháng nến M1 XAUUSDm. Không phải backtest |
 | [`03_R01_THONG_SO_VA_DU_LIEU.md`](03_R01_THONG_SO_VA_DU_LIEU.md) | PG-R0.1: hướng dẫn chạy script đọc thông số, đo margin hedge trên demo, xuất tick XAUUSDc; kết quả kiểm tra tick hiện có |
 | [`05_KE_HOACH_FIB_BOLLINGER.md`](05_KE_HOACH_FIB_BOLLINGER.md) | Kế hoạch Market Intelligence Fib + Bollinger (chờ duyệt): hiện trạng Phoenix, phân tích SET M2 và tài liệu ảnh, điểm tác động, kiến trúc module, kế hoạch kiểm định T0–T3, định lượng các phần chưa rõ |
-| [`../../goi_cai_dat/`](../../goi_cai_dat/) | **Gói cài đặt**, mỗi gói có thư mục MQL5 sắp sẵn và hướng dẫn từng bước:<br>- `PhoenixGrid_V0_21_MI_V0_01.zip` cho MT5 demo: Phoenix V0.21 + MI Shadow, file `.mqh`, 3 file SET; hướng dẫn `HUONG_DAN_CAI_DAT.txt` (có phần nâng cấp từ V0.20)<br>- `PhoenixGrid_V0_20_MI_V0_01.zip`: gói V0.20 cũ, giữ để quay lại<br>- `PhoenixGrid_theo_doi_Hydra.zip` cho MT5 real chạy Hydra: EA shadow, script xuất lịch sử, set Hydra; hướng dẫn `HUONG_DAN_THEO_DOI_HYDRA.txt` |
+| [`../../goi_cai_dat/`](../../goi_cai_dat/) | **Gói cài đặt**, mỗi gói có thư mục MQL5 sắp sẵn và hướng dẫn từng bước:<br>- `PhoenixGrid_V0_23_CENT_500USD.zip`: Phoenix V0.23 + V0.21 dự phòng + set cent 500 USD; hướng dẫn `HUONG_DAN_CENT_500USD.txt`<br>- `PhoenixGrid_V0_21_MI_V0_01.zip` cho MT5 demo: Phoenix V0.21 + MI Shadow, file `.mqh`, 3 file SET; hướng dẫn `HUONG_DAN_CAI_DAT.txt` (có phần nâng cấp từ V0.20)<br>- `PhoenixGrid_V0_20_MI_V0_01.zip`: gói V0.20 cũ, giữ để quay lại<br>- `PhoenixGrid_theo_doi_Hydra.zip` cho MT5 real chạy Hydra: EA shadow, script xuất lịch sử, set Hydra; hướng dẫn `HUONG_DAN_THEO_DOI_HYDRA.txt` |
+| [`11_EA_V0_23_BO_PP10_SET_CENT.md`](11_EA_V0_23_BO_PP10_SET_CENT.md) | EA V0.23 (bỏ PP10); dò set cent bằng mô phỏng Python (vốn 5.000 / 10.000 / 50.000 USC, DEV → VAL → TEST có đăng ký trước); set cent 500 USD; bảng vốn – lot – lãi mỗi ngày – gấp đôi / cháy; hedge V0.22 tham khảo |
 | [`10_HYDRA_4_5_GIAI_MA.md`](10_HYDRA_4_5_GIAI_MA.md) | Hydra 4.5 VIP: đối chiếu file set với lịch sử, cơ chế chưa thấy, rủi ro số học, so sánh với Phoenix, lựa chọn cho bản sau |
 | [`09_EA_V0_21_VAO_LIEN_TUC.md`](09_EA_V0_21_VAO_LIEN_TUC.md) | EA V0.21 TEST: PP0 vào lệnh liên tục, rủi ro khi luôn có basket, sửa lỗi hiển thị, nâng cấp từ V0.20 |
 | [`08_HUONG_DAN_CHAY_DEMO_5000USD.md`](08_HUONG_DAN_CHAY_DEMO_5000USD.md) | Hướng dẫn chạy Phoenix V0.21 + MI Shadow trên demo 5.000 USD (tương đương real cent 5.000 USC), file SET, kiểm tra sau khi gắn, gửi log |
-| [`../../MQL5/Presets/PhoenixGrid/`](../../MQL5/Presets/PhoenixGrid/) | File SET: `PG_V021_DEMO_5000USD.set`, `PG_V020_DEMO_5000USD.set`, `PMI_V001_THEO_PHOENIX_d60n2.set`, `PMI_V001_THEO_PHOENIX_d80n3.set`, `PMI_V001_THEO_HYDRA_d60n2.set` |
+| [`../../MQL5/Presets/PhoenixGrid/`](../../MQL5/Presets/PhoenixGrid/) | File SET: `PG_V023_CENT_500USD.set`, `PG_V021_CENT_500USD.set` (tài khoản cent 500 USD), `PG_V021_DEMO_5000USD.set`, `PG_V020_DEMO_5000USD.set`, `PMI_V001_THEO_PHOENIX_d60n2.set`, `PMI_V001_THEO_PHOENIX_d80n3.set`, `PMI_V001_THEO_HYDRA_d60n2.set` |
 | [`07_MI_BREAKOUT_DEFENSE.md`](07_MI_BREAKOUT_DEFENSE.md) | Market Intelligence + Breakout Defense, TEST 1 shadow: baseline cần xác nhận, luồng và điểm chèn, xung đột, công thức, state machine, input, log, cách chạy, cổng sang TEST 2, xem trước bằng bản sao Python |
 | [`06_EA_V0_20_DCA_TIA.md`](06_EA_V0_20_DCA_TIA.md) | EA V0.20 TEST: quyết định 30/09/2026, luồng hoạt động, bốn cơ chế clear, kiểm soát volume, cách hiểu SET M2, tham khảo Hydra, log hằng ngày, rủi ro cháy, cài demo 24/7 |
 | [`04_EA_V0_10_QUAN_SAT.md`](04_EA_V0_10_QUAN_SAT.md) | EA quan sát V0.10 / V0.11 TEST: lộ trình EA, cách chạy, đặc tả thuật toán cho bộ Python R0.2, chi tiết cần duyệt |
 | [`../../MQL5/Scripts/PhoenixGrid/`](../../MQL5/Scripts/PhoenixGrid/) | Script MT5 chỉ đọc:<br>- `PG_R01_DocThongSo.mq5` (đã compile và chạy trên máy bạn)<br>- `PG_XuatLichSu.mq5`: xuất deal, lệnh, vị thế đang mở ra CSV để phân tích hành vi EA (Hydra); chưa compile |
-| [`../../MQL5/Experts/PhoenixGrid/`](../../MQL5/Experts/PhoenixGrid/) | `EA_PHOENIX_GRID_V0_21_TEST.mq5` (giao dịch, hiện hành); `EA_PHOENIX_GRID_V0_20_TEST.mq5` (giao dịch, rollback); `EA_PHOENIX_GRID_V0_11_TEST.mq5` và `EA_PHOENIX_GRID_V0_10_TEST.mq5` (quan sát, rollback); `EA_PHOENIX_MI_SHADOW_V0_01_TEST.mq5` + `PHOENIX_MI_V0_01.mqh` (Market Intelligence, TEST 1 shadow) |
-| [`../../research/phoenix_grid/`](../../research/phoenix_grid/) | Công cụ Python và kết quả CSV. `phan_tich_hydra.py` + `results_hydra/`: hành vi Hydra dựng từ lịch sử |
+| [`../../MQL5/Experts/PhoenixGrid/`](../../MQL5/Experts/PhoenixGrid/) | `EA_PHOENIX_GRID_V0_23_TEST.mq5` (giao dịch, bỏ PP10, chưa compile); `EA_PHOENIX_GRID_V0_21_TEST.mq5` (giao dịch, đã compile); `EA_PHOENIX_GRID_V0_20_TEST.mq5` (giao dịch, rollback); `EA_PHOENIX_GRID_V0_11_TEST.mq5` và `EA_PHOENIX_GRID_V0_10_TEST.mq5` (quan sát, rollback); `EA_PHOENIX_MI_SHADOW_V0_01_TEST.mq5` + `PHOENIX_MI_V0_01.mqh` (Market Intelligence, TEST 1 shadow) |
+| [`../../research/phoenix_grid/`](../../research/phoenix_grid/) | Công cụ Python và kết quả CSV. `phan_tich_hydra.py` + `results_hydra/`: hành vi Hydra dựng từ lịch sử. `mo_phong_phoenix.py` + `do_tim_set_cent.py` + `results_mi/do_tim_set_cent/`: mô phỏng và dò set cent |
 
 ## Kết quả bàn giao theo Phần 10 của yêu cầu
 
@@ -66,6 +73,44 @@ Breakout → Hedge → giao dịch vùng mới và tỉa lệnh → chu kỳ m�
 | 8 | Kế hoạch triển khai theo từng phiên bản nghiên cứu | Mục 18 (PG-R0.0 → PG-R1.0 → EA V1.00 TEST) |
 
 ## Nhật ký phiên bản
+
+### EA V0.23 TEST — bỏ PP10 + dò set cho tài khoản cent
+
+**Ngày:** 30/09/2026
+**Phiên bản gốc:** EA V0.21 TEST. V0.21 giữ nguyên. V0.22 (hedge) không phát hành.
+**Mục tiêu:**
+
+- "phương pháp fibo vừa mang vào không có tác dụng có thể xóa đi";
+- "test mọi loại input, hệ số để tìm ra Set tốt nhất trên tài khoản cent";
+- tiêu chí sau đó của bạn: không cháy, DD dưới 35%, 10–30 USD / ngày, gấp đôi trước khi cháy.
+
+**Thay đổi:**
+
+- `EA_PHOENIX_GRID_V0_23_TEST.mq5`: bỏ PP10.
+  - Bỏ 28 input, 4 chỉ báo khung M2, 5 hàm.
+  - Log giữ định dạng.
+  - Chưa compile.
+- `mo_phong_phoenix.py`: mô phỏng xử lý lệnh.
+  - Đường giá nội suy ≤ 0,5 USD; TP khớp đúng giá TP.
+  - Margin level 500%, swap, spread XAUUSDc.
+  - Chỉ số: lãi mỗi ngày, lot mỗi ngày, số ngày tới khi gấp đôi / tới khi cháy.
+- `do_tim_set_cent.py`: quy trình dò.
+  - DEV: dò ngẫu nhiên, độ bền trên nhiều đường giá, láng giềng.
+  - VAL, tối ưu lot, rồi TEST một lần.
+  - Mỗi bước được commit trước khi chạy.
+- `PG_V023_CENT_500USD.set`, `PG_V021_CENT_500USD.set` và gói `PhoenixGrid_V0_23_CENT_500USD.zip`.
+
+**Kết quả (mô phỏng Python, không phải backtest MT5):**
+
+- 5.000 USC và 10.000 USC: không có set an toàn.
+- 500 USD, lot 0,01, set U4:
+  - DEV: DD lớn nhất 26%;
+  - VAL: DD 5%;
+  - TEST (chạy một lần): DD 4%, không cháy.
+  - Cả 9 tháng khoảng 1,2 USD / ngày.
+- 10 USD / ngày cần khoảng 3.000 USD vốn; 30 USD / ngày cần khoảng 9.000 USD.
+
+**Tài liệu:** [`11_EA_V0_23_BO_PP10_SET_CENT.md`](11_EA_V0_23_BO_PP10_SET_CENT.md).
 
 ### EA V0.21 TEST — vào lệnh liên tục (PP0) + giải mã Hydra 4.5
 

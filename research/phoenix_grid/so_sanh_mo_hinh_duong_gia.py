@@ -4,7 +4,7 @@
   (b) 4 điểm / nến M1, TP khớp đúng giá TP;
   (c) nội suy từng bước ≤ 0,5 USD, TP khớp đúng giá TP         — mô hình dùng để dò set.
 Cấu hình so sánh: 3 cấu hình tham chiếu và 4 cấu hình tốt nhất của lượt dò đầu tiên (ghi thẳng trong mã).
-KHÔNG phải backtest MT5.
+Vốn 5.000 USC, lot tầng 0 như cấu hình. KHÔNG phải backtest MT5.
 
 Chạy:  python3 so_sanh_mo_hinh_duong_gia.py --m1 <nen_M1.csv> --out <thư mục>
 """
@@ -49,7 +49,7 @@ def _khoi(m1_csv):
 
 def _chay(viec):
     ten, c, mo_hinh = viec
-    ts = ds.tham_so(c)
+    ts = ds.tham_so(c, von=5000.0)            # cùng vốn với lượt dò đầu tiên
     ts.duong_gia = 0.0 if mo_hinh in ("a", "b") else 0.5
     goc = mp.MoPhong.dong
     if mo_hinh == "a":
