@@ -22,7 +22,8 @@ Breakout → Hedge → giao dịch vùng mới và tỉa lệnh → chu kỳ m�
 >   - **Chưa compile.**
 >
 > - **EA V0.21 TEST (30/09/2026)**: V0.20 + **vào lệnh liên tục (PP0, hướng MA50 H1 như Hydra)**, sửa "Hôm nay" và
->   chữ "Label". **Chưa compile.** Bản hiện hành cho demo.
+>   chữ "Label". **Đã compile trên máy bạn: 0 lỗi, 1 cảnh báo** (định dạng version cho MQL5 Market). Bản hiện hành
+>   cho demo.
 > - **Hydra 4.5 VIP (30/09/2026)**: giải mã từ file set + 3,2 giờ lịch sử (tài liệu 10). Không có mã nguồn Hydra.
 >
 > - **Market Intelligence + Breakout Defense — TEST 1 (30/09/2026)**:
@@ -87,7 +88,7 @@ Breakout → Hedge → giao dịch vùng mới và tỉa lệnh → chu kỳ m�
 
 **Kiểm tra kỹ thuật:**
 
-- Compile MQL5: **chưa làm được** (không có MetaEditor).
+- Compile MQL5: **đạt trên MetaEditor của bạn (30/09/2026): 0 lỗi, 1 cảnh báo "version '0.21' is incompatible with MQL5 Market, must be xx.yyy" (dòng 36): chỉ liên quan tới việc bán trên MQL5 Market, không ảnh hưởng EA chạy.**
 - Kiểm tra tĩnh V0.21: đạt (140 hàm, 117 input).
 - `phan_tich_log_v020.py --tu-kiem-tra`, `phan_tich_hydra.py --tu-kiem-tra`, `tao_file_set.py --kiem-tra`, kiểm tra
   gói: đạt.

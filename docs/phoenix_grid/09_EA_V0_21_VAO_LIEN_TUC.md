@@ -7,8 +7,9 @@
 > - File: [`EA_PHOENIX_GRID_V0_21_TEST.mq5`](../../MQL5/Experts/PhoenixGrid/EA_PHOENIX_GRID_V0_21_TEST.mq5).
 >   [`EA_PHOENIX_GRID_V0_20_TEST.mq5`](../../MQL5/Experts/PhoenixGrid/EA_PHOENIX_GRID_V0_20_TEST.mq5) giữ nguyên để
 >   quay lại.
-> - **Chưa compile.** Môi trường của tôi không có MetaEditor. Kiểm tra tĩnh đạt (Mục 8), nhưng kiểm tra tĩnh không
->   thay được compile. Bạn compile trên máy, có lỗi thì gửi lỗi trước khi chạy.
+> - **Đã compile trên MetaEditor của bạn (30/09/2026): 0 lỗi, 1 cảnh báo.** Cảnh báo là
+>   "version '0.21' is incompatible with MQL5 Market, must be xx.yyy" (dòng 36): chỉ liên quan tới việc bán trên MQL5
+>   Market, không ảnh hưởng EA chạy. Môi trường của tôi không có MetaEditor; kết quả trên là từ ảnh bạn gửi.
 > - **Chưa backtest.** Không có con số hiệu suất nào trong tài liệu này.
 > - Xử lý lệnh (DCA, tỉa, 4 cơ chế clear, không SL) giữ nguyên V0.20: xem
 >   [`06_EA_V0_20_DCA_TIA.md`](06_EA_V0_20_DCA_TIA.md). Tài liệu này chỉ ghi phần thay đổi.
@@ -140,7 +141,7 @@ Hướng dẫn từng bước đầy đủ trong `HUONG_DAN_CAI_DAT.txt` của g
 
 | Hạng mục | Kết quả |
 |---|---|
-| Compile MQL5 | **Chưa làm được** (không có MetaEditor) |
+| Compile MQL5 | **Đạt trên MetaEditor của bạn (30/09/2026): 0 lỗi, 1 cảnh báo "version '0.21' is incompatible with MQL5 Market, must be xx.yyy" (dòng 36): chỉ liên quan tới việc bán trên MQL5 Market, không ảnh hưởng EA chạy** |
 | Kiểm tra tĩnh `kiem_tra_tinh_mq5.py` | Đạt: ngoặc cân bằng, 140 hàm, mọi lời gọi có nguồn, không hàm trùng, mọi biến `g_` có khai báo, 117 input |
 | Dựng từ V0.20 | Bằng script thay thế có kiểm tra: mỗi đoạn được thay phải khớp đúng một lần, sai là dừng |
 | File set | `tao_file_set.py --kiem-tra`: 117 input khớp EA |
