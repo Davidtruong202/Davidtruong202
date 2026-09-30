@@ -1,38 +1,44 @@
-"""Dò set Phoenix Grid cho tài khoản cent (5000 USC) bằng mô phỏng Python mo_phong_phoenix.py — KHÔNG phải backtest MT5.
+"""Dò set Phoenix Grid cho tài khoản cent bằng mô phỏng Python mo_phong_phoenix.py — KHÔNG phải backtest MT5.
+
+Vốn: VON USC trên lot tầng 0 = 0,01 (mặc định 10.000 USC = 100 USD; bạn cho biết 30/09/2026 vốn có thể 100–200 USD,
+có thể 500 USD). Mục tiêu theo lời bạn: "quan trọng không cháy", "set DD thấp, tư duy thoát lệnh nhanh, nhiều lệnh và
+lãi cao". Lần dò trước với 5.000 USC nằm trong results_mi/do_tim_set_cent/von_5000/ (chỉ DEV).
 
 Quy trình (kế hoạch §13.9, §14 Phương án 2 — chỉ dữ liệu 2026, giá XAUUSDm M1, spread cố định 0,26 như XAUUSDc):
-  DEV   01/01–30/04/2026  dò ngẫu nhiên trên các input của EA, xét láng giềng một bước (vùng phẳng) và nhiễu đường giá,
-                          đăng ký trước (commit) tối đa SO_DANG_KY ứng viên;
+  DEV   01/01–30/04/2026  dò ngẫu nhiên trên các input của EA; độ bền trên 5 đường giá; láng giềng một bước (vùng
+                          phẳng); đăng ký trước (commit) tối đa SO_DANG_KY ứng viên;
   VAL   08/05–30/06/2026  chạy các ứng viên đã đăng ký, chọn tối đa SO_CHON theo luật ghi sẵn, đăng ký (commit);
   TEST  08/07–27/09/2026  chạy MỘT lần các ứng viên đã chọn; set chính là hạng 1 sau VAL — TEST chỉ xác nhận
                           đạt / không đạt, không dùng TEST để đổi set.
 Giữa các giai đoạn có khoảng đệm một tuần. Mọi biến thể (kể cả cháy tài khoản) đều ghi ra CSV.
 
 Luật (cố định trong mã này, trước khi chạy):
-  đạt       = không cháy, không vi phạm bất biến, DD lớn nhất ≤ DD_TOI_DA %, lãi > 0, bỏ 2 tháng tốt nhất vẫn ≥ 0;
-  mức B     = không cháy, DD ≤ DD_MUC_B %, lãi > 0 — chỉ dùng để bù khi không đủ SO_HAT_GIONG cấu hình đạt;
-  mức C     = không cháy, lãi > 0, DD bất kỳ — bù tiếp khi vẫn thiếu (DEV có phiên 30/01/2026 biên độ 768 USD);
+  đường giá = đường gốc (cực trị gần giá mở đi trước) và NHIEU_VT đường có thứ tự đỉnh / đáy trong từng nến M1 ngẫu
+              nhiên — phần mô phỏng không biết chắc khi không có tick thật;
   điểm      = lãi / DD lớn nhất (tiền); cháy tài khoản thì điểm = −1;
-  DEV       = SO_NGAU_NHIEN cấu hình ngẫu nhiên (lot tầng 0 cố định 0,01) + cấu hình tham chiếu → SO_HAT_GIONG hạt
-              giống: cấu hình đạt có điểm cao nhất, thiếu thì bù bằng mức B rồi mức C → chạy mọi láng giềng một bước (gồm lot tầng 0
-              0,02) và NHIEU_DEV đường giá nhiễu → ứng viên phải không cháy và DD ≤ ngưỡng của mức mình trên mọi đường giá
-              của chính nó (mức C: không cháy); xếp theo mức (A, B, C), rồi theo trung vị điểm của (láng giềng
-              + các đường giá);
-  VAL       = chạy đường giá gốc + 4 đường nhiễu; chọn các ứng viên không cháy và DD ≤ DD_TOI_DA trên mọi đường, lãi > 0
-              ở đường gốc; xếp theo trung vị điểm;
-  TEST      = đạt khi: không cháy và DD ≤ DD_TOI_DA trên mọi đường, lãi > 0 và bỏ tháng tốt nhất vẫn ≥ 0 ở đường gốc.
-  DEV bền   = (thêm sau khi luật DEV trên cho 0 ứng viên — mọi hạt giống cháy hoặc DD > ngưỡng trên ít nhất một đường
-              giá nhiễu; giờ bắt đầu lệch không đổi kết quả vì còn trong thời gian làm nóng MA): xem giai_doan_dev_ben.
+  DEV       = bước 1: SO_NGAU_NHIEN cấu hình ngẫu nhiên (lot tầng 0 cố định 0,01) + cấu hình tham chiếu, đường gốc;
+              bước 2: mọi cấu hình không cháy và có lãi ở đường gốc chạy thêm NHIEU_VT đường; "bền" = không cháy trên
+              cả 5 đường; mức theo DD lớn nhất của 5 đường: A ≤ DD_TOI_DA %, B ≤ DD_MUC_B %, C còn lại; xếp theo mức
+              rồi trung vị điểm 5 đường;
+              bước 3: SO_DANG_KY cấu hình bền đứng đầu chạy mọi láng giềng một bước (đường gốc, gồm lot tầng 0 0,02);
+              điểm vùng = trung vị điểm của (láng giềng + 5 đường); đăng ký theo mức rồi điểm vùng;
+  VAL       = chạy đường gốc + NHIEU_VT; chọn các ứng viên không cháy và DD ≤ DD_TOI_DA trên mọi đường, lãi > 0 ở
+              đường gốc (không ứng viên nào đạt thì dùng DD ≤ DD_MUC_B và ghi rõ mức B); xếp theo trung vị điểm; tối đa
+              SO_CHON;
+  TEST      = đạt khi: không cháy và DD ≤ ngưỡng đã dùng ở VAL trên mọi đường, lãi > 0 và bỏ tháng tốt nhất vẫn ≥ 0 ở
+              đường gốc.
+Chỉ số thoát lệnh (báo cáo, không dùng để xếp hạng): giờ giữ basket trung vị / phân vị 95 / lớn nhất, số basket mỗi
+ngày, số lệnh.
 Kết luận cao nhất có thể: "đạt sơ bộ, cần forward dài hơn".
 
 Chạy:
-  python3 do_tim_set_cent.py dev  --m1 <nen_M1.csv> --out <thư mục>
-  python3 do_tim_set_cent.py dev-ben --m1 <nen_M1.csv> --out <thư mục>   (DEV bước 4–5, ghi ung_vien_dang_ky.json)
+  python3 do_tim_set_cent.py dev  --m1 <nen_M1.csv> --out <thư mục> [--von 10000]
   python3 do_tim_set_cent.py dev-them --m1 <nen_M1.csv> --out <thư mục>  (thông tin: ứng viên trên 16 đường giá DEV nữa)
   python3 do_tim_set_cent.py val  --m1 <nen_M1.csv> --out <thư mục>      (đọc ung_vien_dang_ky.json)
   python3 do_tim_set_cent.py test --m1 <nen_M1.csv> --out <thư mục>      (đọc chon_sau_val.json)
   python3 do_tim_set_cent.py bao-cao --out <thư mục>                      (BAO_CAO_DO_TIM.md từ mọi CSV đã có)
   python3 do_tim_set_cent.py --tu-kiem-tra
+Mã của lần dò với 5.000 USC (có thêm bước hạt giống / láng giềng / nhiễu cũ): xem lịch sử git của file này.
 """
 import argparse
 import csv
@@ -51,15 +57,13 @@ import mo_phong_phoenix as mp  # noqa: E402
 DEV = ("2026-01-01", "2026-05-01")
 VAL = ("2026-05-08", "2026-07-01")
 TEST = ("2026-07-08", "2026-09-28")
-DD_TOI_DA = 30.0
-DD_MUC_B = 50.0
+VON = 10000.0
+DD_TOI_DA = 20.0
+DD_MUC_B = 35.0
 SO_NGAU_NHIEN = 360
-SO_HAT_GIONG = 8
 SO_DANG_KY = 5
 SO_CHON = 3
 HAT_NGAU_NHIEN = 20260930
-NHIEU_DEV = [dict(hat=11), dict(hat=12), dict(hat=13), dict(hat=14),
-             dict(tu="2026-01-01 07:00"), dict(tu="2026-01-02 13:00")]
 NHIEU_VT = [dict(hat=11), dict(hat=12), dict(hat=13), dict(hat=14)]
 SO_DUONG_THEM = 16
 
@@ -96,12 +100,14 @@ THAM_CHIEU = [
 
 COT_KQ = ["net", "chay", "dd_pt", "dd_tien", "net_dd", "basket", "vi_pham", "swap", "thang_am", "bo1thang", "bo2thang",
           "gio_max", "sau_max", "lot_max", "buy", "sell", "gio_chan_ml", "chan_ml_dau", "lenh_max_ngay", "chan_ngay",
-          "co_hd", "gio_khoa"]
-COT = ["giai_doan", "nhom", "ten", "tu", "den", "hat", "giay"] + ["p_" + k for k in KHOA] + ["hedge"] + COT_KQ
+          "co_hd", "gio_khoa", "gio_tv", "gio_p95", "so_lenh", "basket_ngay", "von_thap", "so_ngay", "lai_ngay_tb",
+          "lai_ngay_tv", "ngay_lo_pt", "ngay_xau", "ngay_tot", "chot_ngay_tb", "lot_gd", "lot_ngay"]
+COT = ["giai_doan", "nhom", "ten", "tu", "den", "hat", "von", "giay"] + ["p_" + k for k in KHOA] + ["hedge"] + COT_KQ
 
 
-def tham_so(c, hedge=""):
+def tham_so(c, hedge="", von=None):
     ts = mp.ThamSo()
+    ts.von = VON if von is None else float(von)
     ts.lot0 = float(c["lot0"])
     if c["kieu_lot"] == "bang":
         ts.bang_lot, ts.he_so = True, 1.0
@@ -193,7 +199,7 @@ def _khoi(m1_csv):
 
 def _chay(viec):
     c = viec["c"]
-    ts = tham_so(c, viec.get("hedge", ""))
+    ts = tham_so(c, viec.get("hedge", ""), viec.get("von"))
     t = time.time()
     sim, eq = mp.chay(_M1, ts, viec["tu"], viec["den"], viec.get("hat"))
     r = mp.tom_tat(sim, eq, ts)
@@ -202,6 +208,7 @@ def _chay(viec):
         v = r.get(k, 0)
         ra[k] = v.item() if hasattr(v, "item") else v
     ra.update(giai_doan=viec["giai_doan"], nhom=viec["nhom"], ten=viec.get("ten", ""), tu=viec["tu"], den=viec["den"],
+              von=ts.von,
               hat="" if viec.get("hat") is None else viec["hat"], giay=round(time.time() - t, 1),
               hedge=viec.get("hedge", ""))
     for k in KHOA:
@@ -210,6 +217,8 @@ def _chay(viec):
 
 
 def chay_ds(pool, ds, duong_csv, nhan):
+    for v in ds:
+        v.setdefault("von", VON)
     moi = not os.path.exists(duong_csv)
     ra = []
     t0 = time.time()
@@ -252,91 +261,24 @@ def doc_lai(duong_csv, ds):
 
 
 def giai_doan_dev(pool, out):
+    """DEV bước 1 (ngẫu nhiên + tham chiếu, đường gốc), rồi bước 2–3 (giai_doan_dev_ben)."""
     tu, den = DEV
     csv1 = os.path.join(out, "dev_1_ngau_nhien.csv")
     ds = [dict(giai_doan="DEV", nhom="tham_chieu", ten=ten, c=c, tu=tu, den=den) for ten, c in THAM_CHIEU]
     ds += [dict(giai_doan="DEV", nhom="ngau_nhien", ten=f"N{i:03d}", c=c, tu=tu, den=den)
            for i, c in enumerate(ngau_nhien(SO_NGAU_NHIEN, HAT_NGAU_NHIEN))]
-    kq1 = doc_lai(csv1, ds)                 # bước 1 đã chạy đủ (cùng mẫu ngẫu nhiên) thì dùng lại
+    kq1 = doc_lai(csv1, ds)                 # bước 1 đã chạy đủ (cùng mẫu ngẫu nhiên, cùng vốn) thì dùng lại
+    if kq1 is not None and any(float(r["von"]) != VON for r in kq1):
+        kq1 = None
     if kq1 is None:
         if os.path.exists(csv1):
             os.remove(csv1)
         kq1 = chay_ds(pool, ds, csv1, "DEV ngẫu nhiên")
     else:
         print(f"DEV: dùng lại {len(kq1)} kết quả bước 1 trong {csv1}", flush=True)
-    for p in (os.path.join(out, "dev_2_lang_gieng.csv"), os.path.join(out, "dev_3_nhieu.csv"),
-              os.path.join(out, "dev_4_hedge_tham_khao.csv")):
-        if os.path.exists(p):
-            os.remove(p)
-    goc = {khoa_ch(cau_hinh_tu_dong(r)): r for r in kq1}
-
-    # hạt giống: các cấu hình đạt, điểm cao nhất
-    hat, muc = [], []
-    for m in ("A", "B", "C"):
-        for r in sorted([r for r in kq1 if muc_cua(r) == m], key=lambda r: -r["net_dd"]):
-            if len(hat) < SO_HAT_GIONG:
-                hat.append(cau_hinh_tu_dong(r))
-                muc.append(m)
-    dem = {m: sum(muc_cua(r) == m for r in kq1) for m in ("A", "B", "C")}
-    print(f"DEV: {len(kq1)} cấu hình — mức A {dem['A']}, mức B {dem['B']}, mức C {dem['C']}, cháy "
-          f"{sum(r['chay'] > 0 for r in kq1)}; lấy {len(hat)} hạt giống ({''.join(muc)})", flush=True)
-
-    # láng giềng một bước
-    ds2, da = [], set(goc)
-    for c in hat:
-        for k, v, d in lang_gieng(c):
-            kk = khoa_ch(d)
-            if kk not in da:
-                da.add(kk)
-                ds2.append(dict(giai_doan="DEV", nhom="lang_gieng", ten=f"{k}={v}", c=d, tu=tu, den=den))
-    kq2 = chay_ds(pool, ds2, os.path.join(out, "dev_2_lang_gieng.csv"), "DEV láng giềng")
-    for r in kq2:
-        goc[khoa_ch(cau_hinh_tu_dong(r))] = r
-
-    # nhiễu đường giá cho hạt giống
-    ds3 = []
-    for i, c in enumerate(hat):
-        for nh in NHIEU_DEV:
-            ds3.append(dict(giai_doan="DEV", nhom="nhieu", ten=f"H{i}", c=c, tu=nh.get("tu", tu), den=den,
-                            hat=nh.get("hat")))
-    kq3 = chay_ds(pool, ds3, os.path.join(out, "dev_3_nhieu.csv"), "DEV nhiễu")
-
-    # xếp hạng
-    hang = []
-    for i, c in enumerate(hat):
-        kc = khoa_ch(c)
-        r0 = goc[kc]
-        duong = [r0] + [r for r in kq3 if khoa_ch(cau_hinh_tu_dong(r)) == kc]
-        lg = [goc[khoa_ch(d)] for _, _, d in lang_gieng(c)]
-        nguong = {"A": DD_TOI_DA, "B": DD_MUC_B, "C": 100.0}[muc[i]]
-        ben = all(r["chay"] == 0 and r["vi_pham"] == 0 and r["dd_pt"] <= nguong for r in duong)
-        diem_vung = float(np.median([diem(r) for r in lg + duong]))
-        hang.append(dict(hat=f"H{i}", muc=muc[i], cau_hinh=c, ben_duong_gia=ben, diem_goc=diem(r0),
-                         trung_vi_diem_lang_gieng=float(np.median([diem(r) for r in lg])),
-                         trung_vi_diem_duong_gia=float(np.median([diem(r) for r in duong])),
-                         diem_vung=diem_vung, lang_gieng_dat=sum(dat(r) for r in lg), so_lang_gieng=len(lg),
-                         lang_gieng_chay=sum(r["chay"] > 0 for r in lg),
-                         dd_max_duong=max(r["dd_pt"] for r in duong), net_goc=r0["net"], dd_goc=r0["dd_pt"]))
-    hang.sort(key=lambda h: (not h["ben_duong_gia"], h["muc"], -h["diem_vung"]))
-    pd.DataFrame([dict({k: v for k, v in h.items() if k != "cau_hinh"}, **{"p_" + k: h["cau_hinh"][k] for k in KHOA})
-                  for h in hang]).to_csv(os.path.join(out, "dev_xep_hang.csv"), index=False)
-    dang_ky = [h for h in hang if h["ben_duong_gia"]][:SO_DANG_KY]
-    with open(os.path.join(out, "ung_vien_dang_ky.json"), "w", encoding="utf-8") as f:
-        json.dump(dict(luat=dict(DD_TOI_DA=DD_TOI_DA, VAL=VAL, TEST=TEST, NHIEU_VT=NHIEU_VT, SO_CHON=SO_CHON),
-                       ung_vien=[dict(hat=h["hat"], muc=h["muc"], cau_hinh=h["cau_hinh"], diem_vung=h["diem_vung"])
-                                 for h in dang_ky]),
-                  f, ensure_ascii=False, indent=1)
-
-    # tham khảo: hedge V0.22 trên 3 ứng viên đầu (không dùng để chọn — V0.22 chưa phát hành)
-    ds4 = []
-    for h in dang_ky[:3]:
-        for hd in ("v022", "sau15_khoa"):
-            ds4.append(dict(giai_doan="DEV", nhom="hedge_tham_khao", ten=h["hat"], c=h["cau_hinh"], tu=tu, den=den,
-                            hedge=hd))
-    if ds4:
-        chay_ds(pool, ds4, os.path.join(out, "dev_4_hedge_tham_khao.csv"), "DEV hedge tham khảo")
-    print(f"DEV xong: {len(kq1) + len(kq2)} biến thể, {len(kq3)} lần chạy nhiễu; đăng ký {len(dang_ky)} ứng viên",
-          flush=True)
+    print(f"DEV bước 1: {len(kq1)} cấu hình, cháy {sum(r['chay'] > 0 for r in kq1)}, không cháy và có lãi "
+          f"{sum(r['chay'] == 0 and r['net'] > 0 for r in kq1)}", flush=True)
+    giai_doan_dev_ben(pool, out)
 
 
 def chay_vt(pool, out, ten_gd, khoang, ung_vien, ten_csv):
@@ -363,6 +305,8 @@ def giai_doan_dev_ben(pool, out):
     tu, den = DEV
     goc = {}
     for ten in ("dev_1_ngau_nhien.csv", "dev_2_lang_gieng.csv"):
+        if not os.path.exists(os.path.join(out, ten)):
+            continue
         for r in pd.read_csv(os.path.join(out, ten), keep_default_na=False, na_values=[""]).to_dict("records"):
             r = {k: (v.item() if hasattr(v, "item") else v) for k, v in r.items()}
             goc.setdefault(khoa_ch(cau_hinh_tu_dong(r)), r)
@@ -475,15 +419,22 @@ def giai_doan_val(pool, out):
     for u in dk["ung_vien"]:
         rr = [r for r in kq if r["ten"] == u["hat"]]
         r0 = [r for r in rr if r["nhom"] == "goc"][0]
-        ben = all(r["chay"] == 0 and r["vi_pham"] == 0 and r["dd_pt"] <= DD_TOI_DA for r in rr) and r0["net"] > 0
-        hang.append(dict(hat=u["hat"], cau_hinh=u["cau_hinh"], dat_val=ben,
+        khong_chay = all(r["chay"] == 0 and r["vi_pham"] == 0 for r in rr) and r0["net"] > 0
+        dd = max(r["dd_pt"] for r in rr)
+        hang.append(dict(hat=u["hat"], cau_hinh=u["cau_hinh"], dat_val=khong_chay and dd <= DD_TOI_DA,
+                         dat_val_b=khong_chay and dd <= DD_MUC_B,
                          trung_vi_diem=float(np.median([diem(r) for r in rr])), net_goc=r0["net"], dd_goc=r0["dd_pt"],
-                         dd_max=max(r["dd_pt"] for r in rr)))
-    hang.sort(key=lambda h: (not h["dat_val"], -h["trung_vi_diem"]))
-    chon = [h for h in hang if h["dat_val"]][:SO_CHON]
+                         dd_max=dd))
+    # không ứng viên nào đạt DD ≤ DD_TOI_DA thì chọn theo DD ≤ DD_MUC_B (mức B) và TEST dùng cùng ngưỡng đó
+    muc_val = "A" if any(h["dat_val"] for h in hang) else "B"
+    khoa = "dat_val" if muc_val == "A" else "dat_val_b"
+    nguong_test = DD_TOI_DA if muc_val == "A" else DD_MUC_B
+    hang.sort(key=lambda h: (not h[khoa], -h["trung_vi_diem"]))
+    chon = [h for h in hang if h[khoa]][:SO_CHON]
     with open(os.path.join(out, "chon_sau_val.json"), "w", encoding="utf-8") as f:
-        json.dump(dict(luat_test="không cháy và DD ≤ %.0f%% trên mọi đường, lãi > 0 ở đường gốc, bỏ tháng tốt nhất vẫn ≥ 0; "
-                                 "set chính = hạng 1, TEST không dùng để đổi set" % DD_TOI_DA,
+        json.dump(dict(muc_val=muc_val, nguong_dd_test=nguong_test,
+                       luat_test="không cháy và DD ≤ %.0f%% trên mọi đường, lãi > 0 ở đường gốc, bỏ tháng tốt nhất vẫn ≥ 0; "
+                                 "set chính = hạng 1, TEST không dùng để đổi set" % nguong_test,
                        xep_hang_val=[{k: v for k, v in h.items() if k != "cau_hinh"} for h in hang],
                        chon=[dict(hat=h["hat"], cau_hinh=h["cau_hinh"], hang=i + 1) for i, h in enumerate(chon)]),
                   f, ensure_ascii=False, indent=1)
@@ -500,7 +451,8 @@ def giai_doan_test(pool, out):
     for u in ch["chon"]:
         rr = [r for r in kq if r["ten"] == u["hat"]]
         r0 = [r for r in rr if r["nhom"] == "goc"][0]
-        ok = (all(r["chay"] == 0 and r["vi_pham"] == 0 and r["dd_pt"] <= DD_TOI_DA for r in rr) and r0["net"] > 0
+        nguong = float(ch.get("nguong_dd_test", DD_TOI_DA))
+        ok = (all(r["chay"] == 0 and r["vi_pham"] == 0 and r["dd_pt"] <= nguong for r in rr) and r0["net"] > 0
               and r0["bo1thang"] >= 0)
         print(u["hat"], "hạng", u["hang"], "ĐẠT" if ok else "KHÔNG ĐẠT", {k: r0[k] for k in COT_KQ}, flush=True)
     # tham khảo: cả 9 tháng (lẫn dữ liệu DEV) cho các set đã chọn
@@ -513,8 +465,9 @@ def giai_doan_test(pool, out):
 
 # ------------------------------------------------------------------ báo cáo
 TEN_P = {k: ten for k, ten, _ in KG}
-COT_BANG = ["net", "chay", "dd_pt", "net_dd", "bo2thang", "basket", "sau_max", "lot_max", "gio_max", "buy", "sell",
-            "swap", "gio_chan_ml"]
+COT_BANG = ["net", "chay", "dd_pt", "net_dd", "bo2thang", "basket", "basket_ngay", "so_lenh", "gio_tv", "gio_p95",
+            "gio_max", "sau_max", "lot_max", "von_thap", "buy", "sell", "swap"]
+COT_NGAY = ["lai_ngay_tb", "lai_ngay_tv", "ngay_lo_pt", "ngay_xau", "ngay_tot", "lot_gd", "lot_ngay"]
 
 
 def _md(df):
@@ -546,20 +499,23 @@ def bao_cao(out):
     d1, d2, d3, d4 = (doc(x) for x in ("dev_1_ngau_nhien.csv", "dev_2_lang_gieng.csv", "dev_3_nhieu.csv",
                                         "dev_4_hedge_tham_khao.csv"))
     xh, val, tst, ca = (doc(x) for x in ("dev_xep_hang.csv", "val.csv", "test.csv", "ca_9_thang_tham_khao.csv"))
-    L = ["# Dò set Phoenix Grid cho tài khoản cent 5000 USC — kết quả mô phỏng", "",
+    von = float(d1["von"].iloc[0]) if (d1 is not None and "von" in d1.columns) else 5000.0
+    L = [f"# Dò set Phoenix Grid cho tài khoản cent {von:,.0f} USC — kết quả mô phỏng".replace(",", "."), "",
          "> Mô phỏng Python `mo_phong_phoenix.py` (đường giá nội suy ≤ 0,5 USD trong nến M1, spread 0,26, swap, margin",
          "> level 500%), KHÔNG phải backtest MT5. Chỉ dùng để so sánh cấu hình với nhau. Luật chọn ghi trong",
          "> `do_tim_set_cent.py` trước khi chạy.", ""]
-    dev = pd.concat([x for x in (d1, d2) if x is not None], ignore_index=True) if d1 is not None else None
+    d6 = doc("dev_6_lang_gieng_ben.csv")
+    dev = pd.concat([x for x in (d1, d2, d6) if x is not None], ignore_index=True) if d1 is not None else None
     if dev is not None:
         dev["muc"] = [muc_cua(r) for r in dev.to_dict("records")]
         L += ["## 1. DEV 01/01–30/04/2026: mọi biến thể", "",
-              f"- Biến thể: **{len(dev)}** (bước 1 ngẫu nhiên + tham chiếu: {len(d1)}; bước 2 láng giềng: "
-              f"{0 if d2 is None else len(d2)}).",
+              f"- Biến thể (cấu hình khác nhau, đường giá gốc): **{len(dev)}** (ngẫu nhiên + tham chiếu: {len(d1)}; "
+              f"láng giềng: {(0 if d2 is None else len(d2)) + (0 if d6 is None else len(d6))}).",
               f"- Cháy tài khoản ít nhất một lần: **{int((dev.chay > 0).sum())}** ({(dev.chay > 0).mean() * 100:.0f}%).",
-              f"- Mức A (không cháy, DD ≤ {DD_TOI_DA:.0f}%, lãi > 0, bỏ 2 tháng tốt nhất ≥ 0): "
-              f"**{int((dev.muc == 'A').sum())}**; mức B (DD ≤ {DD_MUC_B:.0f}%): **{int((dev.muc == 'B').sum())}**; "
-              f"mức C (không cháy, lãi > 0): **{int((dev.muc == 'C').sum())}**.", ""]
+              f"- Ở đường giá gốc: không cháy, DD ≤ {DD_TOI_DA:.0f}%, lãi > 0, bỏ 2 tháng tốt nhất ≥ 0: "
+              f"**{int((dev.muc == 'A').sum())}**; không cháy, DD ≤ {DD_MUC_B:.0f}%, lãi > 0: "
+              f"**{int((dev.muc == 'B').sum())}**; không cháy, lãi > 0, DD lớn hơn: **{int((dev.muc == 'C').sum())}**.",
+              ""]
         L += ["### 1.1 Tham chiếu", ""]
         t = d1[d1.nhom == "tham_chieu"][["ten"] + COT_BANG]
         L.append(_md(t))
@@ -597,8 +553,9 @@ def bao_cao(out):
     xb = doc("dev_ben_xep_hang.csv")
     if xb is not None:
         L += ["## 2b. Độ bền trên 5 đường giá (gốc + 4 thứ tự cực trị ngẫu nhiên)", "",
-              "Luật ban đầu cho 0 ứng viên. Bước này chạy lại mọi cấu hình không cháy và có lãi ở đường giá gốc trên "
-              "4 đường giá khác (chỉ đổi thứ tự đỉnh / đáy trong từng nến M1). Bền = không cháy trên cả 5 đường.", "",
+              "Mọi cấu hình không cháy và có lãi ở đường giá gốc chạy thêm trên 4 đường giá khác (chỉ đổi thứ tự "
+              "đỉnh / đáy trong từng nến M1). Bền = không cháy trên cả 5 đường; mức theo DD lớn nhất của 5 đường "
+              f"(A ≤ {DD_TOI_DA:.0f}%, B ≤ {DD_MUC_B:.0f}%, C còn lại).", "",
               f"- Cấu hình xét: **{len(xb)}**; bền: **{int(xb.ben.sum())}** (mức A {int((xb.muc == 'A').sum())}, "
               f"B {int((xb.muc == 'B').sum())}, C {int((xb.muc == 'C').sum())}); cháy trên ít nhất một đường khác: "
               f"**{int((~xb.ben.astype(bool)).sum())}**.", ""]
@@ -617,7 +574,6 @@ def bao_cao(out):
                     dong.append(f"{x}: bền {int(m.ben.sum())}/{len(m)}")
             L.append(f"- **{ten}** — " + "; ".join(dong))
         L.append("")
-    d5, d6 = doc("dev_5_ben.csv"), doc("dev_6_lang_gieng_ben.csv")
     if d6 is not None:
         L += ["### 2b.3 Láng giềng một bước của các ứng viên bền (đường gốc)", ""]
         L.append(_md(d6[["ten"] + COT_BANG]))
@@ -626,7 +582,9 @@ def bao_cao(out):
         L += ["### 2b.4 Thông tin: ứng viên trên 16 đường giá DEV nữa (không dùng để chọn)", ""]
         g = d7.groupby("ten").agg(so_duong=("net", "size"), so_duong_chay=("chay", lambda x: int((x > 0).sum())),
                                   dd_trung_vi=("dd_pt", "median"), dd_lon_nhat=("dd_pt", "max"),
-                                  lai_trung_vi=("net", "median"), lai_thap_nhat=("net", "min")).reset_index()
+                                  lai_trung_vi=("net", "median"), lai_thap_nhat=("net", "min"),
+                                  **({"lai_ngay_tv": ("lai_ngay_tb", "median"), "lot_ngay_tv": ("lot_ngay", "median")}
+                                     if "lai_ngay_tb" in d7.columns else {})).reset_index()
         L.append(_md(g))
     if d4 is not None:
         L += ["## 3. Tham khảo: hedge V0.22 (không phát hành) trên các ứng viên đầu", "",
@@ -637,7 +595,8 @@ def bao_cao(out):
                        ("Cả 01/01–27/09/2026 (tham khảo, lẫn dữ liệu DEV)", ca)):
         if df is not None:
             L += [f"## {ten_gd}", ""]
-            L.append(_md(df[["ten", "nhom", "hat"] + COT_BANG + ["bo1thang", "thang_am"]]))
+            L.append(_md(df[["ten", "nhom", "hat"] + COT_BANG + ["bo1thang", "thang_am"] +
+                            [c for c in COT_NGAY if c in df.columns]]))
     with open(os.path.join(out, "BAO_CAO_DO_TIM.md"), "w", encoding="utf-8") as f:
         f.write("\n".join(L) + "\n")
     print("đã ghi", os.path.join(out, "BAO_CAO_DO_TIM.md"))
@@ -698,10 +657,10 @@ def tu_kiem_tra():
     r = {("p_" + k): str(v) for k, v in V021_MAC_DINH.items()}
     if khoa_ch(cau_hinh_tu_dong(r)) != khoa_ch(V021_MAC_DINH):
         loi.append("đọc lại cấu hình từ CSV sai")
-    if dat(dict(chay=0, vi_pham=0, dd_pt=30.0, net=1.0, bo2thang=0.0)) is not True or dat(
+    if dat(dict(chay=0, vi_pham=0, dd_pt=DD_TOI_DA, net=1.0, bo2thang=0.0)) is not True or dat(
             dict(chay=1, vi_pham=0, dd_pt=5.0, net=1.0, bo2thang=1.0)):
         loi.append("luật đạt sai")
-    if [muc_cua(dict(chay=0, vi_pham=0, dd_pt=d, net=1.0, bo2thang=-1.0 if d > 20 else 1.0)) for d in (10, 40, 90)] != \
+    if [muc_cua(dict(chay=0, vi_pham=0, dd_pt=d, net=1.0, bo2thang=-1.0 if d > 20 else 1.0)) for d in (10, 30, 90)] != \
             ["A", "B", "C"] or muc_cua(dict(chay=1, vi_pham=0, dd_pt=10, net=5.0, bo2thang=1.0)) != "":
         loi.append("phân mức A / B / C sai")
     # ghi CSV rồi đọc lại đúng cấu hình (dùng lại bước 1)
@@ -733,10 +692,12 @@ def main():
     ap.add_argument("--m1")
     ap.add_argument("--out")
     ap.add_argument("--luong", type=int, default=4)
+    ap.add_argument("--von", type=float, default=VON, help="vốn USC cho lot tầng 0 = 0,01 (mặc định 10000)")
     ap.add_argument("--tu-kiem-tra", action="store_true")
     a = ap.parse_args()
     if a.tu_kiem_tra:
         return tu_kiem_tra()
+    globals()["VON"] = a.von
     os.makedirs(a.out, exist_ok=True)
     if a.giai_doan == "bao-cao":
         bao_cao(a.out)

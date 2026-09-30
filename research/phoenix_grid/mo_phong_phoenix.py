@@ -165,6 +165,11 @@ class MoPhong:
         self.lan_chan_ml_dau = 0      # số lần không mở được lệnh đầu vì margin level
         self.tick_chan_ngay = 0       # số tick bị chặn vì đủ số lệnh trong ngày
         self.lenh_max_ngay = 0
+        self.von_thap = ts.von        # Equity thấp nhất không tính tiền nạp lại (= vốn + lãi / lỗ tích lũy)
+        self.tong_lot = 0.0           # tổng khối lượng các lệnh đã mở (lot)
+        self.eq_ngay = {}             # ngày -> Equity cuối ngày (không tính tiền nạp lại), trước swap qua đêm
+        self.chot_ngay = {}           # ngày -> lãi đã chốt lũy kế cuối ngày
+        self.so_ngay = 0              # số ngày có nến đã chạy
         self._ag = None               # tổng của basket, tính lại khi vị thế thay đổi
 
     # ---------------------------------------------------------------- tiện ích
@@ -225,6 +230,7 @@ class MoPhong:
     def mo(self, huong, lot):
         self.id += 1
         self._ag = None
+        self.tong_lot += round(lot, 2)
         return Vt(self.id, huong, round(lot, 2), self.ask if huong > 0 else self.bid)
 
     def dong(self, v, lot=None, gia=None):
@@ -562,6 +568,8 @@ class MoPhong:
 
     def kiem_von(self):
         eq = self.equity()
+        if eq - self.nap < self.von_thap:
+            self.von_thap = eq - self.nap
         if eq > self.eq_dinh:
             self.eq_dinh = eq
         if self.eq_dinh > 0:
@@ -773,6 +781,8 @@ def chay(m1, ts, tu=None, den=None, hat=None):
     for jj in range(len(idx)):
         nd = ngay[jj]
         if ngay_truoc is not None and nd != ngay_truoc:
+            sim.eq_ngay[ngay_truoc] = sim.equity() - sim.nap
+            sim.chot_ngay[ngay_truoc] = sim.chot
             so = 0
             for d in range(ngay_truoc, nd):        # số ngày từ 1970-01-01 (thứ Năm): thứ = (d + 3) % 7, 0 = thứ Hai
                 w = (d + 3) % 7
@@ -781,6 +791,8 @@ def chay(m1, ts, tu=None, den=None, hat=None):
             sim.tinh_swap(so)
             sim.lenh_max_ngay = max(sim.lenh_max_ngay, sim.lenh_hom_nay)
             sim.lenh_hom_nay = 0
+        if nd != ngay_truoc:
+            sim.so_ngay += 1
         ngay_truoc = nd
         a5, sm = atr5[jj], s_ma[jj]
         if not (a5 > 0) or not (sm > 0):
@@ -792,6 +804,9 @@ def chay(m1, ts, tu=None, den=None, hat=None):
             if sim.vi_pham:
                 return sim, eq_thang
         eq_thang[thang[jj]] = sim.equity() - sim.nap
+    if ngay_truoc is not None:
+        sim.eq_ngay[ngay_truoc] = sim.equity() - sim.nap
+        sim.chot_ngay[ngay_truoc] = sim.chot
     return sim, eq_thang
 
 
@@ -810,9 +825,21 @@ def tom_tat(sim, eq_thang, ts):
              bo2thang=round(loi_thang.sum() - loi_thang.nlargest(2).sum(), 1),
              gio_chan_ml=round(sim.tick_chan_ml * 15 / 3600, 1), chan_ml_dau=sim.lan_chan_ml_dau,
              lenh_max_ngay=max(sim.lenh_max_ngay, sim.lenh_hom_nay), chan_ngay=sim.tick_chan_ngay)
+    r.update(so_lenh=sim.id, von_thap=round(sim.von_thap, 1),
+             basket_ngay=round(len(kq) / sim.so_ngay, 2) if sim.so_ngay else 0.0)
+    # tiền mỗi ngày (theo Equity cuối ngày, gồm cả thả nổi) và khối lượng giao dịch
+    if sim.eq_ngay:
+        e = pd.Series(sim.eq_ngay).sort_index()
+        ln = e.diff().fillna(e.iloc[0] - von)
+        c = pd.Series(sim.chot_ngay).sort_index()
+        r.update(so_ngay=len(e), lai_ngay_tb=round(float(ln.mean()), 2), lai_ngay_tv=round(float(ln.median()), 2),
+                 ngay_lo_pt=round(float((ln < 0).mean() * 100), 1), ngay_xau=round(float(ln.min()), 1),
+                 ngay_tot=round(float(ln.max()), 1), chot_ngay_tb=round(float(c.iloc[-1] / len(c)), 2),
+                 lot_gd=round(sim.tong_lot, 2), lot_ngay=round(sim.tong_lot / len(e), 2))
     if len(kq):
         dur = (kq["t_dong"] - kq["t_mo"]) / 3600
-        r.update(gio_max=round(dur.max(), 1), sau_max=int(kq["sau"].max()), lot_max=round(kq["lot_max"].max(), 2),
+        r.update(gio_tv=round(float(dur.median()), 2), gio_p95=round(float(dur.quantile(0.95)), 1),
+                 gio_max=round(dur.max(), 1), sau_max=int(kq["sau"].max()), lot_max=round(kq["lot_max"].max(), 2),
                  buy=round(kq.loc[kq["huong"] > 0, "lai"].sum(), 1), sell=round(kq.loc[kq["huong"] < 0, "lai"].sum(), 1),
                  co_hd=int((kq["so_hd"] > 0).sum()), gio_khoa=round(kq["t_khoa"].sum() / 3600, 1))
     return r
@@ -962,6 +989,21 @@ def tu_kiem_tra():
     sim10.tick(60.0, 4003.0, 4003.0001, 5.0, 3000.0)                # Bid vượt TP tầng 1 (chưa tới TP tầng 0 = 4006,0001)
     if v1 is None or abs(sim10.chot - chot0 - (tp1 - v1.gia) * 0.01 * VPL) > 1e-6:
         loi.append(f"TP không khớp đúng giá TP: chốt {sim10.chot - chot0:.4f}, cần {(tp1 - v1.gia) * 0.01 * VPL if v1 else 0:.4f}")
+    # tiền mỗi ngày và khối lượng: chạy chay() trên 3 ngày nến giả; tổng lãi các ngày = lãi ròng, khối lượng = tổng lot mở
+    t = pd.date_range("2026-01-05 00:00", periods=3 * 1440, freq="1min")
+    x = np.arange(len(t))
+    gia = 4000 + 8 * np.sin(x / 90.0) - 0.004 * x
+    m1g = pd.DataFrame(dict(time=t, open=gia, high=gia + 0.6, low=gia - 0.6, close=gia + 0.1, spread_points=260))
+    m1g["atr5"], m1g["ct"], m1g["s49"], m1g["sat_nghi"] = 3.0, 0, 3000.0 * 49, False
+    m1g["ngay"] = m1g["time"].dt.normalize()
+    m1g["thang"] = m1g["time"].dt.to_period("M").astype(str)
+    ts11 = ThamSo(he_so=1.2, spread=0.2, swap_long=-56.0)
+    sim11, eq11 = chay(m1g, ts11)
+    r11 = tom_tat(sim11, eq11, ts11)
+    mo_lot = sum(v.lot for v in (list(sim11.b.tang.values()) + sim11.b.hd)) if sim11.b else 0.0
+    if r11.get("so_ngay") != 3 or abs(r11["lai_ngay_tb"] * 3 - r11["net"]) > 0.05 or r11["lot_gd"] < mo_lot - 1e-9 \
+            or r11["lot_gd"] <= 0 or abs(r11["lot_ngay"] * 3 - r11["lot_gd"]) > 0.02:
+        loi.append(f"lãi mỗi ngày / khối lượng sai: {r11}")
     print("TỰ KIỂM TRA:", "ĐẠT" if not loi else "LỖI")
     for x in loi:
         print("  -", x)
