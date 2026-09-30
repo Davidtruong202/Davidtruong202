@@ -15,6 +15,21 @@ pip install numpy pandas
 |---|---|
 | `kiem_tra_tinh_mq5.py` | Kiểm tra tĩnh file MQL5: ngoặc, lời gọi hàm, hàm trùng, biến `g_`, từ khóa giao dịch trong mã, nhãn input. Không thay được compile |
 
+## Market Intelligence — TEST 1 shadow
+
+| File | Việc làm |
+|---|---|
+| `phan_tich_log_mi.py` | Đánh giá log `PMI_V001_*`: thời gian ở mỗi trạng thái; mỗi đợt breakout (xác nhận → đi tiếp ≥ 1 độ rộng range trong H nến?; thất bại → loại đúng?); đợt phòng thủ, thời lượng, bật lại trong 2 giờ. `--tu-kiem-tra` đọc tiêu đề 48 cột từ file `.mqh` |
+| `ban_sao_python_mi.py` | Bản sao Python của logic nhận diện trong `PHOENIX_MI_V0_01.mqh`, chạy trên nến M1 lịch sử (dựng M5), ghi log cùng định dạng. Chỉ để bắt lỗi logic và xem trước. **Không phải EA, không phải backtest giao dịch** |
+| `results_mi/` | Kết quả xem trước (bản sao Python), XAUUSDm 2026 |
+
+```bash
+python3 ban_sao_python_mi.py --m1 /duong_dan/EA-PRO/data/backtest_mt5/2026-09-29_V439_7PP_KiemChung_6PP/nen_M1.csv \
+  --out /tmp/mi --gia-lap-basket --diem 60 --so-nen 2
+python3 phan_tich_log_mi.py --thu-muc /tmp/mi --symbol XAUUSDm --nhan d60n2 --tester --out results_mi
+python3 phan_tich_log_mi.py --tu-kiem-tra
+```
+
 ## EA V0.20 — đọc log hằng ngày
 
 | File | Việc làm |

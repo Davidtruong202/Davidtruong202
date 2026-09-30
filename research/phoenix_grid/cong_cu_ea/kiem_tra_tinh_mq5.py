@@ -34,7 +34,7 @@ FileWriteString FileReadString FileIsEnding Comment Alert GetTickCount Sleep Obj
 ObjectGetDouble ColorToARGB
 iMA iBands OrderSend ZeroMemory GetMicrosecondCount HistorySelectByPosition HistoryDealSelect PositionSelectByTicket
 PositionGetDouble OrderGetTicket OrderGetInteger GlobalVariableDel GlobalVariablesDeleteAll GlobalVariablesFlush
-CalendarValueHistory CalendarEventById SendNotification MathLog10 OnTradeTransaction
+CalendarValueHistory CalendarEventById SendNotification MathLog10 OnTradeTransaction StringTrimRight StringTrimLeft
 C
 """.split())
 KEYWORDS = set("if for while switch return sizeof else do case".split())
@@ -95,7 +95,9 @@ def main(path):
         raise SystemExit(f"ngoặc chưa đóng ở dòng {s.count(chr(10), 0, stack[-1][1]) + 1}")
     print("Ngoặc: cân bằng")
     # định nghĩa hàm
-    defs = set(re.findall(r"^\s*(?:void|bool|int|double|string|color|datetime|long|uint|ulong|ENUM_\w+)\s+(\w+)\s*\(", s, re.M))
+    kieu = r"(?:void|bool|int|double|string|color|datetime|long|uint|ulong|ENUM_\w+|PMI_\w+|PG_\w+)"
+    defs = set(re.findall(r"^\s*" + kieu + r"\s+(\w+)\s*\(", s, re.M))
+    defs |= set(re.findall(r"\bclass\s+(\w+)", s))            # constructor trùng tên lớp
     calls = set(re.findall(r"\b([A-Za-z_]\w*)\s*\(", s))
     unknown = sorted(c for c in calls - defs - BUILTIN - KEYWORDS if not c.isupper())
     print("Số hàm tự định nghĩa:", len(defs))
@@ -111,7 +113,7 @@ def main(path):
     hits = [w for w in CAM if re.search(r"\b" + re.escape(w) + r"\b", s) or w in includes]
     print("Từ khóa giao dịch trong mã:", hits or "không có")
     # định nghĩa trùng
-    allf = re.findall(r"^\s*(?:void|bool|int|double|string|color|datetime|long|uint|ulong|ENUM_\w+)\s+(\w+)\s*\(", s, re.M)
+    allf = re.findall(r"^\s*" + kieu + r"\s+(\w+)\s*\(", s, re.M)
     dup = sorted({f for f in allf if allf.count(f) > 1})
     print("Hàm định nghĩa trùng:", dup or "không có")
     # biến toàn cục g_ khai báo và dùng

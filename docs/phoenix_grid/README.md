@@ -21,7 +21,13 @@ Breakout → Hedge → giao dịch vùng mới và tỉa lệnh → chu kỳ m�
 >   - Chạy trên tài khoản thật, demo và tester, theo quyết định của bạn ngày 30/09/2026.
 >   - **Chưa compile.**
 >
-> Chưa chạy backtest nào. Không có con số hiệu suất nào trong thư mục này.
+> - **Market Intelligence + Breakout Defense — TEST 1 (30/09/2026)**:
+>   - Module `PHOENIX_MI_V0_01.mqh` và EA shadow **chỉ ghi log, không gửi lệnh**.
+>   - Chạy cạnh baseline, không sửa baseline. Chưa compile.
+>   - TEST 2+ cần source Hydra 4.5 nếu Hydra là baseline.
+>
+> Chưa chạy backtest nào. Không có con số hiệu suất nào trong thư mục này. Số liệu "xem trước" ở tài liệu 07 là bản
+> sao Python của logic nhận diện, không phải giao dịch.
 
 | File | Nội dung |
 |---|---|
@@ -29,10 +35,11 @@ Breakout → Hedge → giao dịch vùng mới và tỉa lệnh → chu kỳ m�
 | [`02_PHU_LUC_THONG_KE_DU_LIEU.md`](02_PHU_LUC_THONG_KE_DU_LIEU.md) | Thống kê mô tả 9 tháng nến M1 XAUUSDm. Không phải backtest |
 | [`03_R01_THONG_SO_VA_DU_LIEU.md`](03_R01_THONG_SO_VA_DU_LIEU.md) | PG-R0.1: hướng dẫn chạy script đọc thông số, đo margin hedge trên demo, xuất tick XAUUSDc; kết quả kiểm tra tick hiện có |
 | [`05_KE_HOACH_FIB_BOLLINGER.md`](05_KE_HOACH_FIB_BOLLINGER.md) | Kế hoạch Market Intelligence Fib + Bollinger (chờ duyệt): hiện trạng Phoenix, phân tích SET M2 và tài liệu ảnh, điểm tác động, kiến trúc module, kế hoạch kiểm định T0–T3, định lượng các phần chưa rõ |
+| [`07_MI_BREAKOUT_DEFENSE.md`](07_MI_BREAKOUT_DEFENSE.md) | Market Intelligence + Breakout Defense, TEST 1 shadow: baseline cần xác nhận, luồng và điểm chèn, xung đột, công thức, state machine, input, log, cách chạy, cổng sang TEST 2, xem trước bằng bản sao Python |
 | [`06_EA_V0_20_DCA_TIA.md`](06_EA_V0_20_DCA_TIA.md) | EA V0.20 TEST: quyết định 30/09/2026, luồng hoạt động, bốn cơ chế clear, kiểm soát volume, cách hiểu SET M2, tham khảo Hydra, log hằng ngày, rủi ro cháy, cài demo 24/7 |
 | [`04_EA_V0_10_QUAN_SAT.md`](04_EA_V0_10_QUAN_SAT.md) | EA quan sát V0.10 / V0.11 TEST: lộ trình EA, cách chạy, đặc tả thuật toán cho bộ Python R0.2, chi tiết cần duyệt |
 | [`../../MQL5/Scripts/PhoenixGrid/`](../../MQL5/Scripts/PhoenixGrid/) | Script MT5 chỉ đọc `PG_R01_DocThongSo.mq5` (đã compile và chạy trên máy bạn) |
-| [`../../MQL5/Experts/PhoenixGrid/`](../../MQL5/Experts/PhoenixGrid/) | `EA_PHOENIX_GRID_V0_20_TEST.mq5` (giao dịch, hiện hành); `EA_PHOENIX_GRID_V0_11_TEST.mq5` và `EA_PHOENIX_GRID_V0_10_TEST.mq5` (quan sát, rollback) |
+| [`../../MQL5/Experts/PhoenixGrid/`](../../MQL5/Experts/PhoenixGrid/) | `EA_PHOENIX_GRID_V0_20_TEST.mq5` (giao dịch, hiện hành); `EA_PHOENIX_GRID_V0_11_TEST.mq5` và `EA_PHOENIX_GRID_V0_10_TEST.mq5` (quan sát, rollback); `EA_PHOENIX_MI_SHADOW_V0_01_TEST.mq5` + `PHOENIX_MI_V0_01.mqh` (Market Intelligence, TEST 1 shadow) |
 | [`../../research/phoenix_grid/`](../../research/phoenix_grid/) | Công cụ Python và kết quả CSV |
 
 ## Kết quả bàn giao theo Phần 10 của yêu cầu
@@ -49,6 +56,41 @@ Breakout → Hedge → giao dịch vùng mới và tỉa lệnh → chu kỳ m�
 | 8 | Kế hoạch triển khai theo từng phiên bản nghiên cứu | Mục 18 (PG-R0.0 → PG-R1.0 → EA V1.00 TEST) |
 
 ## Nhật ký phiên bản
+
+### MI V0.01 — Market Intelligence + Breakout Defense, TEST 1: Shadow Breakout Detection
+
+**Ngày:** 30/09/2026
+**Phiên bản gốc:** không có (module mới). Không sửa baseline nào: EA shadow chạy trên chart riêng, đọc vị thế theo
+magic.
+**Mục tiêu:** TEST 1 theo yêu cầu "MARKET INTELLIGENCE + BREAKOUT DEFENSE". Nhận diện, chỉ ghi log:
+
+- NORMAL → SIDEWAY → BREAKOUT SUSPECTED → CONFIRMED → RECLAIM;
+- quyết định phòng thủ "sẽ làm" (khóa DCA, tỷ lệ hedge) với xác nhận, trễ, thời gian giữ, cooldown, khoảng cách.
+
+**Trạng thái:** TEST, **chưa compile**, **không gửi lệnh**.
+
+**Thay đổi:**
+
+- `PHOENIX_MI_V0_01.mqh`:
+  - lớp `CPhoenixMI`: range, cấu trúc HH/HL/LH/LL + BOS, Bollinger, Fib, 8 mẫu nến theo công thức;
+  - điểm breakout 7 bằng chứng;
+  - state machine thị trường và phòng thủ;
+  - log 48 cột.
+- `EA_PHOENIX_MI_SHADOW_V0_01_TEST.mq5`: 21 input tiếng Việt.
+- `07_MI_BREAKOUT_DEFENSE.md`.
+- `research/phoenix_grid/phan_tich_log_mi.py`: đánh giá log (đi tiếp / loại đúng / phòng thủ).
+- `research/phoenix_grid/ban_sao_python_mi.py`: bản sao Python của logic nhận diện.
+- `kiem_tra_tinh_mq5.py`: nhận lớp và kiểu enum tự định nghĩa.
+
+**Kiểm tra kỹ thuật:**
+
+- Compile MQL5: **chưa làm được**.
+- Kiểm tra tĩnh bản ghép: đạt, không có từ khóa giao dịch.
+- `phan_tich_log_mi.py --tu-kiem-tra`: đạt.
+- Bản sao Python chạy trên 52.237 nến M5 XAUUSDm 2026 đã tìm ra một lỗi kẹt trạng thái RECLAIM. Lỗi đã sửa trong module.
+
+**Backtest:** chưa chạy. Số liệu xem trước ở tài liệu 07, Mục 9, không phải giao dịch.
+**Rollback:** xóa hai file mới; không ảnh hưởng EA nào khác.
 
 ### EA V0.20 TEST — DCA + tỉa lệnh tuần hoàn + clear chu kỳ, không cắt lỗ
 
