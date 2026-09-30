@@ -1,0 +1,64 @@
+﻿HƯỚNG DẪN TEST FILE SET - DAVID HUNTER V4.39 MATRIX (7 PP chưa triển khai)
+=====================================================================
+
+1. EA dùng để test
+   EA_DAVID_HUNTER_V4_39_MATRIX_RECONCILE_2 (repo EA-PRO). File SET này KHÔNG dùng cho V4.52.
+
+2. Thiết lập Strategy Tester (tab Settings)
+   - Expert       : EA_DAVID_HUNTER_V4_39_MATRIX_RECONCILE_2
+   - Symbol       : XAUUSD của sàn đang dùng (XAUUSDc / XAUUSDm), chart M1
+   - Date         : càng dài càng tốt, ít nhất 3-6 tháng (ví dụ 2026.01.01 -> 2026.09.28)
+   - Delays       : Zero latency / No delay (BẮT BUỘC; nếu có trễ, EA tự dừng và ghi lỗi TESTER_DELAY)
+   - Modelling    : Every tick based on real ticks
+   - Deposit      : 1000 USD (tài khoản cent: 100000 USC). Lot cố định 0.02 như LAB V4.39
+   - Tài khoản    : Hedging. Nếu Tester là Netting thì đặt InpMatrixLenhTester=false
+   - Optimization : Disabled (EA tự quét lưới bên trong một lượt chạy)
+
+3. Nạp file SET (tab Inputs)
+   - Chuột phải -> Load -> chọn file .set.
+   - Kiểm tra dòng InpLuoi<PP> hiện đủ chuỗi. Nếu bị cắt ở dấu "|", dán lại chuỗi ở mục 7.
+   - Muốn có phần dữ liệu kiểm chứng: đặt InpMatrixTuNgayKiemChung vào khoảng 2-3 tháng cuối
+     (ví dụ 2026.07.01). Để 0 thì EA chỉ thăm dò, chưa tách kiểm chứng.
+   - Muốn test khắt khe như set live: đặt InpMatrixTruotGiaVao=0.3.
+
+4. Nên chạy theo thứ tự (file KIEM_CHUNG: 24-54 bộ input, chạy nhanh)
+   V439_KIEM_CHUNG_EMA.set   -> ứng viên = ví 1  (M1, EMA 12/34, lọc M15, cả 2 hướng, cả ngày)
+   V439_KIEM_CHUNG_PIN.set   -> ứng viên = ví 1  (M1, râu/thân 3.4, quét 3 nến, cả ngày)
+   V439_KIEM_CHUNG_LQ.set    -> ứng viên = ví 3  (M4, xuyên 0.7-2.0, phiên Âu)
+   V439_KIEM_CHUNG_ICT.set   -> ứng viên = ví 3  (M1, bias M30, Disp 0.9, Unicorn, phiên Âu)
+   V439_KIEM_CHUNG_SMC.set   -> ứng viên = ví 7  (M1, bias cấu trúc M15, chỉ BUY, phiên Âu)
+   V439_KIEM_CHUNG_PVEMA.set -> ứng viên = ví 2  (M6, xu hướng M30, ADX 14, phiên Á)
+   File LUOI_DAY_DU (384-864 bộ) giống hệt lưới nghiên cứu Python, chạy RẤT LÂU.
+   Nên chạy "1 minute OHLC" trước để lọc, rồi chạy lại "Every tick based on real ticks" cho bộ tốt.
+   MM không có ứng viên; chỉ có file LUOI_DAY_DU_MM để thử lại ở giai đoạn thị trường khác.
+
+5. Xem kết quả
+   File -> Open Data Folder -> lùi lên thư mục Terminal -> Common\Files\<InpMatrixThuMuc>\RUN_...\
+   - xep_hang.csv : mọi ví (bộ input x hướng x phiên), cột net, winrate_pct, profit_factor,
+                    dd_equity_pct, lenh_dong, holdout_net, danh_gia, input_da_doi (bộ input của ví).
+                    Ví 0 = danh mục gộp; ví 1-12 = cấu hình gốc (ứng viên) theo hướng x phiên;
+                    từ ví 13 là các bộ trong lưới.
+   - ket_qua_thang.csv, lenh_mo_phong.csv, thong_tin_run.csv : chi tiết theo tháng / từng lệnh / lượt chạy.
+
+6. Tiêu chí đạt (đề xuất)
+   danh_gia = UNG_VIEN_CAN_TEST_LAI (>=100 lệnh, >=3 tháng, lãi ở phần kiểm chứng), PF >= 1.3,
+   DD chấp nhận được, các bộ input lân cận cũng lãi (không phải 1 bộ lẻ loi).
+
+7. Chuỗi lưới (dán vào InpLuoi<PP> nếu MT5 cắt chuỗi khi Load)
+   File KIEM_CHUNG:
+   InpLuoiEMA=InpTimeframe=M1,M2|InpFastEMA=7,12|InpSlowEMA=34,50|InpEMAKhungLoc=M5,M15|InpMinDirectionEfficiency=0.1,0.22
+   InpLuoiICT=InpICTEntryTF=M1,M2|InpICTBiasTF=M15,M30,H1|InpICTDisplacementATR=0.6,0.9,1.2|InpICTPriority=0,2,3
+   InpLuoiSMC=InpSMCEntryTF=M1,M2,M3|InpSMCBiasTF=M15,M30|InpSMCDisplacementATR=0.9,1.2|InpSMCDungLocEMAH1=true,false|InpSMCDungLocRSI=true,false
+   InpLuoiPVEMA=InpPVKhungVaoLenh=M5,M6,M10|InpPVKhungXuHuong=M30,H1|InpPVADXToiThieu=14,20|InpPVSoNenTimSL=5,10
+   InpLuoiPIN=InpPVKhungPinBar=M1,M2|InpPVRauChinhTrenThan=2.8,3.4,4.0|InpPVPinQuetSoNen=3,6|InpPVSoNenTimSL=5,10
+   InpLuoiLQ=InpPVKhungQuetThanhKhoan=M1,M4|InpPVDoXuyenToiThieuGia=0.5,0.7|InpPVDoXuyenToiDaGia=1.0,2.0|InpPVSoNenThanhKhoan=6,12|InpPVRauQuetTrenThan=2.0,3.0
+   File LUOI_DAY_DU:
+   InpLuoiEMA=InpTimeframe=M1,M2,M3,M5|InpFastEMA=7,12|InpSlowEMA=21,34,50|InpEMAKhungLoc=M5,M15|InpEMAKhoangDiXaToiThieuATR=0.35,1.0|InpMinDirectionEfficiency=0.1,0.22|InpEMAMucRetest=0,1
+   InpLuoiICT=InpICTEntryTF=M1,M2,M3,M5,M15|InpICTBiasTF=M15,M30,H1|InpICTDisplacementATR=0.6,0.9,1.2|InpICTMinFVG_ATR=0.05,0.1|InpICTPriority=0,1,2,3|InpICTSetupExpiryBars=12,24
+   InpLuoiMM=InpMMEntryTF=M1,M3,M5,M15|InpMMBiasTF=M30,H1|InpMMDisplacementATR=0.7,1.0,1.3|InpMMMinFVG_ATR=0.03,0.08|InpMMPremiumLevel=0.62,0.7|InpMMDiscountLevel=0.3,0.38|InpMMUseLeg1=true,false
+   InpLuoiSMC=InpSMCEntryTF=M1,M2,M3,M5,M15|InpSMCBiasTF=M15,M30,H1|InpSMCDisplacementATR=0.6,0.9,1.2|InpSMCMinFVGATR=0.03,0.08|InpSMCDungLocEMAH1=true,false|InpSMCDungLocEMAM5=true,false|InpSMCDungLocRSI=true,false
+   InpLuoiPVEMA=InpPVKhungVaoLenh=M3,M4,M5,M6,M10,M15|InpPVKhungXuHuong=M15,M30,H1|InpPVADXToiThieu=14,20,25|InpPVSoNenTimSL=5,10|InpPVDungSaiHoiATR=0.25,0.5|InpPVThanNenToiThieu=0.3,0.5
+   InpLuoiPIN=InpPVKhungPinBar=M1,M2,M3,M4,M5,M6,M10,M15|InpPVRauChinhTrenThan=1.8,2.2,2.8,3.4|InpPVPinQuetSoNen=3,6,10|InpPVPinMinATR=1.0,1.3|InpPVPinMaxATR=1.8,2.5|InpPVSoNenTimSL=5,10
+   InpLuoiLQ=InpPVKhungQuetThanhKhoan=M1,M2,M3,M4,M5,M6,M10,M15|InpPVDoXuyenToiThieuGia=0.3,0.5,0.7|InpPVDoXuyenToiDaGia=1.0,2.0,3.0|InpPVSoNenThanhKhoan=6,12|InpPVRauQuetTrenThan=1.5,2.0,3.0|InpPVSoNenTimSL=5,10
+
+8. Chạy xong, gửi lại mình xep_hang.csv + thong_tin_run.csv của từng lượt để mình đọc kết quả giúp.

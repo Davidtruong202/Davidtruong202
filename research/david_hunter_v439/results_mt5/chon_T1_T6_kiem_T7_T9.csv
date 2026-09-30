@@ -1,0 +1,31 @@
+pp,hang_T1_T6,wallet_id,huong,phien,cau_hinh,lenh_T1_T6,wr_T1_T6,net_T1_T6,lenh_T7_T9,wr_T7_T9,net_T7_T9,phan_vi_T7_T9_trong_pp
+EMA,1,158,BUY_SELL,A,InpTimeframe=M1 | InpFastEMA=7 | InpSlowEMA=50 | InpEMAKhungLoc=M15 | InpMinDirectionEfficiency=0.1,182,57.69,278.83,61,52.46,45.88,77.91
+EMA,2,309,SELL,TAT_CA,InpTimeframe=M1 | InpFastEMA=7 | InpSlowEMA=34 | InpEMAKhungLoc=M15 | InpMinDirectionEfficiency=0.22,224,57.14,271.12,97,50.52,0.72,57.61
+EMA,3,350,BUY_SELL,A,InpTimeframe=M2 | InpFastEMA=7 | InpSlowEMA=50 | InpEMAKhungLoc=M15 | InpMinDirectionEfficiency=0.22,66,57.58,256.59,31,41.94,-50.43,25.67
+EMA,4,338,BUY_SELL,A,InpTimeframe=M1 | InpFastEMA=7 | InpSlowEMA=50 | InpEMAKhungLoc=M15 | InpMinDirectionEfficiency=0.22,155,58.06,250.59,53,56.6,85.31,88.06
+EMA,5,166,SELL,A,InpTimeframe=M1 | InpFastEMA=7 | InpSlowEMA=50 | InpEMAKhungLoc=M15 | InpMinDirectionEfficiency=0.1,86,62.79,248.88,30,63.33,100.14,90.75
+ICT,1,899,SELL,AU,InpICTEntryTF=M1 | InpICTBiasTF=M15 | InpICTDisplacementATR=0.9 | InpICTPriority=3,246,56.91,865.3,105,43.81,-345.85,0.77
+ICT,2,939,BUY_SELL,AU,InpICTEntryTF=M1 | InpICTBiasTF=H1 | InpICTDisplacementATR=0.9 | InpICTPriority=3,410,54.15,839.02,188,48.94,-216.56,8.33
+ICT,3,937,BUY_SELL,TAT_CA,InpICTEntryTF=M1 | InpICTBiasTF=H1 | InpICTDisplacementATR=0.9 | InpICTPriority=3,1082,50.74,835.41,492,49.59,-187.33,11.88
+ICT,4,947,SELL,AU,InpICTEntryTF=M1 | InpICTBiasTF=H1 | InpICTDisplacementATR=0.9 | InpICTPriority=3,207,56.52,702.21,104,50.0,-69.33,40.28
+ICT,5,479,SELL,AU,InpICTEntryTF=M1 | InpICTBiasTF=M15 | InpICTDisplacementATR=0.9 | InpICTPriority=0,209,55.5,682.59,89,44.94,-146.33,20.37
+LQ,1,2457,SELL,TAT_CA,InpPVKhungQuetThanhKhoan=M4 | InpPVDoXuyenToiThieuGia=0.5 | InpPVDoXuyenToiDaGia=2 | InpPVSoNenThanhKhoan=6 | InpPVRauQuetTrenThan=3,524,54.2,593.56,302,49.67,-2.71,74.54
+LQ,2,2193,SELL,TAT_CA,InpPVKhungQuetThanhKhoan=M4 | InpPVDoXuyenToiThieuGia=0.7 | InpPVDoXuyenToiDaGia=2 | InpPVSoNenThanhKhoan=6 | InpPVRauQuetTrenThan=3,431,54.52,530.53,252,49.6,-24.18,68.77
+LQ,3,2541,SELL,TAT_CA,InpPVKhungQuetThanhKhoan=M4 | InpPVDoXuyenToiThieuGia=0.5 | InpPVDoXuyenToiDaGia=2 | InpPVSoNenThanhKhoan=12 | InpPVRauQuetTrenThan=3,368,54.62,396.09,207,50.72,117.21,93.44
+LQ,4,2265,SELL,TAT_CA,InpPVKhungQuetThanhKhoan=M4 | InpPVDoXuyenToiThieuGia=0.5 | InpPVDoXuyenToiDaGia=2 | InpPVSoNenThanhKhoan=6 | InpPVRauQuetTrenThan=2,695,52.09,387.38,398,48.49,-109.29,40.68
+LQ,5,2565,SELL,TAT_CA,InpPVKhungQuetThanhKhoan=M4 | InpPVDoXuyenToiThieuGia=0.7 | InpPVDoXuyenToiDaGia=2 | InpPVSoNenThanhKhoan=12 | InpPVRauQuetTrenThan=3,300,55.0,344.93,175,49.71,43.34,84.78
+PIN,1,2123,SELL,AU,InpPVKhungPinBar=M1 | InpPVRauChinhTrenThan=2.8 | InpPVPinQuetSoNen=6 | InpPVSoNenTimSL=10,192,53.65,241.24,97,41.24,-231.45,21.33
+PIN,2,1966,SELL,A,InpPVKhungPinBar=M1 | InpPVRauChinhTrenThan=4 | InpPVPinQuetSoNen=3 | InpPVSoNenTimSL=5,119,56.3,180.88,85,42.35,-143.44,45.1
+PIN,3,2098,SELL,A,InpPVKhungPinBar=M1 | InpPVRauChinhTrenThan=4 | InpPVPinQuetSoNen=3 | InpPVSoNenTimSL=10,119,55.46,172.5,84,41.67,-173.44,34.62
+PIN,4,1991,SELL,AU,InpPVKhungPinBar=M1 | InpPVRauChinhTrenThan=2.8 | InpPVPinQuetSoNen=6 | InpPVSoNenTimSL=5,193,52.85,164.27,97,41.24,-216.54,24.83
+PIN,5,1941,SELL,TAT_CA,InpPVKhungPinBar=M1 | InpPVRauChinhTrenThan=3.4 | InpPVPinQuetSoNen=3 | InpPVSoNenTimSL=5,417,51.8,134.24,256,48.05,-143.8,44.41
+PVEMA,1,1629,SELL,TAT_CA,InpPVKhungVaoLenh=M5 | InpPVKhungXuHuong=M30 | InpPVADXToiThieu=14 | InpPVSoNenTimSL=5,424,54.72,923.86,181,54.14,258.69,97.55
+PVEMA,2,1773,SELL,TAT_CA,InpPVKhungVaoLenh=M5 | InpPVKhungXuHuong=M30 | InpPVADXToiThieu=14 | InpPVSoNenTimSL=10,335,54.63,826.43,162,51.23,85.65,83.22
+PVEMA,3,1833,SELL,TAT_CA,InpPVKhungVaoLenh=M5 | InpPVKhungXuHuong=M30 | InpPVADXToiThieu=20 | InpPVSoNenTimSL=10,253,55.73,771.04,118,50.85,-50.19,45.8
+PVEMA,4,1701,SELL,TAT_CA,InpPVKhungVaoLenh=M5 | InpPVKhungXuHuong=M30 | InpPVADXToiThieu=20 | InpPVSoNenTimSL=5,304,54.93,760.87,134,50.75,-26.01,54.55
+PVEMA,5,1777,BUY_SELL,TAT_CA,InpPVKhungVaoLenh=M10 | InpPVKhungXuHuong=M30 | InpPVADXToiThieu=14 | InpPVSoNenTimSL=10,321,52.02,723.29,178,48.31,-77.87,39.16
+SMC,1,1199,SELL,AU,InpSMCEntryTF=M1 | InpSMCBiasTF=M15 | InpSMCDisplacementATR=0.9 | InpSMCDungLocEMAH1=false | InpSMCDungLocRSI=true,247,59.51,1065.52,121,49.59,-45.9,47.57
+SMC,2,1475,SELL,AU,InpSMCEntryTF=M1 | InpSMCBiasTF=M15 | InpSMCDisplacementATR=0.9 | InpSMCDungLocEMAH1=false | InpSMCDungLocRSI=false,260,58.08,919.58,121,49.59,-60.03,44.97
+SMC,3,1091,SELL,AU,InpSMCEntryTF=M1 | InpSMCBiasTF=M30 | InpSMCDisplacementATR=0.9 | InpSMCDungLocEMAH1=true | InpSMCDungLocRSI=true,164,59.15,820.88,83,54.22,89.31,84.2
+SMC,4,1055,SELL,AU,InpSMCEntryTF=M1 | InpSMCBiasTF=M15 | InpSMCDisplacementATR=0.9 | InpSMCDungLocEMAH1=true | InpSMCDungLocRSI=true,180,59.44,817.44,96,55.21,66.66,77.6
+SMC,5,1331,SELL,AU,InpSMCEntryTF=M1 | InpSMCBiasTF=M15 | InpSMCDisplacementATR=0.9 | InpSMCDungLocEMAH1=true | InpSMCDungLocRSI=false,192,57.81,680.15,98,56.12,91.58,84.72

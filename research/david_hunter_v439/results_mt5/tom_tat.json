@@ -1,0 +1,39 @@
+{
+  "run": {
+    "version": "4.39 MATRIX 7PP",
+    "preset": "BO_KIEM_CHUNG_6PP",
+    "status": "COMPLETE",
+    "symbol": "XAUUSDm",
+    "server": "Exness-MT5Trial14",
+    "first_tick": "2026.01.01 23:05:00",
+    "last_tick": "2026.09.27 23:59:58",
+    "engines": "214",
+    "wallets": "2569",
+    "holdout_entry_date": "1970.01.01 00:00:00",
+    "reference_quality": "REVIEW_REQUIRED",
+    "native_operation_errors": "25655",
+    "native_request_count": "201240",
+    "native_net_minus_shadow_net": "511.14200000",
+    "swap_model": "MATRIX_SWAP_SAN",
+    "entry_slippage_price": "0.0"
+  },
+  "chia_du_lieu": {
+    "T1_T6": "202601-202606",
+    "T7_T9": "202607-202609",
+    "lenh_T1_T6_toi_thieu": 30
+  },
+  "vi": 2568,
+  "vi_lai_9_thang": 871,
+  "vi_lai_ca_hai_nua": 393,
+  "danh_gia_EA": {
+    "LO": 1474,
+    "THAM_DO_CHUA_KIEM_CHUNG": 702,
+    "THIEU_MAU": 392
+  },
+  "ung_vien_lai_9_thang": 0,
+  "o_huong_phien_tach": 36,
+  "o_lai_T1_T6": 15,
+  "o_lai_T7_T9": 9,
+  "o_lai_ca_hai": 5,
+  "danh_muc_goc_net": -2992.982
+}
