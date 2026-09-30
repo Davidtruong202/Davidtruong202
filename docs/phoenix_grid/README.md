@@ -13,6 +13,8 @@ Breakout → Hedge → giao dịch vùng mới và tỉa lệnh → chu kỳ m�
 > - **Dữ liệu tick**: trên EA-PRO mới có file mẫu 300 tick; 20 file zip chưa được tải lên (báo cáo R0.1, Mục 10).
 > - **EA V0.11 TEST (30/09/2026)**: chế độ quan sát, **không gửi lệnh**. Bảng ở góc trái chart, không còn biểu tượng.
 >   Chưa có kết quả compile.
+> - **Fibonacci + Bollinger (30/09/2026)**: kế hoạch nghiên cứu PG-MI-0.1 **chờ duyệt**, chưa sửa mã nguồn. Trọng tâm:
+>   tối ưu lệnh vào đầu tiên, bộ PP riêng, kiểm soát volume. Bản nháp V0.20 tạm dừng theo yêu cầu "chưa sửa code".
 >
 > Chưa có EA giao dịch, chưa chạy backtest nào. Không có con số hiệu suất nào trong thư mục này.
 
@@ -21,6 +23,7 @@ Breakout → Hedge → giao dịch vùng mới và tỉa lệnh → chu kỳ m�
 | [`01_KE_HOACH_NGHIEN_CUU.md`](01_KE_HOACH_NGHIEN_CUU.md) | Kế hoạch đầy đủ (đã duyệt): phân tích ảnh, kiến trúc, công thức, PP1–PP9, lot/rủi ro/stress, DCA, Hedge, Recovery, state machine, ma trận A–G, chia dữ liệu, tiêu chí nghiệm thu, dữ liệu còn thiếu, lộ trình phiên bản |
 | [`02_PHU_LUC_THONG_KE_DU_LIEU.md`](02_PHU_LUC_THONG_KE_DU_LIEU.md) | Thống kê mô tả 9 tháng nến M1 XAUUSDm. Không phải backtest |
 | [`03_R01_THONG_SO_VA_DU_LIEU.md`](03_R01_THONG_SO_VA_DU_LIEU.md) | PG-R0.1: hướng dẫn chạy script đọc thông số, đo margin hedge trên demo, xuất tick XAUUSDc; kết quả kiểm tra tick hiện có |
+| [`05_KE_HOACH_FIB_BOLLINGER.md`](05_KE_HOACH_FIB_BOLLINGER.md) | Kế hoạch Market Intelligence Fib + Bollinger (chờ duyệt): hiện trạng Phoenix, phân tích SET M2 và tài liệu ảnh, điểm tác động, kiến trúc module, kế hoạch kiểm định T0–T3, định lượng các phần chưa rõ |
 | [`04_EA_V0_10_QUAN_SAT.md`](04_EA_V0_10_QUAN_SAT.md) | EA quan sát V0.10 / V0.11 TEST: lộ trình EA, cách chạy, đặc tả thuật toán cho bộ Python R0.2, chi tiết cần duyệt |
 | [`../../MQL5/Scripts/PhoenixGrid/`](../../MQL5/Scripts/PhoenixGrid/) | Script MT5 chỉ đọc `PG_R01_DocThongSo.mq5` (đã compile và chạy trên máy bạn) |
 | [`../../MQL5/Experts/PhoenixGrid/`](../../MQL5/Experts/PhoenixGrid/) | `EA_PHOENIX_GRID_V0_11_TEST.mq5` (hiện hành) và `EA_PHOENIX_GRID_V0_10_TEST.mq5` (rollback): EA quan sát, không gửi lệnh |
@@ -40,6 +43,24 @@ Breakout → Hedge → giao dịch vùng mới và tỉa lệnh → chu kỳ m�
 | 8 | Kế hoạch triển khai theo từng phiên bản nghiên cứu | Mục 18 (PG-R0.0 → PG-R1.0 → EA V1.00 TEST) |
 
 ## Nhật ký phiên bản
+
+### PG-MI-0.1 — Kế hoạch Fibonacci + Bollinger (đề xuất)
+
+**Ngày:** 30/09/2026
+**Trạng thái:** CHỜ DUYỆT. Chỉ có tài liệu; không sửa mã nguồn.
+
+Tài liệu [`05_KE_HOACH_FIB_BOLLINGER.md`](05_KE_HOACH_FIB_BOLLINGER.md):
+
+- Hiện trạng Phoenix đọc từ mã nguồn: chưa có baseline giao dịch.
+- Phân tích SET `M2_FIBO.set`: EA khác (VuTru_Fibo_BB_Pullback); 16 tham số tối ưu, khoảng 1,16 × 10¹⁸ tổ hợp, 5 giá
+  trị sát biên.
+- Phân tích tài liệu ảnh; điểm tác động ENTRY / DCA / HOLD / TỈA / EXIT.
+- Kiến trúc module MI; kế hoạch T0–T3 (≤ 88 biến thể đăng ký trước).
+- Trọng tâm theo phản hồi: tối ưu lệnh vào đầu tiên, bộ PP riêng, kiểm soát volume.
+
+**Kiểm tra kỹ thuật:** đo ATR14 trên M2 từ nến M1 XAUUSDm 2026: trung vị 3,24 USD; chi phí khứ hồi bằng 10% SL khi
+SL = 1,1 × ATR.
+**Backtest:** chưa chạy.
 
 ### EA V0.11 TEST — Bảng bên trái, bỏ biểu tượng; bộ đọc tick nhiều dạng
 
