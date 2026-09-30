@@ -1,12 +1,15 @@
-"""Đóng gói cài đặt cho MT5: một file zip đã sắp đúng cấu trúc thư mục MQL5 + hướng dẫn từng bước.
+"""Đóng gói cài đặt cho MT5: mỗi gói là một file zip đã sắp đúng cấu trúc thư mục MQL5 + hướng dẫn từng bước.
 
 Người dùng chỉ cần giải nén và kéo thư mục MQL5 trong zip thả vào Data Folder của MT5.
+- Gói 1 (MT5 demo): Phoenix V0.20 + MI Shadow theo dõi Phoenix.
+- Gói 2 (MT5 real đang chạy Hydra): MI Shadow theo dõi Hydra + script chỉ đọc xuất lịch sử giao dịch.
+
 Kiểm tra trước khi đóng gói:
-- mọi file nguồn tồn tại; file .mq5 / .mqh có BOM UTF-8;
+- mọi file nguồn tồn tại; file .mq5 / .mqh có BOM UTF-8; không file nào của gói 2 có lệnh giao dịch;
 - mọi `#include "..."` trỏ tới file có trong cùng thư mục của gói, đúng tên;
 - file .set đọc được (UTF-16 LE có BOM) và chỉ chứa input có trong EA tương ứng.
 
-Chạy:  python3 dong_goi_cai_dat.py    ->  goi_cai_dat/PhoenixGrid_V0_20_MI_V0_01.zip + goi_cai_dat/HUONG_DAN_CAI_DAT.txt
+Chạy:  python3 dong_goi_cai_dat.py    ->  goi_cai_dat/<gói>.zip + goi_cai_dat/<hướng dẫn>.txt
 """
 import os
 import re
@@ -15,18 +18,7 @@ import zipfile
 
 GOC = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", ".."))
 RA = os.path.join(GOC, "goi_cai_dat")
-TEN_ZIP = "PhoenixGrid_V0_20_MI_V0_01.zip"
 
-# (đường dẫn trong repo, đường dẫn trong zip)
-FILE = [
-    ("MQL5/Experts/PhoenixGrid/EA_PHOENIX_GRID_V0_20_TEST.mq5", "MQL5/Experts/PhoenixGrid/EA_PHOENIX_GRID_V0_20_TEST.mq5"),
-    ("MQL5/Experts/PhoenixGrid/EA_PHOENIX_MI_SHADOW_V0_01_TEST.mq5", "MQL5/Experts/PhoenixGrid/EA_PHOENIX_MI_SHADOW_V0_01_TEST.mq5"),
-    ("MQL5/Experts/PhoenixGrid/PHOENIX_MI_V0_01.mqh", "MQL5/Experts/PhoenixGrid/PHOENIX_MI_V0_01.mqh"),
-    ("MQL5/Presets/PhoenixGrid/PG_V020_DEMO_5000USD.set", "MQL5/Presets/PG_V020_DEMO_5000USD.set"),
-    ("MQL5/Presets/PhoenixGrid/PMI_V001_THEO_PHOENIX_d60n2.set", "MQL5/Presets/PMI_V001_THEO_PHOENIX_d60n2.set"),
-    ("MQL5/Presets/PhoenixGrid/PMI_V001_THEO_PHOENIX_d80n3.set", "MQL5/Presets/PMI_V001_THEO_PHOENIX_d80n3.set"),
-    ("MQL5/Presets/PhoenixGrid/PMI_V001_THEO_HYDRA_d60n2.set", "MQL5/Presets/PMI_V001_THEO_HYDRA_d60n2.set"),
-]
 # file .set -> EA dùng file đó
 SET_EA = {
     "PG_V020_DEMO_5000USD.set": "EA_PHOENIX_GRID_V0_20_TEST.mq5",
@@ -34,9 +26,10 @@ SET_EA = {
     "PMI_V001_THEO_PHOENIX_d80n3.set": "EA_PHOENIX_MI_SHADOW_V0_01_TEST.mq5",
     "PMI_V001_THEO_HYDRA_d60n2.set": "EA_PHOENIX_MI_SHADOW_V0_01_TEST.mq5",
 }
+CAM = ["OrderSend", "OrderSendAsync", "CTrade", "PositionClose", "TRADE_ACTION_DEAL", "TRADE_ACTION_SLTP"]
 
-HUONG_DAN = r"""DAVID HUNTER – PHOENIX GRID – 0941920986
-HƯỚNG DẪN CÀI ĐẶT TỪNG BƯỚC — Phoenix V0.20 + MI Shadow V0.01 — TÀI KHOẢN DEMO 5.000 USD
+HUONG_DAN_DEMO = r"""DAVID HUNTER – PHOENIX GRID – 0941920986
+HƯỚNG DẪN CÀI ĐẶT TỪNG BƯỚC — Phoenix V0.20 + MI Shadow V0.01 — MT5 DEMO 5.000 USD
 
 Hai EA CHƯA được compile trong môi trường phát triển. Làm đúng Phần C; nếu có lỗi, gửi lỗi trước khi chạy.
 
@@ -44,11 +37,11 @@ TRONG GÓI NÀY
   MQL5\Experts\PhoenixGrid\EA_PHOENIX_GRID_V0_20_TEST.mq5        EA 1: GIAO DỊCH (DCA + tỉa + clear)
   MQL5\Experts\PhoenixGrid\EA_PHOENIX_MI_SHADOW_V0_01_TEST.mq5   EA 2: CHỈ GHI LOG, không gửi lệnh
   MQL5\Experts\PhoenixGrid\PHOENIX_MI_V0_01.mqh                  file phụ của EA 2 (phải nằm cùng thư mục với EA 2)
-  MQL5\Presets\PG_V020_DEMO_5000USD.set                          cài đặt cho EA 1
-  MQL5\Presets\PMI_V001_THEO_PHOENIX_d60n2.set                   cài đặt cho EA 2 (theo dõi EA 1)
-  MQL5\Presets\PMI_V001_THEO_PHOENIX_d80n3.set                   cài đặt cho EA 2 thứ hai để so sánh (tùy chọn)
-  MQL5\Presets\PMI_V001_THEO_HYDRA_d60n2.set                     EA 2 cạnh Hydra trên tài khoản real (tùy chọn)
+  MQL5\Presets\PG_V020_DEMO_5000USD.set                          cài đặt cho EA 1  (chart 1)
+  MQL5\Presets\PMI_V001_THEO_PHOENIX_d60n2.set                   cài đặt cho EA 2  (chart 2)
+  MQL5\Presets\PMI_V001_THEO_PHOENIX_d80n3.set                   cài đặt cho EA 2 thứ hai để so sánh (chart 3, tùy chọn)
 
+  Tên file SET bắt đầu bằng PG_V020 -> dùng cho EA 1. Bắt đầu bằng PMI_V001 -> dùng cho EA 2.
   Không đổi tên file. Nếu trình duyệt tự thêm "(1)" vào tên file thì xóa phần đó đi.
 
   Demo 5.000 USD với lot 0,01 = cùng mức rủi ro như real cent 5.000 USC với lot 0,01.
@@ -56,100 +49,168 @@ TRONG GÓI NÀY
 
 PHẦN A — CHUẨN BỊ (làm 1 lần)
  A1. Giải nén file zip: chuột phải file zip -> Extract All -> Extract.
- A2. Cài một MT5 RIÊNG cho demo, để MT5 đang chạy Hydra trên tài khoản real không bị ảnh hưởng.
-     - Tải bộ cài MetaTrader 5 trong Exness Personal Area (mục nền tảng giao dịch).
-     - Chạy bộ cài, bấm "Settings", đổi thư mục cài thành:  C:\Program Files\MT5 DEMO PHOENIX
-       -> Next -> chờ cài xong.
-     - KHÔNG đăng nhập demo trên MT5 đang chạy Hydra: nếu đổi tài khoản trên MT5 đó,
-       Hydra sẽ chạy sang tài khoản demo.
- A3. Mở tài khoản demo: Exness Personal Area -> mở tài khoản mới -> Demo -> Standard.
-     Chọn: MetaTrader 5, tiền USD, đòn bẩy 1:2000, số dư 5000.
-     Ghi lại: số tài khoản, mật khẩu, tên server.
- A4. Mở "MT5 DEMO PHOENIX" -> File -> Login to Trade Account -> nhập số tài khoản, mật khẩu,
-     server demo -> OK. Góc dưới bên phải hiện tốc độ kết nối (ví dụ 58 ms) là đã vào được.
+ A2. Dùng một MT5 RIÊNG cho demo (không dùng MT5 đang chạy Hydra trên tài khoản real).
+     Nếu chưa có: tải bộ cài MetaTrader 5 trong Exness Personal Area, chạy bộ cài, bấm "Settings",
+     đổi thư mục cài thành  C:\Program Files\MT5 DEMO PHOENIX  -> Next -> chờ cài xong.
+     KHÔNG đăng nhập demo trên MT5 đang chạy Hydra: nếu đổi tài khoản trên MT5 đó,
+     Hydra sẽ chạy sang tài khoản demo.
+ A3. Tài khoản demo: Exness Standard, MetaTrader 5, tiền USD, đòn bẩy 1:2000, số dư 5000.
+ A4. MT5 demo -> File -> Login to Trade Account -> nhập số tài khoản, mật khẩu, server demo -> OK.
 
 PHẦN B — CHÉP FILE (làm 1 lần)
- B1. Trong MT5 DEMO PHOENIX: File -> Open Data Folder.
-     Một cửa sổ Windows mở ra, bên trong có thư mục MQL5.
- B2. Mở thư mục đã giải nén ở bước A1. Kéo thư mục MQL5 trong đó, thả vào cửa sổ ở bước B1.
+ B1. Trong MT5 demo: File -> Open Data Folder. Một cửa sổ Windows mở ra, bên trong có thư mục MQL5.
+ B2. Kéo thư mục MQL5 trong zip (đã giải nén) thả vào cửa sổ đó.
      Windows hỏi gộp thư mục / thay file -> chọn Yes (hoặc "Replace the files in the destination").
- B3. Kiểm tra trong cửa sổ Data Folder:
-     - MQL5\Experts\PhoenixGrid  có 3 file (2 file .mq5 và 1 file .mqh)
-     - MQL5\Presets              có 4 file .set
+ B3. Kiểm tra: MQL5\Experts\PhoenixGrid có 3 file (2 file .mq5, 1 file .mqh); MQL5\Presets có 3 file .set.
 
 PHẦN C — COMPILE (làm 1 lần; làm lại mỗi khi có bản mới)
  C1. Trong MT5 bấm phím F4 (hoặc nút IDE trên thanh công cụ): MetaEditor mở ra.
- C2. Cột Navigator bên trái MetaEditor -> Experts -> PhoenixGrid
-     -> nhấp đúp EA_PHOENIX_GRID_V0_20_TEST.mq5.
+ C2. Cột Navigator bên trái MetaEditor -> Experts -> PhoenixGrid -> nhấp đúp EA_PHOENIX_GRID_V0_20_TEST.mq5.
  C3. Bấm F7. Nhìn tab Errors ở dưới cùng: dòng cuối phải là "0 errors".
  C4. Làm lại C2–C3 với EA_PHOENIX_MI_SHADOW_V0_01_TEST.mq5. Không compile file .mqh.
- C5. Nếu có lỗi: chụp màn hình tab Errors (hoặc chọn hết các dòng -> chuột phải -> Copy) gửi cho Claude.
-     DỪNG, chưa gắn EA.
+ C5. Nếu có lỗi: chụp màn hình tab Errors gửi cho Claude. DỪNG, chưa gắn EA.
  C6. Quay lại MT5: cột Navigator -> chuột phải "Expert Advisors" -> Refresh.
-     Thấy thư mục PhoenixGrid có 2 EA:  EA_PHOENIX_GRID_V0_20_TEST  và  EA_PHOENIX_MI_SHADOW_V0_01_TEST.
 
 PHẦN D — CÀI ĐẶT MT5 (làm 1 lần)
  D1. Tools -> Options -> tab Expert Advisors -> tick "Allow algorithmic trading" -> OK.
  D2. Trên thanh công cụ, bấm nút "Algo Trading" cho chuyển sang màu xanh.
- D3. (Tùy chọn, để nhận thông báo trên điện thoại) Tools -> Options -> tab Notifications
-     -> tick "Enable Push Notifications", nhập MetaQuotes ID -> OK.
-     MetaQuotes ID xem trong app MT5 trên điện thoại, mục Messages (Tin nhắn).
+ D3. (Tùy chọn) Tools -> Options -> tab Notifications -> tick "Enable Push Notifications",
+     nhập MetaQuotes ID (xem trong app MT5 trên điện thoại, mục Messages) -> OK.
 
-PHẦN E — GẮN EA 1: PHOENIX V0.20 (giao dịch)
- E1. Cửa sổ Market Watch (Ctrl+M): chuột phải -> Symbols -> gõ XAUUSDm -> chọn -> Show Symbol -> OK.
- E2. Chuột phải XAUUSDm trong Market Watch -> Chart Window. Một chart mới mở ra
-     (khung nào cũng được, nên chọn M5).
- E3. Cột Navigator của MT5 -> Expert Advisors -> PhoenixGrid
-     -> kéo EA_PHOENIX_GRID_V0_20_TEST thả vào chart vừa mở.
- E4. Cửa sổ cài đặt EA hiện ra:
-       - Tab Common: tick "Allow Algo Trading".
-       - Tab Inputs: bấm nút Load -> chọn PG_V020_DEMO_5000USD.set -> Open.
-       - Bấm OK.
- E5. Kiểm tra:
-       - Góc trên bên phải chart: biểu tượng EA màu xanh.
-       - Bảng PHOENIX ở bên trái chart, khối "PHOENIX DCA":
-           "Gửi lệnh" = DEMO (chữ xanh), "Tạm dừng" = Không.
-       - Khung THÔNG BÁO có dòng: "Lot tầng 0 = 0.01: giá đi 1 USD = 1.00 USD".
-       - Nếu "Gửi lệnh" = KHÔNG: đọc dòng chữ cuối khối PHOENIX DCA để biết lý do
-         (thường là quên bước D2 hoặc tick "Allow Algo Trading" ở E4).
-       - Nếu "Tạm dừng" = Tự động: tài khoản đang có lệnh không phải của Phoenix -> đóng hết lệnh đó.
+PHẦN E — CHART 1: EA 1 PHOENIX V0.20 (giao dịch)
+ E1. Market Watch (Ctrl+M): chuột phải -> Symbols -> gõ XAUUSDm -> chọn -> Show Symbol -> OK.
+ E2. Chuột phải XAUUSDm trong Market Watch -> Chart Window (khung nào cũng được, nên chọn M5).
+ E3. Navigator -> Expert Advisors -> PhoenixGrid -> kéo EA_PHOENIX_GRID_V0_20_TEST thả vào chart.
+ E4. Tab Common: tick "Allow Algo Trading".
+     Tab Inputs: bấm Load -> chọn PG_V020_DEMO_5000USD.set -> Open.
+     Kiểm tra dòng "Cho phép gửi lệnh trên tài khoản thật" = false (đúng file). Bấm OK.
+ E5. Trên bảng PHOENIX: "Gửi lệnh" = DEMO (chữ xanh), "Tạm dừng" = Không.
+     Khung THÔNG BÁO có dòng "Lot tầng 0 = 0.01: giá đi 1 USD = 1.00 USD".
+     Nếu "Gửi lệnh" = KHÔNG: đọc dòng chữ cuối khối PHOENIX DCA để biết lý do.
+     Nếu "Tạm dừng" = Tự động: tài khoản đang có lệnh không phải của Phoenix -> đóng hết lệnh đó.
 
-PHẦN F — GẮN EA 2: MI SHADOW (chỉ ghi log)
- F1. Mở chart XAUUSDm THỨ HAI: chuột phải XAUUSDm trong Market Watch -> Chart Window.
-     Mỗi chart chỉ chạy được 1 EA, nên EA 2 phải ở chart khác EA 1.
+PHẦN F — CHART 2: EA 2 MI SHADOW (chỉ ghi log)
+ F1. Mở chart XAUUSDm THỨ HAI (mỗi chart chỉ chạy được 1 EA).
  F2. Kéo EA_PHOENIX_MI_SHADOW_V0_01_TEST thả vào chart thứ hai.
- F3. Tab Inputs -> Load -> PMI_V001_THEO_PHOENIX_d60n2.set -> Open -> OK.
-     Tab Common: tick "Allow Algo Trading" hay không đều được, vì EA này không có lệnh giao dịch.
- F4. Kiểm tra: góc trái trên chart hiện dòng
-       "MI V0.01 SHADOW — CHỈ GHI LOG, KHÔNG GỬI LỆNH"
-     và các dòng: Thị trường / Basket / Phòng thủ (sẽ làm) / Fib.
-     Lần đầu có thể phải chờ tới khi đóng nến M5 kế tiếp (tối đa 5 phút).
- F5. (Tùy chọn) Chart thứ ba: làm như F1–F3 nhưng Load PMI_V001_THEO_PHOENIX_d80n3.set.
+ F3. Tab Inputs -> Load -> PMI_V001_THEO_PHOENIX_d60n2.set -> Open.
+     Kiểm tra dòng "Magic basket cần theo dõi" = 20260930 -> OK.
+ F4. Góc trái chart hiện "MI V0.01 SHADOW — CHỈ GHI LOG, KHÔNG GỬI LỆNH"
+     (có thể phải chờ tới khi đóng nến M5 kế tiếp).
+ F5. (Tùy chọn) Chart 3: như F1–F3 nhưng Load PMI_V001_THEO_PHOENIX_d80n3.set.
 
 PHẦN G — CHẠY HẰNG NGÀY
- G1. Để MT5 DEMO PHOENIX chạy liên tục (VPS Windows, hoặc máy không tắt, không ngủ).
-     Nếu cần tắt MT5: dùng File -> Exit. Mở lại thì 2 EA tự chạy tiếp.
- G2. Không đánh tay, không chạy EA khác trên tài khoản demo này
-     (EA 1 tự tạm dừng khi thấy lệnh lạ).
- G3. Muốn dừng EA 1: dùng nút trên bảng Phoenix (TẠM DỪNG / ĐÓNG BASKET / ĐÓNG TẤT CẢ),
-     bấm 2 lần trong 5 giây.
- G4. Mỗi ngày gửi log cho Claude:
-     MT5 -> File -> Open Data Folder -> lùi lên 2 cấp (tới thư mục "Terminal")
-     -> Common -> Files -> chuột phải thư mục PhoenixGrid -> Send to -> Compressed (zipped) folder
-     -> gửi file zip vừa tạo.
+ G1. Để MT5 demo chạy liên tục. Nếu cần tắt MT5: File -> Exit. Mở lại thì 2 EA tự chạy tiếp.
+ G2. Không đánh tay, không chạy EA khác trên tài khoản demo này.
+ G3. Muốn dừng EA 1: nút TẠM DỪNG / ĐÓNG BASKET / ĐÓNG TẤT CẢ trên bảng, bấm 2 lần trong 5 giây.
+ G4. Mỗi ngày gửi log: File -> Open Data Folder -> lùi lên 2 cấp (thư mục "Terminal") -> Common -> Files
+     -> chuột phải thư mục PhoenixGrid -> Send to -> Compressed (zipped) folder -> gửi file zip đó.
 
-PHẦN H — (TÙY CHỌN) EA 2 CẠNH HYDRA TRÊN TÀI KHOẢN REAL
- H1. Trên MT5 đang chạy Hydra: làm lại Phần B và Phần C (chép và compile trong Data Folder của MT5 này).
- H2. Mở một chart XAUUSDc MỚI (không phải chart của Hydra),
-     kéo EA_PHOENIX_MI_SHADOW_V0_01_TEST vào, Load PMI_V001_THEO_HYDRA_d60n2.set -> OK.
-     EA này không gửi lệnh, không đụng vào lệnh của Hydra.
- H3. EA 1 (Phoenix V0.20) lúc này chỉ chạy trên demo.
-     File PG_V020_DEMO_5000USD.set đã chặn gửi lệnh nếu lỡ gắn trên tài khoản thật.
+PHẦN H — THEO DÕI HYDRA TRÊN MT5 REAL
+ Dùng gói riêng PhoenixGrid_theo_doi_Hydra.zip và file HUONG_DAN_THEO_DOI_HYDRA.txt.
+ EA 1 (Phoenix V0.20) lúc này chỉ chạy trên demo; file PG_V020_DEMO_5000USD.set đã chặn gửi lệnh
+ nếu lỡ gắn trên tài khoản thật.
 """
 
+HUONG_DAN_HYDRA = r"""DAVID HUNTER – PHOENIX GRID – 0941920986
+HƯỚNG DẪN: THEO DÕI HYDRA TRÊN MT5 REAL — chỉ đọc, không gửi lệnh
 
-def kiem_tra():
-    for goc, _ in FILE:
+Mục đích:
+  - Ghi lại Hydra làm gì trong từng trạng thái thị trường (sideway, breakout, reclaim), để tìm ra logic của Hydra.
+  - Kiểm tra Breakout Defense (TEST 1) trên chính các basket của Hydra: nếu được phép, Phoenix sẽ khóa DCA / hedge lúc nào.
+Hai công cụ trong gói KHÔNG gửi, KHÔNG sửa, KHÔNG đóng lệnh nào. Hydra chạy như cũ.
+Chưa compile trong môi trường phát triển: làm đúng Phần B, có lỗi thì gửi lỗi trước.
+
+TRONG GÓI NÀY
+  MQL5\Experts\PhoenixGrid\EA_PHOENIX_MI_SHADOW_V0_01_TEST.mq5   EA shadow: mỗi nến M5 ghi trạng thái thị trường
+                                                                 và Hydra đang BUY / SELL bao nhiêu lot
+  MQL5\Experts\PhoenixGrid\PHOENIX_MI_V0_01.mqh                  file phụ của EA shadow (cùng thư mục)
+  MQL5\Scripts\PhoenixGrid\PG_XuatLichSu.mq5                     script: xuất lịch sử deal, lệnh, vị thế đang mở
+  MQL5\Presets\PMI_V001_THEO_HYDRA_d60n2.set                     cài đặt EA shadow cho tài khoản Hydra
+
+PHẦN A — CHÉP FILE (trên MT5 đang chạy Hydra)
+ A1. Giải nén zip: chuột phải -> Extract All -> Extract.
+ A2. Trong MT5 đang chạy Hydra: File -> Open Data Folder.
+ A3. Kéo thư mục MQL5 trong zip thả vào cửa sổ đó -> chọn Yes khi Windows hỏi gộp thư mục.
+
+PHẦN B — COMPILE
+ B1. Bấm F4: MetaEditor mở ra.
+ B2. Navigator của MetaEditor -> Experts -> PhoenixGrid -> nhấp đúp EA_PHOENIX_MI_SHADOW_V0_01_TEST.mq5
+     -> bấm F7 -> tab Errors phải báo "0 errors".
+ B3. Navigator -> Scripts -> PhoenixGrid -> nhấp đúp PG_XuatLichSu.mq5 -> F7 -> phải "0 errors".
+ B4. Có lỗi: chụp màn hình tab Errors gửi Claude, dừng lại.
+ B5. Về MT5: Navigator -> chuột phải "Expert Advisors" -> Refresh; chuột phải "Scripts" -> Refresh.
+
+PHẦN C — GẮN EA SHADOW (không đụng vào chart của Hydra)
+ C1. Market Watch -> chuột phải XAUUSDc -> Chart Window: mở một chart XAUUSDc MỚI.
+     Không kéo gì vào chart đang chạy Hydra.
+ C2. Kéo EA_PHOENIX_MI_SHADOW_V0_01_TEST vào chart mới.
+ C3. Tab Inputs -> Load -> PMI_V001_THEO_HYDRA_d60n2.set -> Open.
+     Dòng "Magic basket cần theo dõi" = 0: theo dõi mọi lệnh XAUUSDc trên tài khoản,
+     kể cả lệnh hedge của Hydra nếu Hydra dùng magic khác.
+     Nếu bạn có đánh tay XAUUSDc trên tài khoản này: sửa ô đó thành 20260826 (magic của Hydra).
+     Bấm OK. Không cần tick "Allow Algo Trading".
+ C4. Góc trái chart mới hiện "MI V0.01 SHADOW — CHỈ GHI LOG, KHÔNG GỬI LỆNH"
+     và dòng "Basket: BUY/SELL ... lot" khớp với số lot Hydra đang mở (chờ tối đa 5 phút).
+
+PHẦN D — XUẤT LỊCH SỬ HYDRA (lần đầu ngay bây giờ; sau đó mỗi tuần hoặc khi Claude cần)
+ D1. Navigator -> Scripts -> PhoenixGrid -> kéo PG_XuatLichSu thả vào chart XAUUSDc mới ở Phần C
+     (một chart vẫn chạy được cả 1 EA và 1 script).
+ D2. Tab Inputs: "Từ ngày" = ngày Hydra bắt đầu chạy trên tài khoản này (không nhớ thì để 2026.01.01).
+     Các ô khác để nguyên -> OK.
+ D3. Hiện thông báo "PG_XuatLichSu: ... deal, ... lệnh, ... vị thế đang mở". Script tự dừng.
+
+PHẦN E — LƯU CÀI ĐẶT HYDRA ĐANG CHẠY
+ E1. Trên chart Hydra: nhấp đúp vào biểu tượng EA ở góc trên bên phải chart
+     (hoặc chuột phải chart -> Expert Advisors -> Properties).
+ E2. Tab Inputs -> bấm Save -> đặt tên Hydra_dang_chay.set -> Save.
+ E3. Bấm Cancel để đóng cửa sổ (KHÔNG bấm OK, để Hydra không bị khởi động lại).
+     File nằm trong Data Folder -> MQL5 -> Presets.
+
+PHẦN F — GỬI CHO CLAUDE
+ F1. Data Folder -> lùi lên 2 cấp (thư mục "Terminal") -> Common -> Files -> thư mục PhoenixGrid:
+     nén cả thư mục (log shadow PMI_V001_XAUUSDc_..., lịch sử PG_lich_su_..., PG_vi_the_mo_...).
+ F2. Data Folder -> MQL5 -> Logs: các file .log của những ngày cần xem
+     (nhật ký quyết định Hydra ghi ra, vì Hydra đang bật "Ghi log chi tiết mọi quyết định").
+ F3. File Hydra_dang_chay.set (Phần E).
+ F4. Nếu trong Data Folder -> MQL5 -> Experts có file Hydra_4.5_VIP_VI.mq5
+     (mã nguồn, không phải .ex5): gửi luôn. Có mã nguồn thì đọc được chính xác logic, không phải đoán.
+ Mỗi ngày sau đó: gửi F1 và F2 của ngày hôm trước.
+
+Hai MT5 trên cùng VPS dùng chung thư mục Common\Files\PhoenixGrid. Log không bị ghi đè:
+tên file có symbol (XAUUSDm là demo, XAUUSDc là real) và tên server.
+"""
+
+GOI = [
+    {"zip": "PhoenixGrid_V0_20_MI_V0_01.zip", "huong_dan": "HUONG_DAN_CAI_DAT.txt", "text": HUONG_DAN_DEMO,
+     "chi_doc": False,
+     "file": [
+         ("MQL5/Experts/PhoenixGrid/EA_PHOENIX_GRID_V0_20_TEST.mq5", "MQL5/Experts/PhoenixGrid/EA_PHOENIX_GRID_V0_20_TEST.mq5"),
+         ("MQL5/Experts/PhoenixGrid/EA_PHOENIX_MI_SHADOW_V0_01_TEST.mq5", "MQL5/Experts/PhoenixGrid/EA_PHOENIX_MI_SHADOW_V0_01_TEST.mq5"),
+         ("MQL5/Experts/PhoenixGrid/PHOENIX_MI_V0_01.mqh", "MQL5/Experts/PhoenixGrid/PHOENIX_MI_V0_01.mqh"),
+         ("MQL5/Presets/PhoenixGrid/PG_V020_DEMO_5000USD.set", "MQL5/Presets/PG_V020_DEMO_5000USD.set"),
+         ("MQL5/Presets/PhoenixGrid/PMI_V001_THEO_PHOENIX_d60n2.set", "MQL5/Presets/PMI_V001_THEO_PHOENIX_d60n2.set"),
+         ("MQL5/Presets/PhoenixGrid/PMI_V001_THEO_PHOENIX_d80n3.set", "MQL5/Presets/PMI_V001_THEO_PHOENIX_d80n3.set"),
+     ]},
+    {"zip": "PhoenixGrid_theo_doi_Hydra.zip", "huong_dan": "HUONG_DAN_THEO_DOI_HYDRA.txt", "text": HUONG_DAN_HYDRA,
+     "chi_doc": True,
+     "file": [
+         ("MQL5/Experts/PhoenixGrid/EA_PHOENIX_MI_SHADOW_V0_01_TEST.mq5", "MQL5/Experts/PhoenixGrid/EA_PHOENIX_MI_SHADOW_V0_01_TEST.mq5"),
+         ("MQL5/Experts/PhoenixGrid/PHOENIX_MI_V0_01.mqh", "MQL5/Experts/PhoenixGrid/PHOENIX_MI_V0_01.mqh"),
+         ("MQL5/Scripts/PhoenixGrid/PG_XuatLichSu.mq5", "MQL5/Scripts/PhoenixGrid/PG_XuatLichSu.mq5"),
+         ("MQL5/Presets/PhoenixGrid/PMI_V001_THEO_HYDRA_d60n2.set", "MQL5/Presets/PMI_V001_THEO_HYDRA_d60n2.set"),
+     ]},
+]
+
+
+def bo_chu_thich_va_chuoi(src):
+    src = re.sub(r"/\*.*?\*/", " ", src, flags=re.S)
+    src = re.sub(r"//[^\n]*", " ", src)
+    return re.sub(r'"(?:\\.|[^"\\])*"', '""', src)
+
+
+def kiem_tra(goi):
+    ds = dict(goi["file"])
+    for goc, trong_zip in goi["file"]:
         p = os.path.join(GOC, goc)
         assert os.path.isfile(p), f"thiếu file {goc}"
         raw = open(p, "rb").read()
@@ -158,10 +219,12 @@ def kiem_tra():
             src = raw[3:].decode("utf-8")
             for inc in re.findall(r'^\s*#include\s+"([^"]+)"', src, re.M):
                 cung = os.path.dirname(goc) + "/" + inc
-                assert any(g == cung for g, _ in FILE), f"{goc} include {inc} nhưng gói không có {cung}"
-                zip_ea = dict(FILE)[goc]
-                zip_inc = dict(FILE)[cung]
-                assert os.path.dirname(zip_ea) == os.path.dirname(zip_inc), f"{inc} phải nằm cùng thư mục với {goc} trong zip"
+                assert cung in ds, f"{goc} include {inc} nhưng gói không có {cung}"
+                assert os.path.dirname(ds[goc]) == os.path.dirname(ds[cung]), f"{inc} phải nằm cùng thư mục với {goc}"
+            if goi["chi_doc"]:
+                ma = bo_chu_thich_va_chuoi(src)
+                co = [w for w in CAM if re.search(r"\b" + w + r"\b", ma)]
+                assert not co, f"{goc} là gói chỉ đọc nhưng có {co}"
         if goc.endswith(".set"):
             assert raw.startswith(b"\xff\xfe"), f"{goc} không phải UTF-16 LE có BOM"
             txt = raw[2:].decode("utf-16-le")
@@ -170,26 +233,31 @@ def kiem_tra():
             ea_src = open(os.path.join(GOC, "MQL5/Experts/PhoenixGrid", ea), encoding="utf-8-sig").read()
             inp = set(re.findall(r"^input\s+\w+\s+(\w+)\s*=", ea_src, re.M))
             assert set(ten) == inp, (goc, set(ten) ^ inp)
-    print("kiểm tra gói: đạt")
+    for ten_file in re.findall(r"[A-Za-z0-9_][A-Za-z0-9_.]*\.(?:mq5|mqh|set)", goi["text"]):
+        if ten_file in ("Hydra_4.5_VIP_VI.mq5", "Hydra_dang_chay.set"):
+            continue
+        assert any(os.path.basename(z) == ten_file for _, z in goi["file"]), f"hướng dẫn nhắc {ten_file} nhưng gói không có"
+    print(f"kiểm tra {goi['zip']}: đạt")
 
 
 def dong_goi():
-    kiem_tra()
     os.makedirs(RA, exist_ok=True)
-    hd = "\ufeff" + HUONG_DAN.replace("\r\n", "\n").replace("\n", "\r\n")
-    with open(os.path.join(RA, "HUONG_DAN_CAI_DAT.txt"), "w", encoding="utf-8", newline="") as f:
-        f.write(hd)
-    duong = os.path.join(RA, TEN_ZIP)
-    with zipfile.ZipFile(duong, "w", zipfile.ZIP_DEFLATED) as z:
-        z.writestr("HUONG_DAN_CAI_DAT.txt", hd.encode("utf-8"))
-        for goc, trong_zip in FILE:
-            z.write(os.path.join(GOC, goc), trong_zip)
-    with zipfile.ZipFile(duong) as z:
-        ds = z.namelist()
-        assert z.testzip() is None
-    print(f"{TEN_ZIP}: {len(ds)} file, {os.path.getsize(duong)} byte")
-    for n in ds:
-        print("  ", n)
+    for goi in GOI:
+        kiem_tra(goi)
+        hd = "\ufeff" + goi["text"].replace("\r\n", "\n").replace("\n", "\r\n")
+        with open(os.path.join(RA, goi["huong_dan"]), "w", encoding="utf-8", newline="") as f:
+            f.write(hd)
+        duong = os.path.join(RA, goi["zip"])
+        with zipfile.ZipFile(duong, "w", zipfile.ZIP_DEFLATED) as z:
+            z.writestr(goi["huong_dan"], hd.encode("utf-8"))
+            for goc, trong_zip in goi["file"]:
+                z.write(os.path.join(GOC, goc), trong_zip)
+        with zipfile.ZipFile(duong) as z:
+            ds = z.namelist()
+            assert z.testzip() is None
+        print(f"{goi['zip']}: {len(ds)} file, {os.path.getsize(duong)} byte")
+        for n in ds:
+            print("  ", n)
 
 
 if __name__ == "__main__":

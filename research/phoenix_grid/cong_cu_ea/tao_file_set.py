@@ -80,8 +80,10 @@ BO_SET = [
      ["Shadow Breakout Detection, theo dõi basket Phoenix V0.20 (magic 20260930). Chỉ ghi log, không gửi lệnh.",
       "Ngưỡng xác nhận chặt: điểm 80, 3 nến (chạy song song với d60n2 trên chart khác để so sánh)."]),
     ("EA_PHOENIX_MI_SHADOW_V0_01_TEST.mq5", "PMI_V001_THEO_HYDRA_d60n2.set",
-     {"InpMagicTheoDoi": "20260826"},
-     ["Shadow Breakout Detection, theo dõi basket Hydra 4.5 (magic 20260826 trong ảnh input). Chỉ ghi log, không gửi lệnh."]),
+     {"InpMagicTheoDoi": "0"},
+     ["Shadow Breakout Detection trên MT5 real đang chạy Hydra 4.5. Chỉ ghi log, không gửi lệnh.",
+      "Magic 0 = theo dõi mọi lệnh XAUUSDc trên tài khoản, kể cả lệnh hedge nếu Hydra dùng magic khác.",
+      "Nếu có đánh tay XAUUSDc trên tài khoản này: đổi InpMagicTheoDoi = 20260826 (magic của Hydra trong ảnh input)."]),
 ]
 
 

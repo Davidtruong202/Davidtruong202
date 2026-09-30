@@ -35,13 +35,13 @@ Breakout → Hedge → giao dịch vùng mới và tỉa lệnh → chu kỳ m�
 | [`02_PHU_LUC_THONG_KE_DU_LIEU.md`](02_PHU_LUC_THONG_KE_DU_LIEU.md) | Thống kê mô tả 9 tháng nến M1 XAUUSDm. Không phải backtest |
 | [`03_R01_THONG_SO_VA_DU_LIEU.md`](03_R01_THONG_SO_VA_DU_LIEU.md) | PG-R0.1: hướng dẫn chạy script đọc thông số, đo margin hedge trên demo, xuất tick XAUUSDc; kết quả kiểm tra tick hiện có |
 | [`05_KE_HOACH_FIB_BOLLINGER.md`](05_KE_HOACH_FIB_BOLLINGER.md) | Kế hoạch Market Intelligence Fib + Bollinger (chờ duyệt): hiện trạng Phoenix, phân tích SET M2 và tài liệu ảnh, điểm tác động, kiến trúc module, kế hoạch kiểm định T0–T3, định lượng các phần chưa rõ |
-| [`../../goi_cai_dat/`](../../goi_cai_dat/) | **Gói cài đặt**: `PhoenixGrid_V0_20_MI_V0_01.zip` (thư mục MQL5 sắp sẵn: 2 EA, file `.mqh`, 4 file SET) + `HUONG_DAN_CAI_DAT.txt` từng bước |
+| [`../../goi_cai_dat/`](../../goi_cai_dat/) | **Gói cài đặt**, mỗi gói có thư mục MQL5 sắp sẵn và hướng dẫn từng bước:<br>- `PhoenixGrid_V0_20_MI_V0_01.zip` cho MT5 demo: 2 EA, file `.mqh`, 3 file SET; hướng dẫn `HUONG_DAN_CAI_DAT.txt`<br>- `PhoenixGrid_theo_doi_Hydra.zip` cho MT5 real chạy Hydra: EA shadow, script xuất lịch sử, set Hydra; hướng dẫn `HUONG_DAN_THEO_DOI_HYDRA.txt` |
 | [`08_HUONG_DAN_CHAY_DEMO_5000USD.md`](08_HUONG_DAN_CHAY_DEMO_5000USD.md) | Hướng dẫn chạy Phoenix V0.20 + MI Shadow trên demo 5.000 USD (tương đương real cent 5.000 USC), file SET, kiểm tra sau khi gắn, gửi log |
 | [`../../MQL5/Presets/PhoenixGrid/`](../../MQL5/Presets/PhoenixGrid/) | File SET: `PG_V020_DEMO_5000USD.set`, `PMI_V001_THEO_PHOENIX_d60n2.set`, `PMI_V001_THEO_PHOENIX_d80n3.set`, `PMI_V001_THEO_HYDRA_d60n2.set` |
 | [`07_MI_BREAKOUT_DEFENSE.md`](07_MI_BREAKOUT_DEFENSE.md) | Market Intelligence + Breakout Defense, TEST 1 shadow: baseline cần xác nhận, luồng và điểm chèn, xung đột, công thức, state machine, input, log, cách chạy, cổng sang TEST 2, xem trước bằng bản sao Python |
 | [`06_EA_V0_20_DCA_TIA.md`](06_EA_V0_20_DCA_TIA.md) | EA V0.20 TEST: quyết định 30/09/2026, luồng hoạt động, bốn cơ chế clear, kiểm soát volume, cách hiểu SET M2, tham khảo Hydra, log hằng ngày, rủi ro cháy, cài demo 24/7 |
 | [`04_EA_V0_10_QUAN_SAT.md`](04_EA_V0_10_QUAN_SAT.md) | EA quan sát V0.10 / V0.11 TEST: lộ trình EA, cách chạy, đặc tả thuật toán cho bộ Python R0.2, chi tiết cần duyệt |
-| [`../../MQL5/Scripts/PhoenixGrid/`](../../MQL5/Scripts/PhoenixGrid/) | Script MT5 chỉ đọc `PG_R01_DocThongSo.mq5` (đã compile và chạy trên máy bạn) |
+| [`../../MQL5/Scripts/PhoenixGrid/`](../../MQL5/Scripts/PhoenixGrid/) | Script MT5 chỉ đọc:<br>- `PG_R01_DocThongSo.mq5` (đã compile và chạy trên máy bạn)<br>- `PG_XuatLichSu.mq5`: xuất deal, lệnh, vị thế đang mở ra CSV để phân tích hành vi EA (Hydra); chưa compile |
 | [`../../MQL5/Experts/PhoenixGrid/`](../../MQL5/Experts/PhoenixGrid/) | `EA_PHOENIX_GRID_V0_20_TEST.mq5` (giao dịch, hiện hành); `EA_PHOENIX_GRID_V0_11_TEST.mq5` và `EA_PHOENIX_GRID_V0_10_TEST.mq5` (quan sát, rollback); `EA_PHOENIX_MI_SHADOW_V0_01_TEST.mq5` + `PHOENIX_MI_V0_01.mqh` (Market Intelligence, TEST 1 shadow) |
 | [`../../research/phoenix_grid/`](../../research/phoenix_grid/) | Công cụ Python và kết quả CSV |
 
@@ -59,6 +59,33 @@ Breakout → Hedge → giao dịch vùng mới và tỉa lệnh → chu kỳ m�
 | 8 | Kế hoạch triển khai theo từng phiên bản nghiên cứu | Mục 18 (PG-R0.0 → PG-R1.0 → EA V1.00 TEST) |
 
 ## Nhật ký phiên bản
+
+### Công cụ theo dõi Hydra — gói cài đặt riêng cho MT5 real
+
+**Ngày:** 30/09/2026
+**Mục tiêu:**
+
+- Chạy MI Shadow cạnh Hydra trên tài khoản real (chỉ đọc).
+- Xuất lịch sử giao dịch để dựng lại logic Hydra, vì chưa có mã nguồn Hydra.
+
+**Thay đổi:**
+
+- `MQL5/Scripts/PhoenixGrid/PG_XuatLichSu.mq5`: script chỉ đọc. Xuất ra CSV trong `Common\Files\PhoenixGrid`:
+  - mọi deal (magic, comment, lý do đóng, giá, lot, lãi);
+  - mọi lệnh trong lịch sử;
+  - các vị thế đang mở.
+
+  Tên file có server, không có số tài khoản.
+- `PMI_V001_THEO_HYDRA_d60n2.set`: magic 0 (mọi lệnh XAUUSDc trên tài khoản) thay cho 20260826, để không sót lệnh hedge
+  nếu Hydra dùng magic khác.
+- `goi_cai_dat/PhoenixGrid_theo_doi_Hydra.zip` + `HUONG_DAN_THEO_DOI_HYDRA.txt`. Gói demo bỏ file set Hydra (còn 3 file SET).
+- `dong_goi_cai_dat.py`: đóng gói nhiều gói; gói chỉ đọc được kiểm tra không có lệnh giao dịch.
+
+**Kiểm tra kỹ thuật:**
+
+- Compile MQL5: chưa làm được.
+- Kiểm tra tĩnh script: đạt, không có từ khóa giao dịch.
+- Kiểm tra gói: đạt.
 
 ### MI V0.01 — Market Intelligence + Breakout Defense, TEST 1: Shadow Breakout Detection
 

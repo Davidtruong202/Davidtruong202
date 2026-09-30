@@ -35,6 +35,8 @@ ObjectGetDouble ColorToARGB
 iMA iBands OrderSend ZeroMemory GetMicrosecondCount HistorySelectByPosition HistoryDealSelect PositionSelectByTicket
 PositionGetDouble OrderGetTicket OrderGetInteger GlobalVariableDel GlobalVariablesDeleteAll GlobalVariablesFlush
 CalendarValueHistory CalendarEventById SendNotification MathLog10 OnTradeTransaction StringTrimRight StringTrimLeft
+HistoryOrdersTotal HistoryOrderGetTicket HistoryOrderGetInteger HistoryOrderGetDouble HistoryOrderGetString
+StringGetCharacter ShortToString OnStart
 C
 """.split())
 KEYWORDS = set("if for while switch return sizeof else do case".split())

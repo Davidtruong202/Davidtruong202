@@ -1,0 +1,67 @@
+﻿DAVID HUNTER – PHOENIX GRID – 0941920986
+HƯỚNG DẪN: THEO DÕI HYDRA TRÊN MT5 REAL — chỉ đọc, không gửi lệnh
+
+Mục đích:
+  - Ghi lại Hydra làm gì trong từng trạng thái thị trường (sideway, breakout, reclaim), để tìm ra logic của Hydra.
+  - Kiểm tra Breakout Defense (TEST 1) trên chính các basket của Hydra: nếu được phép, Phoenix sẽ khóa DCA / hedge lúc nào.
+Hai công cụ trong gói KHÔNG gửi, KHÔNG sửa, KHÔNG đóng lệnh nào. Hydra chạy như cũ.
+Chưa compile trong môi trường phát triển: làm đúng Phần B, có lỗi thì gửi lỗi trước.
+
+TRONG GÓI NÀY
+  MQL5\Experts\PhoenixGrid\EA_PHOENIX_MI_SHADOW_V0_01_TEST.mq5   EA shadow: mỗi nến M5 ghi trạng thái thị trường
+                                                                 và Hydra đang BUY / SELL bao nhiêu lot
+  MQL5\Experts\PhoenixGrid\PHOENIX_MI_V0_01.mqh                  file phụ của EA shadow (cùng thư mục)
+  MQL5\Scripts\PhoenixGrid\PG_XuatLichSu.mq5                     script: xuất lịch sử deal, lệnh, vị thế đang mở
+  MQL5\Presets\PMI_V001_THEO_HYDRA_d60n2.set                     cài đặt EA shadow cho tài khoản Hydra
+
+PHẦN A — CHÉP FILE (trên MT5 đang chạy Hydra)
+ A1. Giải nén zip: chuột phải -> Extract All -> Extract.
+ A2. Trong MT5 đang chạy Hydra: File -> Open Data Folder.
+ A3. Kéo thư mục MQL5 trong zip thả vào cửa sổ đó -> chọn Yes khi Windows hỏi gộp thư mục.
+
+PHẦN B — COMPILE
+ B1. Bấm F4: MetaEditor mở ra.
+ B2. Navigator của MetaEditor -> Experts -> PhoenixGrid -> nhấp đúp EA_PHOENIX_MI_SHADOW_V0_01_TEST.mq5
+     -> bấm F7 -> tab Errors phải báo "0 errors".
+ B3. Navigator -> Scripts -> PhoenixGrid -> nhấp đúp PG_XuatLichSu.mq5 -> F7 -> phải "0 errors".
+ B4. Có lỗi: chụp màn hình tab Errors gửi Claude, dừng lại.
+ B5. Về MT5: Navigator -> chuột phải "Expert Advisors" -> Refresh; chuột phải "Scripts" -> Refresh.
+
+PHẦN C — GẮN EA SHADOW (không đụng vào chart của Hydra)
+ C1. Market Watch -> chuột phải XAUUSDc -> Chart Window: mở một chart XAUUSDc MỚI.
+     Không kéo gì vào chart đang chạy Hydra.
+ C2. Kéo EA_PHOENIX_MI_SHADOW_V0_01_TEST vào chart mới.
+ C3. Tab Inputs -> Load -> PMI_V001_THEO_HYDRA_d60n2.set -> Open.
+     Dòng "Magic basket cần theo dõi" = 0: theo dõi mọi lệnh XAUUSDc trên tài khoản,
+     kể cả lệnh hedge của Hydra nếu Hydra dùng magic khác.
+     Nếu bạn có đánh tay XAUUSDc trên tài khoản này: sửa ô đó thành 20260826 (magic của Hydra).
+     Bấm OK. Không cần tick "Allow Algo Trading".
+ C4. Góc trái chart mới hiện "MI V0.01 SHADOW — CHỈ GHI LOG, KHÔNG GỬI LỆNH"
+     và dòng "Basket: BUY/SELL ... lot" khớp với số lot Hydra đang mở (chờ tối đa 5 phút).
+
+PHẦN D — XUẤT LỊCH SỬ HYDRA (lần đầu ngay bây giờ; sau đó mỗi tuần hoặc khi Claude cần)
+ D1. Navigator -> Scripts -> PhoenixGrid -> kéo PG_XuatLichSu thả vào chart XAUUSDc mới ở Phần C
+     (một chart vẫn chạy được cả 1 EA và 1 script).
+ D2. Tab Inputs: "Từ ngày" = ngày Hydra bắt đầu chạy trên tài khoản này (không nhớ thì để 2026.01.01).
+     Các ô khác để nguyên -> OK.
+ D3. Hiện thông báo "PG_XuatLichSu: ... deal, ... lệnh, ... vị thế đang mở". Script tự dừng.
+
+PHẦN E — LƯU CÀI ĐẶT HYDRA ĐANG CHẠY
+ E1. Trên chart Hydra: nhấp đúp vào biểu tượng EA ở góc trên bên phải chart
+     (hoặc chuột phải chart -> Expert Advisors -> Properties).
+ E2. Tab Inputs -> bấm Save -> đặt tên Hydra_dang_chay.set -> Save.
+ E3. Bấm Cancel để đóng cửa sổ (KHÔNG bấm OK, để Hydra không bị khởi động lại).
+     File nằm trong Data Folder -> MQL5 -> Presets.
+
+PHẦN F — GỬI CHO CLAUDE
+ F1. Data Folder -> lùi lên 2 cấp (thư mục "Terminal") -> Common -> Files -> thư mục PhoenixGrid:
+     nén cả thư mục (log shadow PMI_V001_XAUUSDc_..., lịch sử PG_lich_su_..., PG_vi_the_mo_...).
+ F2. Data Folder -> MQL5 -> Logs: các file .log của những ngày cần xem
+     (nhật ký quyết định Hydra ghi ra, vì Hydra đang bật "Ghi log chi tiết mọi quyết định").
+ F3. File Hydra_dang_chay.set (Phần E).
+ F4. Nếu trong Data Folder -> MQL5 -> Experts có file Hydra_4.5_VIP_VI.mq5
+     (mã nguồn, không phải .ex5): gửi luôn. Có mã nguồn thì đọc được chính xác logic, không phải đoán.
+ Mỗi ngày sau đó: gửi F1 và F2 của ngày hôm trước.
+
+Hai MT5 trên cùng VPS dùng chung thư mục Common\Files\PhoenixGrid. Log không bị ghi đè:
+tên file có symbol (XAUUSDm là demo, XAUUSDc là real) và tên server.

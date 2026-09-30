@@ -28,7 +28,8 @@ của Phoenix:
 Vì vậy:
 
 - **TEST 1 làm được ngay mà không cần sửa baseline nào.** Module chạy trên một chart riêng, cạnh EA baseline, và đọc
-  vị thế của baseline theo magic. Với Hydra, magic là 20260826 (trong ảnh).
+  vị thế của baseline theo magic. Với Hydra, magic là 20260826 (trong ảnh). File SET theo dõi Hydra dùng magic 0
+  (mọi lệnh XAUUSDc trên tài khoản), để không sót lệnh hedge nếu Hydra dùng magic khác.
 - **TEST 2 trở đi phải chèn vào EA baseline** (khóa DCA, mở / tháo hedge, tỉa):
   - Nếu baseline là **Hydra 4.5**: cần bạn gửi file `.mq5`. Tôi không thể "giữ nguyên" hay nối vào mã mà tôi chưa đọc.
   - Nếu baseline là **Phoenix V0.20**: đã có sẵn điểm chèn (Mục 3), nhưng Phoenix chưa có Emergency Hedge để "giữ".
@@ -262,9 +263,17 @@ chạy nhiều cấu hình song song mà không ghi đè nhau. Có 48 cột:
 1. Chép **cả hai file** `EA_PHOENIX_MI_SHADOW_V0_01_TEST.mq5` và `PHOENIX_MI_V0_01.mqh` vào
    `MQL5\Experts\PhoenixGrid\`. Compile EA (F7), gửi tôi toàn bộ lỗi / cảnh báo.
 2. **Chạy thật cạnh Hydra** (hoặc Phoenix):
-   - Mở một chart XAUUSDc **thứ hai**, gắn EA shadow, đặt `Magic basket cần theo dõi = 20260826`.
+   - Hydra: dùng gói [`goi_cai_dat/PhoenixGrid_theo_doi_Hydra.zip`](../../goi_cai_dat/PhoenixGrid_theo_doi_Hydra.zip)
+     và làm theo `HUONG_DAN_THEO_DOI_HYDRA.txt`.
+   - Mở một chart XAUUSDc **mới**, gắn EA shadow, nạp `PMI_V001_THEO_HYDRA_d60n2.set` (magic 0 = mọi lệnh XAUUSDc;
+     nếu có đánh tay XAUUSDc trên tài khoản đó thì đổi thành 20260826).
    - Không cần bật Allow Algo Trading, vì EA không gửi lệnh.
    - Có thể mở thêm chart thứ ba với cấu hình khác, ví dụ điểm 80, số nến 3.
+   - Để tìm logic Hydra: chạy script chỉ đọc
+     [`PG_XuatLichSu.mq5`](../../MQL5/Scripts/PhoenixGrid/PG_XuatLichSu.mq5). Script xuất mọi deal, lệnh, vị thế đang mở
+     (magic, comment, lý do đóng) ra `Common\Files\PhoenixGrid\PG_lich_su_deal_<server>_<từ>_<đến>.csv`,
+     `PG_lich_su_lenh_…`, `PG_vi_the_mo_…`. Tên file có server, không có số tài khoản. Kết hợp với log shadow và nhật ký
+     quyết định của Hydra (`MQL5\Logs`), có thể dựng lại: lệnh đầu, khoảng lưới, hệ số lot, Pyramid, hedge, cách thoát.
 3. **Strategy Tester** (chỉ kiểm tra nhận diện):
    - XAUUSDc, M5, "Every tick based on real ticks" hoặc "1 minute OHLC".
    - Đặt `Giả lập basket = true` để xem luồng DEFENSE / RECOVERY.

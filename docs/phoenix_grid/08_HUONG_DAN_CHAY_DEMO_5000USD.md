@@ -54,14 +54,14 @@ trừ commission, nên kết quả lệch real cent.
 | `MQL5/Experts/PhoenixGrid/EA_PHOENIX_GRID_V0_20_TEST.mq5` | `MQL5\Experts\PhoenixGrid\` |
 | `MQL5/Experts/PhoenixGrid/EA_PHOENIX_MI_SHADOW_V0_01_TEST.mq5` | `MQL5\Experts\PhoenixGrid\` |
 | `MQL5/Experts/PhoenixGrid/PHOENIX_MI_V0_01.mqh` | `MQL5\Experts\PhoenixGrid\` (bắt buộc cùng thư mục với EA shadow) |
-| `MQL5/Presets/PhoenixGrid/*.set` (4 file) | `MQL5\Presets\` |
+| `MQL5/Presets/PhoenixGrid/*.set` (3 file đầu ở bảng dưới; file thứ tư dùng ở MT5 real chạy Hydra) | `MQL5\Presets\` |
 
 | File SET | Dùng cho | Khác mặc định |
 |---|---|---|
 | `PG_V020_DEMO_5000USD.set` | Phoenix V0.20 trên demo | `InpChoPhepTKThat = false`: lỡ nạp trên tài khoản thật thì EA không gửi lệnh |
 | `PMI_V001_THEO_PHOENIX_d60n2.set` | MI Shadow theo dõi Phoenix (magic 20260930) | ngưỡng 60 điểm / 2 nến |
 | `PMI_V001_THEO_PHOENIX_d80n3.set` | MI Shadow thứ hai để so sánh (tùy chọn) | ngưỡng 80 điểm / 3 nến |
-| `PMI_V001_THEO_HYDRA_d60n2.set` | MI Shadow cạnh Hydra trên tài khoản real (magic 20260826) | — |
+| `PMI_V001_THEO_HYDRA_d60n2.set` | MI Shadow cạnh Hydra trên MT5 real (gói riêng `PhoenixGrid_theo_doi_Hydra.zip`) | magic 0 = mọi lệnh XAUUSDc trên tài khoản |
 
 File SET được sinh từ chính mã nguồn bằng `research/phoenix_grid/cong_cu_ea/tao_file_set.py`, nên tên input và giá
 trị luôn khớp EA. Định dạng giống file MT5 tự lưu: UTF-16, mỗi dòng `tên=giá trị`.
