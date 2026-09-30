@@ -3,6 +3,9 @@
 Vốn: VON USC trên lot tầng 0 = 0,01 (mặc định 10.000 USC = 100 USD; bạn cho biết 30/09/2026 vốn có thể 100–200 USD,
 có thể 500 USD). Mục tiêu theo lời bạn: "quan trọng không cháy", "set DD thấp, tư duy thoát lệnh nhanh, nhiều lệnh và
 lãi cao". Lần dò trước với 5.000 USC nằm trong results_mi/do_tim_set_cent/von_5000/ (chỉ DEV).
+Lần dò 10.000 USC (von_10000/): VAL không chọn được set; 5 ứng viên của lần đó ở 20.000 / 50.000 USC cũng không đạt.
+Lần dò 50.000 USC (von_50000/, 500 USD, lot 0,01) chạy lại từ bước 1 với cùng luật; VAL đã được xem với các cấu hình
+của lần 10.000 USC nên không còn hoàn toàn sạch — TEST (chưa chạy với cấu hình nào) là kiểm định sạch duy nhất.
 
 Quy trình (kế hoạch §13.9, §14 Phương án 2 — chỉ dữ liệu 2026, giá XAUUSDm M1, spread cố định 0,26 như XAUUSDc):
   DEV   01/01–30/04/2026  dò ngẫu nhiên trên các input của EA; độ bền trên 5 đường giá; láng giềng một bước (vùng
