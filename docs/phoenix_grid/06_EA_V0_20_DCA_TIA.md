@@ -217,6 +217,8 @@ và các tầng sẽ mở thêm. Khi chưa có basket, dòng này giả định 
 
 ## 11. Chạy trên demo 24/7 giống real nhất
 
+Hướng dẫn từng bước và file SET: [`08_HUONG_DAN_CHAY_DEMO_5000USD.md`](08_HUONG_DAN_CHAY_DEMO_5000USD.md).
+
 1. Tài khoản:
    - Tốt nhất: demo **Standard Cent**, XAUUSDc, 5.000 USC, đòn bẩy 1:2000, **hedging**.
    - Nếu Personal Area không cho mở demo Standard Cent, dùng demo **Standard**, XAUUSDm, **5.000 USD**. Với 0,01 lot,
