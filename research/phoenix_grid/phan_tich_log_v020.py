@@ -1,16 +1,17 @@
-"""Đọc log hằng ngày của EA Phoenix Grid V0.20 TEST và tóm tắt để tối ưu dần.
+"""Đọc log hằng ngày của EA Phoenix Grid V0.20 / V0.21 TEST và tóm tắt để tối ưu dần.
 
-Log do EA ghi trong <Common>\\Files\\PhoenixGrid\\ (phân cách ';', UTF-8):
-  PG_V020_basket_<symbol>_<YYYYMMDD>.csv         mỗi basket đã kết thúc một dòng
-  PG_V020_giao_dich_<symbol>_<YYYYMMDD>.csv      mỗi tầng (lệnh) đã đóng một dòng
-  PG_V020_tin_hieu_<symbol>_<YYYYMMDD>.csv       mỗi lần bộ PP xét tín hiệu một dòng
-  PG_V020_thuc_thi_<symbol>_<YYYYMMDD>.csv       mỗi lần gửi lệnh một dòng (giá yêu cầu / khớp, retcode, độ trễ)
-  PG_V020_tong_ket_ngay_<symbol>_<YYYYMM>.csv    mỗi ngày giao dịch một dòng (gồm nạp / rút)
-  PG_V020_trang_thai_<symbol>_<YYYYMM>.csv       trạng thái thị trường Phoenix theo nến M5 (không tóm tắt ở đây)
-Chạy trong Strategy Tester, tên file có thêm "_tester".
+Log do EA ghi trong <Common>\\Files\\PhoenixGrid\\ (phân cách ';', UTF-8), tiền tố PG_V020_ hoặc PG_V021_:
+  PG_V02x_basket_<symbol>_<YYYYMMDD>.csv         mỗi basket đã kết thúc một dòng
+  PG_V02x_giao_dich_<symbol>_<YYYYMMDD>.csv      mỗi tầng (lệnh) đã đóng một dòng
+  PG_V02x_tin_hieu_<symbol>_<YYYYMMDD>.csv       mỗi lần bộ PP xét tín hiệu một dòng (V0.21 thêm cột ma_pp0)
+  PG_V02x_thuc_thi_<symbol>_<YYYYMMDD>.csv       mỗi lần gửi lệnh một dòng (giá yêu cầu / khớp, retcode, độ trễ)
+  PG_V02x_tong_ket_ngay_<symbol>_<YYYYMM>.csv    mỗi ngày giao dịch một dòng (gồm nạp / rút)
+  PG_V02x_trang_thai_<symbol>_<YYYYMM>.csv       trạng thái thị trường Phoenix theo nến M5 (không tóm tắt ở đây)
+Chạy trong Strategy Tester, tên file có thêm "_tester". Mặc định đọc cả hai phiên bản; --phien-ban V021 để chỉ đọc V0.21.
 
 Chạy:
-  python3 phan_tich_log_v020.py --thu-muc <thư mục chứa log> [--symbol XAUUSDc] [--tester] [--out results_v020]
+  python3 phan_tich_log_v020.py --thu-muc <thư mục chứa log> [--symbol XAUUSDc] [--tester] [--phien-ban V021]
+                                [--out results_v021]
   python3 phan_tich_log_v020.py --tu-kiem-tra
 
 Chỉ tóm tắt số liệu EA đã ghi. Không phải backtest, không suy ra hiệu suất tương lai.
@@ -26,11 +27,11 @@ import pandas as pd
 
 LOAI = ["basket", "giao_dich", "tin_hieu", "thuc_thi", "tong_ket_ngay"]
 EA = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "MQL5", "Experts", "PhoenixGrid",
-                  "EA_PHOENIX_GRID_V0_20_TEST.mq5")
+                  "EA_PHOENIX_GRID_V0_21_TEST.mq5")
 
 
-def doc_loai(thu_muc, loai, symbol=None, tester=False):
-    mau = os.path.join(thu_muc, f"PG_V020_{loai}_*.csv")
+def doc_loai(thu_muc, loai, symbol=None, tester=False, phien_ban=None):
+    mau = os.path.join(thu_muc, f"PG_{phien_ban or 'V02?'}_{loai}_*.csv")
     files = []
     for f in sorted(glob.glob(mau)):
         ten = os.path.basename(f)
@@ -73,12 +74,12 @@ def bang(df, **kw):
     return "\n".join(dong) + "\n"
 
 
-def tom_tat(thu_muc, symbol=None, tester=False):
+def tom_tat(thu_muc, symbol=None, tester=False, phien_ban=None):
     d = {}
     nguon = {}
     for loai in LOAI:
-        d[loai], nguon[loai] = doc_loai(thu_muc, loai, symbol, tester)
-    out = ["# Tóm tắt log Phoenix Grid V0.20", "",
+        d[loai], nguon[loai] = doc_loai(thu_muc, loai, symbol, tester, phien_ban)
+    out = [f"# Tóm tắt log Phoenix Grid {phien_ban or 'V0.20 / V0.21'}", "",
            f"Thư mục: `{thu_muc}`" + (f", symbol `{symbol}`" if symbol else "") + (", log Strategy Tester" if tester else ""), ""]
     out.append("| Loại log | Số file | Số dòng |")
     out.append("|---|---|---|")
@@ -190,10 +191,10 @@ def tu_kiem_tra():
     """Dựng log giả đúng tiêu đề EA (đọc từ file .mq5), chạy tóm tắt, kiểm tra các con số."""
     td = doc_tieu_de_ea()
     so_cot = {k: len(v.split(";")) for k, v in td.items()}
-    assert so_cot == {"basket": 19, "giao_dich": 13, "tin_hieu": 22, "thuc_thi": 19, "tong_ket_ngay": 15}, so_cot
+    assert so_cot == {"basket": 19, "giao_dich": 13, "tin_hieu": 23, "thuc_thi": 19, "tong_ket_ngay": 15}, so_cot
     with tempfile.TemporaryDirectory() as tmp:
-        def ghi(loai, ky, dong, tester=False):
-            ten = os.path.join(tmp, f"PG_V020_{loai}_XAUUSDc_{'tester_' if tester else ''}{ky}.csv")
+        def ghi(loai, ky, dong, tester=False, pb="V021"):
+            ten = os.path.join(tmp, f"PG_{pb}_{loai}_XAUUSDc_{'tester_' if tester else ''}{ky}.csv")
             with open(ten, "w", encoding="utf-8", newline="") as f:
                 f.write(td[loai] + "\r\n")
                 for r in dong:
@@ -207,7 +208,7 @@ def tu_kiem_tra():
              9, 6, 2, 5, "0.04", "58.00", "1.16", "180.0", "5004.30"]])
         ghi("basket", "20261002", [
             ["2026.10.02 10:00:00", "2026.10.02 10:05:00", 3, "PP10", "SELL", "4170.000", "6.00", "3.10", "GIO_TP", "3.50",
-             1, 0, 0, 0, "0.01", "1.00", "0.02", "5.0", "5007.80"]])
+             1, 0, 0, 0, "0.01", "1.00", "0.02", "5.0", "5007.80"]], pb="V020")
         ghi("basket", "20261002", [["2026.10.02 10:00:00", "", 9, "PP10", "BUY", "1", "1", "1", "X", "999", 1, 0, 0, 0,
                                      "0.01", "0", "0", "0", "0"]], tester=True)
         ghi("giao_dich", "20261001", [
@@ -216,11 +217,13 @@ def tu_kiem_tra():
             ["2026.10.01 09:00:00", "2026.10.01 10:00:00", 2, 0, "SELL", "0.01", "4160.000", "4172.000", "4154.000", "XOA", "-12.00", "60.0", 13]])
         ghi("tin_hieu", "20261001", [
             ["2026.10.01 08:00:00", "PP10", "BUY", "4150.000", "VAO_LENH", "Mở basket #1", "4130.000", "4155.000", "4.10", 5, "0.520", 1,
-             "PIN", "3.100", "30.1", "", "", "4.200", "TANG", "TANG", "OK", 26],
+             "PIN", "3.100", "30.1", "", "", "4.200", "TANG", "TANG", "OK", 26, ""],
             ["2026.10.01 08:02:00", "PP10", "BUY", "4151.000", "KHONG", "ADX thấp", "", "", "", "", "", 0, "", "3.000", "20.0",
-             "", "", "4.100", "TANG", "TANG", "OK", 25],
+             "", "", "4.100", "TANG", "TANG", "OK", 25, ""],
             ["2026.10.01 08:04:00", "PP10", "BUY", "4151.000", "BI_CHAN", "Đang có basket", "", "", "", "", "", 0, "", "3.000", "28.0",
-             "", "", "4.100", "TANG", "TANG", "OK", 25]])
+             "", "", "4.100", "TANG", "TANG", "OK", 25, ""],
+            ["2026.10.01 09:00:10", "PP0", "SELL", "4160.000", "BI_CHAN", "Chờ sau clear basket", "", "", "", "", "", "", "", "",
+             "", "", "", "4.100", "GIAM", "GIAM", "OK", 26, "4171.250"]])
         ghi("thuc_thi", "20261001", [
             ["2026.10.01 08:00:00", 1, "MO_BASKET", 1, "BUY", "0.01", "4150.000", "4150.020", "0.000", "4156.000", 0, 10009, "OK", 45,
              "4149.740", "4150.000", "PG|1|0|6000", 11, 101],
@@ -232,20 +235,24 @@ def tu_kiem_tra():
             ["2026.10.01", "5000.00", "5004.30", "4.30", "0.00", "0.00", "4.30", 2, 5, 6, "4.30", "1.20", 0, "", "0.00"]])
         md, kq = tom_tat(tmp, "XAUUSDc")
         assert kq["basket"] == 3 and abs(kq["basket_ln"] - 7.80) < 1e-9 and kq["basket_am"] == 0, kq
-        assert kq["lenh"] == 3 and kq["tin_hieu"] == 3 and kq["gui_loi"] == 1, kq
+        assert kq["lenh"] == 3 and kq["tin_hieu"] == 4 and kq["gui_loi"] == 1, kq
         assert abs(kq["truot_tb"] - (0.02 + 0.01) / 2) < 1e-9, kq
         assert kq["ngay"] == 1 and abs(kq["thay_doi_bo_nap_rut"] - 4.30) < 1e-9, kq
         md_t, kq_t = tom_tat(tmp, "XAUUSDc", tester=True)
         assert kq_t["basket"] == 1, kq_t
-        assert "TRAIL_CLEAR" in md and "HOA_VON" in md and "ADX thấp" in md
-    print("tự kiểm tra: đạt (tiêu đề khớp EA: basket 19, giao_dich 13, tin_hieu 22, thuc_thi 19, tong_ket_ngay 15 cột)")
+        assert "TRAIL_CLEAR" in md and "HOA_VON" in md and "ADX thấp" in md and "Chờ sau clear basket" in md
+        md_21, kq_21 = tom_tat(tmp, "XAUUSDc", phien_ban="V021")
+        assert kq_21["basket"] == 2, kq_21            # chỉ V0.21: bỏ file basket V0.20
+    print("tự kiểm tra: đạt (tiêu đề khớp EA V0.21: basket 19, giao_dich 13, tin_hieu 23, thuc_thi 19, tong_ket_ngay 15 cột;"
+          " đọc được cả PG_V020_ và PG_V021_)")
 
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--thu-muc", help="thư mục chứa các file PG_V020_*.csv")
+    ap.add_argument("--thu-muc", help="thư mục chứa các file PG_V020_*.csv / PG_V021_*.csv")
     ap.add_argument("--symbol", help="lọc theo symbol, ví dụ XAUUSDc")
     ap.add_argument("--tester", action="store_true", help="đọc log Strategy Tester (tên có _tester_)")
+    ap.add_argument("--phien-ban", choices=["V020", "V021"], help="chỉ đọc log của một phiên bản (mặc định: cả hai)")
     ap.add_argument("--out", help="thư mục ghi tom_tat_log.md")
     ap.add_argument("--tu-kiem-tra", action="store_true")
     a = ap.parse_args()
@@ -254,7 +261,7 @@ def main():
         return
     if not a.thu_muc:
         ap.error("cần --thu-muc hoặc --tu-kiem-tra")
-    md, _ = tom_tat(a.thu_muc, a.symbol, a.tester)
+    md, _ = tom_tat(a.thu_muc, a.symbol, a.tester, a.phien_ban)
     print(md)
     if a.out:
         os.makedirs(a.out, exist_ok=True)

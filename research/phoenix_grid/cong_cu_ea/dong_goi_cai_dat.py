@@ -1,7 +1,8 @@
 """Đóng gói cài đặt cho MT5: mỗi gói là một file zip đã sắp đúng cấu trúc thư mục MQL5 + hướng dẫn từng bước.
 
 Người dùng chỉ cần giải nén và kéo thư mục MQL5 trong zip thả vào Data Folder của MT5.
-- Gói 1 (MT5 demo): Phoenix V0.20 + MI Shadow theo dõi Phoenix.
+- Gói 1 (MT5 demo): Phoenix V0.21 (vào lệnh liên tục) + MI Shadow theo dõi Phoenix. Gói V0.20 cũ giữ nguyên trong
+  goi_cai_dat/ để quay lại khi cần.
 - Gói 2 (MT5 real đang chạy Hydra): MI Shadow theo dõi Hydra + script chỉ đọc xuất lịch sử giao dịch.
 
 Kiểm tra trước khi đóng gói:
@@ -21,6 +22,7 @@ RA = os.path.join(GOC, "goi_cai_dat")
 
 # file .set -> EA dùng file đó
 SET_EA = {
+    "PG_V021_DEMO_5000USD.set": "EA_PHOENIX_GRID_V0_21_TEST.mq5",
     "PG_V020_DEMO_5000USD.set": "EA_PHOENIX_GRID_V0_20_TEST.mq5",
     "PMI_V001_THEO_PHOENIX_d60n2.set": "EA_PHOENIX_MI_SHADOW_V0_01_TEST.mq5",
     "PMI_V001_THEO_PHOENIX_d80n3.set": "EA_PHOENIX_MI_SHADOW_V0_01_TEST.mq5",
@@ -29,23 +31,36 @@ SET_EA = {
 CAM = ["OrderSend", "OrderSendAsync", "CTrade", "PositionClose", "TRADE_ACTION_DEAL", "TRADE_ACTION_SLTP"]
 
 HUONG_DAN_DEMO = r"""DAVID HUNTER – PHOENIX GRID – 0941920986
-HƯỚNG DẪN CÀI ĐẶT TỪNG BƯỚC — Phoenix V0.20 + MI Shadow V0.01 — MT5 DEMO 5.000 USD
+HƯỚNG DẪN CÀI ĐẶT TỪNG BƯỚC — Phoenix V0.21 + MI Shadow V0.01 — MT5 DEMO 5.000 USD
+
+V0.21 = V0.20 + VÀO LỆNH LIÊN TỤC (PP0): không có basket thì mở lệnh đầu ngay sau 10 giây chờ, hướng theo
+MA50 H1 (như lệnh đầu của Hydra). Xử lý lệnh (DCA, tỉa, clear) giữ nguyên như V0.20.
+Sửa thêm: dòng "Hôm nay" không còn trừ hai lần tiền nạp; bỏ chữ "Label" ở đầu bảng.
 
 Hai EA CHƯA được compile trong môi trường phát triển. Làm đúng Phần C; nếu có lỗi, gửi lỗi trước khi chạy.
 
 TRONG GÓI NÀY
-  MQL5\Experts\PhoenixGrid\EA_PHOENIX_GRID_V0_20_TEST.mq5        EA 1: GIAO DỊCH (DCA + tỉa + clear)
+  MQL5\Experts\PhoenixGrid\EA_PHOENIX_GRID_V0_21_TEST.mq5        EA 1: GIAO DỊCH (vào liên tục + DCA + tỉa + clear)
   MQL5\Experts\PhoenixGrid\EA_PHOENIX_MI_SHADOW_V0_01_TEST.mq5   EA 2: CHỈ GHI LOG, không gửi lệnh
   MQL5\Experts\PhoenixGrid\PHOENIX_MI_V0_01.mqh                  file phụ của EA 2 (phải nằm cùng thư mục với EA 2)
-  MQL5\Presets\PG_V020_DEMO_5000USD.set                          cài đặt cho EA 1  (chart 1)
+  MQL5\Presets\PG_V021_DEMO_5000USD.set                          cài đặt cho EA 1  (chart 1)
   MQL5\Presets\PMI_V001_THEO_PHOENIX_d60n2.set                   cài đặt cho EA 2  (chart 2)
   MQL5\Presets\PMI_V001_THEO_PHOENIX_d80n3.set                   cài đặt cho EA 2 thứ hai để so sánh (chart 3, tùy chọn)
 
-  Tên file SET bắt đầu bằng PG_V020 -> dùng cho EA 1. Bắt đầu bằng PMI_V001 -> dùng cho EA 2.
+  Tên file SET bắt đầu bằng PG_V021 -> dùng cho EA 1. Bắt đầu bằng PMI_V001 -> dùng cho EA 2.
   Không đổi tên file. Nếu trình duyệt tự thêm "(1)" vào tên file thì xóa phần đó đi.
 
   Demo 5.000 USD với lot 0,01 = cùng mức rủi ro như real cent 5.000 USC với lot 0,01.
   Không cần đổi lot hay tham số nào.
+
+NẾU MT5 DEMO ĐANG CHẠY PHOENIX V0.20 (nâng cấp, không cần làm lại Phần A và D)
+ N1. Làm Phần B (chép file) và Phần C (compile EA_PHOENIX_GRID_V0_21_TEST.mq5).
+ N2. Kéo EA_PHOENIX_GRID_V0_21_TEST thả vào CHÍNH chart đang chạy V0.20 -> MT5 hỏi thay EA -> Yes.
+     Làm Phần E4 (Load PG_V021_DEMO_5000USD.set). Không chạy V0.20 và V0.21 cùng lúc trên một tài khoản.
+ N3. Basket V0.20 đang mở (nếu có) được V0.21 nhận lại và xử lý tiếp: cùng magic 20260930, cùng trạng thái lưu.
+ N4. Chart MI Shadow (chart 2, chart 3) giữ nguyên, không cần gắn lại: vẫn theo dõi magic 20260930.
+ N5. Dòng "Hôm nay" trên bảng bắt đầu đếm lại từ lúc gắn V0.21 (trạng thái của V0.20 không có mốc thời gian).
+ N6. Log của V0.21 có tên bắt đầu bằng PG_V021_ (log PG_V020_ cũ giữ nguyên).
 
 PHẦN A — CHUẨN BỊ (làm 1 lần)
  A1. Giải nén file zip: chuột phải file zip -> Extract All -> Extract.
@@ -65,7 +80,7 @@ PHẦN B — CHÉP FILE (làm 1 lần)
 
 PHẦN C — COMPILE (làm 1 lần; làm lại mỗi khi có bản mới)
  C1. Trong MT5 bấm phím F4 (hoặc nút IDE trên thanh công cụ): MetaEditor mở ra.
- C2. Cột Navigator bên trái MetaEditor -> Experts -> PhoenixGrid -> nhấp đúp EA_PHOENIX_GRID_V0_20_TEST.mq5.
+ C2. Cột Navigator bên trái MetaEditor -> Experts -> PhoenixGrid -> nhấp đúp EA_PHOENIX_GRID_V0_21_TEST.mq5.
  C3. Bấm F7. Nhìn tab Errors ở dưới cùng: dòng cuối phải là "0 errors".
  C4. Làm lại C2–C3 với EA_PHOENIX_MI_SHADOW_V0_01_TEST.mq5. Không compile file .mqh.
  C5. Nếu có lỗi: chụp màn hình tab Errors gửi cho Claude. DỪNG, chưa gắn EA.
@@ -77,15 +92,19 @@ PHẦN D — CÀI ĐẶT MT5 (làm 1 lần)
  D3. (Tùy chọn) Tools -> Options -> tab Notifications -> tick "Enable Push Notifications",
      nhập MetaQuotes ID (xem trong app MT5 trên điện thoại, mục Messages) -> OK.
 
-PHẦN E — CHART 1: EA 1 PHOENIX V0.20 (giao dịch)
+PHẦN E — CHART 1: EA 1 PHOENIX V0.21 (giao dịch)
  E1. Market Watch (Ctrl+M): chuột phải -> Symbols -> gõ XAUUSDm -> chọn -> Show Symbol -> OK.
  E2. Chuột phải XAUUSDm trong Market Watch -> Chart Window (khung nào cũng được, nên chọn M5).
- E3. Navigator -> Expert Advisors -> PhoenixGrid -> kéo EA_PHOENIX_GRID_V0_20_TEST thả vào chart.
+ E3. Navigator -> Expert Advisors -> PhoenixGrid -> kéo EA_PHOENIX_GRID_V0_21_TEST thả vào chart.
  E4. Tab Common: tick "Allow Algo Trading".
-     Tab Inputs: bấm Load -> chọn PG_V020_DEMO_5000USD.set -> Open.
+     Tab Inputs: bấm Load -> chọn PG_V021_DEMO_5000USD.set -> Open.
      Kiểm tra dòng "Cho phép gửi lệnh trên tài khoản thật" = false (đúng file). Bấm OK.
  E5. Trên bảng PHOENIX: "Gửi lệnh" = DEMO (chữ xanh), "Tạm dừng" = Không.
-     Khung THÔNG BÁO có dòng "Lot tầng 0 = 0.01: giá đi 1 USD = 1.00 USD".
+     Khung THÔNG BÁO có dòng "Lot tầng 0 = 0.01: giá đi 1 USD = 1.00 USD"
+     và dòng "Khởi động V0.21 TEST: ..., vào lệnh liên tục (PP0)".
+     Trong giờ giao dịch, khi không có basket: sau khoảng 10 giây EA tự mở lệnh đầu theo hướng MA50 H1
+     (dòng cuối khối PHOENIX DCA ghi "Xét gần nhất: PP0 ..."). Nếu không mở, dòng đó ghi lý do
+     (ví dụ "Ngược xu hướng M5 Phoenix": MA50 H1 và xu hướng M5 đang ngược nhau, EA chờ).
      Nếu "Gửi lệnh" = KHÔNG: đọc dòng chữ cuối khối PHOENIX DCA để biết lý do.
      Nếu "Tạm dừng" = Tự động: tài khoản đang có lệnh không phải của Phoenix -> đóng hết lệnh đó.
 
@@ -107,7 +126,7 @@ PHẦN G — CHẠY HẰNG NGÀY
 
 PHẦN H — THEO DÕI HYDRA TRÊN MT5 REAL
  Dùng gói riêng PhoenixGrid_theo_doi_Hydra.zip và file HUONG_DAN_THEO_DOI_HYDRA.txt.
- EA 1 (Phoenix V0.20) lúc này chỉ chạy trên demo; file PG_V020_DEMO_5000USD.set đã chặn gửi lệnh
+ EA 1 (Phoenix V0.21) lúc này chỉ chạy trên demo; file PG_V021_DEMO_5000USD.set đã chặn gửi lệnh
  nếu lỡ gắn trên tài khoản thật.
 """
 
@@ -145,9 +164,10 @@ PHẦN C — GẮN EA SHADOW (không đụng vào chart của Hydra)
      Không kéo gì vào chart đang chạy Hydra.
  C2. Kéo EA_PHOENIX_MI_SHADOW_V0_01_TEST vào chart mới.
  C3. Tab Inputs -> Load -> PMI_V001_THEO_HYDRA_d60n2.set -> Open.
-     Dòng "Magic basket cần theo dõi" = 0: theo dõi mọi lệnh XAUUSDc trên tài khoản,
-     kể cả lệnh hedge của Hydra nếu Hydra dùng magic khác.
-     Nếu bạn có đánh tay XAUUSDc trên tài khoản này: sửa ô đó thành 20260826 (magic của Hydra).
+     Dòng "Magic basket cần theo dõi" = 0: theo dõi mọi lệnh XAUUSDc trên tài khoản.
+     Giữ 0: lịch sử cho thấy Hydra dùng HAI magic, 20260826 (lệnh DCA "Hydra N") và 20260827
+     (lệnh pyramid "Hydra Py N"); đặt 20260826 sẽ sót lệnh pyramid. Vì vậy khi đang theo dõi,
+     không đánh tay XAUUSDc và không chạy EA khác trên symbol này của tài khoản.
      Bấm OK. Không cần tick "Allow Algo Trading".
  C4. Góc trái chart mới hiện "MI V0.01 SHADOW — CHỈ GHI LOG, KHÔNG GỬI LỆNH"
      và dòng "Basket: BUY/SELL ... lot" khớp với số lot Hydra đang mở (chờ tối đa 5 phút).
@@ -181,13 +201,13 @@ tên file có symbol (XAUUSDm là demo, XAUUSDc là real) và tên server.
 """
 
 GOI = [
-    {"zip": "PhoenixGrid_V0_20_MI_V0_01.zip", "huong_dan": "HUONG_DAN_CAI_DAT.txt", "text": HUONG_DAN_DEMO,
+    {"zip": "PhoenixGrid_V0_21_MI_V0_01.zip", "huong_dan": "HUONG_DAN_CAI_DAT.txt", "text": HUONG_DAN_DEMO,
      "chi_doc": False,
      "file": [
-         ("MQL5/Experts/PhoenixGrid/EA_PHOENIX_GRID_V0_20_TEST.mq5", "MQL5/Experts/PhoenixGrid/EA_PHOENIX_GRID_V0_20_TEST.mq5"),
+         ("MQL5/Experts/PhoenixGrid/EA_PHOENIX_GRID_V0_21_TEST.mq5", "MQL5/Experts/PhoenixGrid/EA_PHOENIX_GRID_V0_21_TEST.mq5"),
          ("MQL5/Experts/PhoenixGrid/EA_PHOENIX_MI_SHADOW_V0_01_TEST.mq5", "MQL5/Experts/PhoenixGrid/EA_PHOENIX_MI_SHADOW_V0_01_TEST.mq5"),
          ("MQL5/Experts/PhoenixGrid/PHOENIX_MI_V0_01.mqh", "MQL5/Experts/PhoenixGrid/PHOENIX_MI_V0_01.mqh"),
-         ("MQL5/Presets/PhoenixGrid/PG_V020_DEMO_5000USD.set", "MQL5/Presets/PG_V020_DEMO_5000USD.set"),
+         ("MQL5/Presets/PhoenixGrid/PG_V021_DEMO_5000USD.set", "MQL5/Presets/PG_V021_DEMO_5000USD.set"),
          ("MQL5/Presets/PhoenixGrid/PMI_V001_THEO_PHOENIX_d60n2.set", "MQL5/Presets/PMI_V001_THEO_PHOENIX_d60n2.set"),
          ("MQL5/Presets/PhoenixGrid/PMI_V001_THEO_PHOENIX_d80n3.set", "MQL5/Presets/PMI_V001_THEO_PHOENIX_d80n3.set"),
      ]},

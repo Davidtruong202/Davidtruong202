@@ -1,4 +1,8 @@
-# Hướng dẫn chạy Phoenix V0.20 + MI Shadow trên demo 5.000 USD
+# Hướng dẫn chạy Phoenix V0.21 + MI Shadow trên demo 5.000 USD
+
+> **V0.21 (30/09/2026):** vào lệnh liên tục (PP0), sửa "Hôm nay" và chữ "Label". Đặc tả:
+> [`09_EA_V0_21_VAO_LIEN_TUC.md`](09_EA_V0_21_VAO_LIEN_TUC.md). Đang chạy V0.20: xem Mục 7 của tài liệu đó để nâng
+> cấp. V0.20 và gói `PhoenixGrid_V0_20_MI_V0_01.zip` giữ nguyên để quay lại.
 
 **DAVID HUNTER – PHOENIX GRID – 0941920986**
 
@@ -7,7 +11,7 @@
 
 ## 0. Cách nhanh nhất: gói cài đặt
 
-Tải [`goi_cai_dat/PhoenixGrid_V0_20_MI_V0_01.zip`](../../goi_cai_dat/PhoenixGrid_V0_20_MI_V0_01.zip). Zip đã sắp đúng
+Tải [`goi_cai_dat/PhoenixGrid_V0_21_MI_V0_01.zip`](../../goi_cai_dat/PhoenixGrid_V0_21_MI_V0_01.zip). Zip đã sắp đúng
 cấu trúc thư mục MT5, và có hướng dẫn từng bước
 [`HUONG_DAN_CAI_DAT.txt`](../../goi_cai_dat/HUONG_DAN_CAI_DAT.txt) (các phần A–H):
 
@@ -51,14 +55,15 @@ trừ commission, nên kết quả lệch real cent.
 
 | File trong repo | Chép vào (MT5: File → Open Data Folder) |
 |---|---|
-| `MQL5/Experts/PhoenixGrid/EA_PHOENIX_GRID_V0_20_TEST.mq5` | `MQL5\Experts\PhoenixGrid\` |
+| `MQL5/Experts/PhoenixGrid/EA_PHOENIX_GRID_V0_21_TEST.mq5` | `MQL5\Experts\PhoenixGrid\` |
 | `MQL5/Experts/PhoenixGrid/EA_PHOENIX_MI_SHADOW_V0_01_TEST.mq5` | `MQL5\Experts\PhoenixGrid\` |
 | `MQL5/Experts/PhoenixGrid/PHOENIX_MI_V0_01.mqh` | `MQL5\Experts\PhoenixGrid\` (bắt buộc cùng thư mục với EA shadow) |
-| `MQL5/Presets/PhoenixGrid/*.set` (3 file đầu ở bảng dưới; file thứ tư dùng ở MT5 real chạy Hydra) | `MQL5\Presets\` |
+| `MQL5/Presets/PhoenixGrid/*.set` (file V0.21 và 2 file `PMI_V001_THEO_PHOENIX`; file `THEO_HYDRA` dùng ở MT5 real chạy Hydra) | `MQL5\Presets\` |
 
 | File SET | Dùng cho | Khác mặc định |
 |---|---|---|
-| `PG_V020_DEMO_5000USD.set` | Phoenix V0.20 trên demo | `InpChoPhepTKThat = false`: lỡ nạp trên tài khoản thật thì EA không gửi lệnh |
+| `PG_V021_DEMO_5000USD.set` | Phoenix V0.21 trên demo | `InpChoPhepTKThat = false`: lỡ nạp trên tài khoản thật thì EA không gửi lệnh |
+| `PG_V020_DEMO_5000USD.set` | Phoenix V0.20 (quay lại) | như trên |
 | `PMI_V001_THEO_PHOENIX_d60n2.set` | MI Shadow theo dõi Phoenix (magic 20260930) | ngưỡng 60 điểm / 2 nến |
 | `PMI_V001_THEO_PHOENIX_d80n3.set` | MI Shadow thứ hai để so sánh (tùy chọn) | ngưỡng 80 điểm / 3 nến |
 | `PMI_V001_THEO_HYDRA_d60n2.set` | MI Shadow cạnh Hydra trên MT5 real (gói riêng `PhoenixGrid_theo_doi_Hydra.zip`) | magic 0 = mọi lệnh XAUUSDc trên tài khoản |
@@ -79,10 +84,10 @@ trị luôn khớp EA. Định dạng giống file MT5 tự lưu: UTF-16, mỗi 
    - Tools → Options → Notifications: nhập MetaQuotes ID (xem trong app MT5 điện thoại: Settings → Chats and
      Messages) để nhận thông báo mở / clear basket, stop out.
    - Bật nút **Algo Trading** trên thanh công cụ (màu xanh).
-5. **Chart 1 — Phoenix V0.20 (gửi lệnh)**:
+5. **Chart 1 — Phoenix V0.21 (gửi lệnh)**:
    - Mở chart **XAUUSDm**, khung nào cũng được (EA tự dùng M1, M2, M5).
-   - Kéo `EA_PHOENIX_GRID_V0_20_TEST` vào chart.
-   - Tab Inputs → **Load** → chọn `PG_V020_DEMO_5000USD.set`.
+   - Kéo `EA_PHOENIX_GRID_V0_21_TEST` vào chart.
+   - Tab Inputs → **Load** → chọn `PG_V021_DEMO_5000USD.set`.
    - Tab Common: tick "Allow Algo Trading". Bấm OK.
 6. **Kiểm tra bảng Phoenix ngay sau khi gắn**:
 
@@ -123,17 +128,17 @@ hôm trước:
 
 | File | Nguồn |
 |---|---|
-| `PG_V020_tin_hieu_XAUUSDm_<ngày>.csv`, `PG_V020_giao_dich_…`, `PG_V020_basket_…`, `PG_V020_thuc_thi_…` | Phoenix V0.20 |
-| `PG_V020_tong_ket_ngay_XAUUSDm_<tháng>.csv`, `PG_V020_trang_thai_XAUUSDm_<tháng>.csv` | Phoenix V0.20 (file theo tháng) |
+| `PG_V021_tin_hieu_XAUUSDm_<ngày>.csv`, `PG_V021_giao_dich_…`, `PG_V021_basket_…`, `PG_V021_thuc_thi_…` | Phoenix V0.21 |
+| `PG_V021_tong_ket_ngay_XAUUSDm_<tháng>.csv`, `PG_V021_trang_thai_XAUUSDm_<tháng>.csv` | Phoenix V0.21 (file theo tháng) |
 | `PMI_V001_XAUUSDm_d60n2_<ngày>.csv` (và `d80n3` nếu chạy chart 3) | MI Shadow |
 
 Tôi đọc bằng `phan_tich_log_v020.py` và `phan_tich_log_mi.py`. Nén cả thư mục thành zip rồi gửi cũng được.
 
 ## 6. Chạy thử trong Strategy Tester (tùy chọn, trước khi treo demo)
 
-- Expert: `EA_PHOENIX_GRID_V0_20_TEST`, symbol XAUUSDm, khoảng ngày tùy chọn.
+- Expert: `EA_PHOENIX_GRID_V0_21_TEST`, symbol XAUUSDm, khoảng ngày tùy chọn.
 - Modelling: "Every tick based on real ticks". Deposit 5.000 USD, leverage 1:2000.
-- Inputs → Load → `PG_V020_DEMO_5000USD.set`.
+- Inputs → Load → `PG_V021_DEMO_5000USD.set`.
 - Log tester có chữ `_tester` trong tên file, nằm cùng thư mục `Common\Files\PhoenixGrid\`.
 - Bộ lọc tin không chạy trong tester.
 - MI Shadow chạy tester riêng (một EA mỗi lần chạy), với input "Giả lập basket" = true để xem luồng phòng thủ.

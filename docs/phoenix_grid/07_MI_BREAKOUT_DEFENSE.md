@@ -30,6 +30,10 @@ Vì vậy:
 - **TEST 1 làm được ngay mà không cần sửa baseline nào.** Module chạy trên một chart riêng, cạnh EA baseline, và đọc
   vị thế của baseline theo magic. Với Hydra, magic là 20260826 (trong ảnh). File SET theo dõi Hydra dùng magic 0
   (mọi lệnh XAUUSDc trên tài khoản), để không sót lệnh hedge nếu Hydra dùng magic khác.
+  **Cập nhật 30/09/2026:** lịch sử giao dịch cho thấy Hydra dùng hai magic: 20260826 (lệnh DCA) và 20260827 (lệnh
+  pyramid). Vì vậy phải giữ magic 0. Chi tiết ở [`10_HYDRA_4_5_GIAI_MA.md`](10_HYDRA_4_5_GIAI_MA.md). Các ngưỡng
+  Emergency Hedge trong yêu cầu (DD 15% → 70%, 25% → 100%, tối đa 2 lần mỗi chu kỳ) trùng với nhóm "hedge cứu lệnh"
+  trong file set Hydra, nên baseline của yêu cầu này là Hydra 4.5.
 - **TEST 2 trở đi phải chèn vào EA baseline** (khóa DCA, mở / tháo hedge, tỉa):
   - Nếu baseline là **Hydra 4.5**: cần bạn gửi file `.mq5`. Tôi không thể "giữ nguyên" hay nối vào mã mà tôi chưa đọc.
   - Nếu baseline là **Phoenix V0.20**: đã có sẵn điểm chèn (Mục 3), nhưng Phoenix chưa có Emergency Hedge để "giữ".

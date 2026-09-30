@@ -32,9 +32,10 @@ PHẦN C — GẮN EA SHADOW (không đụng vào chart của Hydra)
      Không kéo gì vào chart đang chạy Hydra.
  C2. Kéo EA_PHOENIX_MI_SHADOW_V0_01_TEST vào chart mới.
  C3. Tab Inputs -> Load -> PMI_V001_THEO_HYDRA_d60n2.set -> Open.
-     Dòng "Magic basket cần theo dõi" = 0: theo dõi mọi lệnh XAUUSDc trên tài khoản,
-     kể cả lệnh hedge của Hydra nếu Hydra dùng magic khác.
-     Nếu bạn có đánh tay XAUUSDc trên tài khoản này: sửa ô đó thành 20260826 (magic của Hydra).
+     Dòng "Magic basket cần theo dõi" = 0: theo dõi mọi lệnh XAUUSDc trên tài khoản.
+     Giữ 0: lịch sử cho thấy Hydra dùng HAI magic, 20260826 (lệnh DCA "Hydra N") và 20260827
+     (lệnh pyramid "Hydra Py N"); đặt 20260826 sẽ sót lệnh pyramid. Vì vậy khi đang theo dõi,
+     không đánh tay XAUUSDc và không chạy EA khác trên symbol này của tài khoản.
      Bấm OK. Không cần tick "Allow Algo Trading".
  C4. Góc trái chart mới hiện "MI V0.01 SHADOW — CHỈ GHI LOG, KHÔNG GỬI LỆNH"
      và dòng "Basket: BUY/SELL ... lot" khớp với số lot Hydra đang mở (chờ tối đa 5 phút).
