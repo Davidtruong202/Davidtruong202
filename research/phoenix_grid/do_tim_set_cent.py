@@ -229,9 +229,30 @@ def _chay(viec):
     return ra
 
 
+def doi_tieu_de(duong_csv):
+    """File đã có mà tiêu đề khác COT (do thêm chỉ số): viết lại theo COT, cột thiếu để trống, trước khi ghi nối."""
+    with open(duong_csv, newline="", encoding="utf-8") as f:
+        dong = list(csv.reader(f))
+    if not dong or dong[0] == COT:
+        return
+    cu = dong[0]
+    thieu = [c for c in cu if c not in COT]
+    if thieu:
+        raise ValueError(f"{duong_csv}: cột {thieu} không còn trong COT")
+    with open(duong_csv, "w", newline="", encoding="utf-8") as f:
+        w = csv.DictWriter(f, fieldnames=COT)
+        w.writeheader()
+        for r in dong[1:]:
+            if len(r) != len(cu):
+                raise ValueError(f"{duong_csv}: dòng {len(r)} cột, tiêu đề {len(cu)} cột")
+            w.writerow({k: dict(zip(cu, r)).get(k, "") for k in COT})
+
+
 def chay_ds(pool, ds, duong_csv, nhan):
     for v in ds:
         v.setdefault("von", VON)
+    if os.path.exists(duong_csv):
+        doi_tieu_de(duong_csv)
     moi = not os.path.exists(duong_csv)
     ra = []
     t0 = time.time()
@@ -870,6 +891,15 @@ def tu_kiem_tra():
             loi.append("đọc lại CSV bước 1 không khớp cấu hình")
         if doc_lai(p, ds[:-1]) is not None:
             loi.append("đọc lại CSV thiếu / thừa việc mà vẫn dùng")
+        p2 = os.path.join(tmp, "cu.csv")
+        with open(p2, "w", newline="", encoding="utf-8") as f:
+            w = csv.writer(f)
+            w.writerow(COT[:-2])
+            w.writerow(["x"] * (len(COT) - 2))
+        doi_tieu_de(p2)
+        d2 = pd.read_csv(p2, keep_default_na=False, na_values=[""])
+        if list(d2.columns) != COT or len(d2) != 1:
+            loi.append("đổi tiêu đề CSV cũ sai")
     print("TỰ KIỂM TRA:", "ĐẠT" if not loi else "LỖI")
     for x in loi:
         print("  -", x)
