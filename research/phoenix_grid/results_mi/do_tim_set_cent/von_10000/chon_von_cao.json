@@ -1,0 +1,118 @@
+{
+ "von": null,
+ "nguong_dd_test": 20.0,
+ "luat_test": "không cháy và DD ≤ 20% trên mọi đường TEST, lãi > 0 và bỏ tháng tốt nhất vẫn ≥ 0 ở đường gốc; set chính = hạng 1, TEST không dùng để đổi set",
+ "ket_qua": [
+  {
+   "von": 20000.0,
+   "hat": "U1",
+   "dat": false,
+   "so_duong": 26,
+   "so_duong_chay": 0,
+   "dd_max": 38.7,
+   "trung_vi_diem": 0.955,
+   "net_dev_goc": 4942.9,
+   "net_val_goc": -3635.7
+  },
+  {
+   "von": 20000.0,
+   "hat": "U2",
+   "dat": false,
+   "so_duong": 26,
+   "so_duong_chay": 0,
+   "dd_max": 51.4,
+   "trung_vi_diem": 1.37,
+   "net_dev_goc": 21838.3,
+   "net_val_goc": 5320.1
+  },
+  {
+   "von": 20000.0,
+   "hat": "U3",
+   "dat": false,
+   "so_duong": 26,
+   "so_duong_chay": 3,
+   "dd_max": 100.1,
+   "trung_vi_diem": 1.0550000000000002,
+   "net_dev_goc": 13030.4,
+   "net_val_goc": -1690.7
+  },
+  {
+   "von": 20000.0,
+   "hat": "U4",
+   "dat": false,
+   "so_duong": 26,
+   "so_duong_chay": 0,
+   "dd_max": 66.7,
+   "trung_vi_diem": 1.77,
+   "net_dev_goc": 22250.5,
+   "net_val_goc": 3431.9
+  },
+  {
+   "von": 20000.0,
+   "hat": "U5",
+   "dat": false,
+   "so_duong": 26,
+   "so_duong_chay": 4,
+   "dd_max": 100.2,
+   "trung_vi_diem": 2.33,
+   "net_dev_goc": 21354.0,
+   "net_val_goc": 5997.8
+  },
+  {
+   "von": 50000.0,
+   "hat": "U1",
+   "dat": false,
+   "so_duong": 26,
+   "so_duong_chay": 0,
+   "dd_max": 16.2,
+   "trung_vi_diem": 0.955,
+   "net_dev_goc": 4942.9,
+   "net_val_goc": -3635.7
+  },
+  {
+   "von": 50000.0,
+   "hat": "U2",
+   "dat": false,
+   "so_duong": 26,
+   "so_duong_chay": 0,
+   "dd_max": 25.7,
+   "trung_vi_diem": 1.37,
+   "net_dev_goc": 21838.3,
+   "net_val_goc": 5320.1
+  },
+  {
+   "von": 50000.0,
+   "hat": "U3",
+   "dat": false,
+   "so_duong": 26,
+   "so_duong_chay": 0,
+   "dd_max": 48.3,
+   "trung_vi_diem": 1.0550000000000002,
+   "net_dev_goc": 13030.4,
+   "net_val_goc": -1690.7
+  },
+  {
+   "von": 50000.0,
+   "hat": "U4",
+   "dat": false,
+   "so_duong": 26,
+   "so_duong_chay": 0,
+   "dd_max": 29.0,
+   "trung_vi_diem": 1.77,
+   "net_dev_goc": 22250.5,
+   "net_val_goc": 3431.9
+  },
+  {
+   "von": 50000.0,
+   "hat": "U5",
+   "dat": false,
+   "so_duong": 26,
+   "so_duong_chay": 1,
+   "dd_max": 100.1,
+   "trung_vi_diem": 2.33,
+   "net_dev_goc": 21354.0,
+   "net_val_goc": 5997.8
+  }
+ ],
+ "chon": []
+}
