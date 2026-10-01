@@ -31,9 +31,12 @@
 //|  4 khung M5/M15/H1/H4 (3.11 them M5); xuat ctxbars nhieu khung;   |
 //|  tu do                                                            |
 //|  magic / comment / chieu / khung ra quyet dinh -> <prefix>_auto.csv|
+//| 3.20: xuat nen M1 (<prefix>_m1_<symbol>.csv) de Python tu gop ra  |
+//|  MOI khung va tinh MOI chi bao / chu ky (research/phan_tich_ea/   |
+//|  quet_khung.py), khong ton tai nguyen MT5                          |
 //+------------------------------------------------------------------+
 #property copyright "TradeLogger"
-#property version   "3.11"
+#property version   "3.21"
 #property description "Ban cai san cho EA GoldVault Trip Trap (magic 202601, chart M5)."
 #property description "Chay duoc voi tai khoan dang nhap bang mat khau investor (chi doc)."
 
@@ -45,6 +48,7 @@ enum ENUM_DIST_UNIT
 
 input group "Tệp xuất (MQL5/Files)"
 input string          InpFilePrefix       = "triptrap"; // Tiền tố tên file (mỗi EA một tên riêng!)
+input string          InpFolder           = "TradeLogger"; // Thư mục gốc; file nằm trong <thư mục>\<tiền tố>\
 input bool            InpUseCommonFolder  = false;      // Ghi vào thư mục Common\Files
 
 input group "Lọc lệnh"
@@ -65,6 +69,8 @@ input group "Xuất nến để so sánh (vào lệnh vs không vào lệnh)"
 input bool            InpExportBars       = true;       // Xuất nến InpFeatureTF kèm đặc trưng chung
 input bool            InpExportCtxBars    = true;       // Xuất nến kèm chỉ báo InpIndicators (nối thêm liên tục)
 input string          InpCtxTFs           = "M5"; // Các khung xuất ctxbars, cách nhau dấu phẩy (trống = InpEntryTF)
+input bool            InpExportM1         = true;       // Xuất nến M1 để Python tự tính MỌI khung / MỌI chỉ báo
+input int             InpM1LookbackDays   = 60;         // Nến M1: lấy thêm N ngày trước lệnh đầu tiên (để chỉ báo khung lớn đủ dữ liệu)
 input string          InpBarSymbols       = "";         // Symbol cần xuất, cách nhau dấu phẩy (trống = tự lấy từ lịch sử lệnh)
 input int             InpBarsLookbackDays = 3;          // Lấy thêm N ngày trước lệnh đầu tiên
 input int             InpBarsRefreshHours = 6;          // Xuất lại file nến chung mỗi N giờ
@@ -157,6 +163,8 @@ bool     g_bPeakDone[];
 int      g_basketSeq = 0;
 
 bool     g_ordersDirty = false;
+string   g_m1Sym[];       // file nen M1: symbol -> thoi gian nen cuoi da ghi
+datetime g_m1Last[];
 string   g_bbSym[];       // file nen ctx: symbol -> thoi gian nen cuoi da ghi
 datetime g_bbLast[];
 
@@ -169,7 +177,16 @@ long     g_sMagic[];
 double   g_sVol[], g_sPrice[], g_sSL[], g_sTP[];
 
 //+------------------------------------------------------------------+
-string FName(const string what) { return InpFilePrefix + "_" + what + ".csv"; }
+//--- moi file nam trong <InpFolder>\<InpFilePrefix>\ de khong lan voi file cua EA khac
+string LogDir()
+  {
+   string d = InpFolder;
+   StringTrimLeft(d);
+   StringTrimRight(d);
+   return (d == "" ? "" : d + "\\") + InpFilePrefix;
+  }
+
+string FName(const string what) { return LogDir() + "\\" + InpFilePrefix + "_" + what + ".csv"; }
 
 int OpenOut(const string name, const bool append)
   {
@@ -896,9 +913,21 @@ void AutoNote(const long magic, const string sym, const int side, const long msc
   }
 
 //--- khung lon nhat ma >= 70% thoi diem roi vao 10 giay dau nen (va > 3 lan ngau nhien)
+//--- 19 khung kiem tra (giong research/phan_tich_ea): khung nho -> lon
+void GuessTFList(ENUM_TIMEFRAMES &tfs[])
+  {
+   ENUM_TIMEFRAMES all[] = {PERIOD_M1, PERIOD_M2, PERIOD_M3, PERIOD_M4, PERIOD_M5, PERIOD_M6, PERIOD_M10,
+                            PERIOD_M12, PERIOD_M15, PERIOD_M20, PERIOD_M30, PERIOD_H1, PERIOD_H2, PERIOD_H3,
+                            PERIOD_H4, PERIOD_H6, PERIOD_H8, PERIOD_H12, PERIOD_D1};
+   ArrayResize(tfs, ArraySize(all));
+   for(int i = 0; i < ArraySize(all); i++)
+      tfs[i] = all[i];
+  }
+
 string GuessTF(const long &msc[], const int cnt, double &share[])
   {
-   ENUM_TIMEFRAMES tfs[] = {PERIOD_M1, PERIOD_M5, PERIOD_M15, PERIOD_M30, PERIOD_H1, PERIOD_H4, PERIOD_D1};
+   ENUM_TIMEFRAMES tfs[];
+   GuessTFList(tfs);
    ArrayResize(share, ArraySize(tfs));
    string best = "";
    for(int i = 0; i < ArraySize(tfs); i++)
@@ -937,8 +966,12 @@ void AutoReport()
    int h = OpenOut(FName("auto"), false);
    if(h == INVALID_HANDLE)
       return;
-   WriteLine(h, "magic,symbol,first_entries,buy_first,sell_first,adds,tf_guess_first,tf_guess_all,comment_sample,"
-             "share_M1,share_M5,share_M15,share_M30,share_H1,share_H4,share_D1");
+   string hdr = "magic,symbol,first_entries,buy_first,sell_first,adds,tf_guess_first,tf_guess_all,comment_sample";
+   ENUM_TIMEFRAMES gtf[];
+   GuessTFList(gtf);
+   for(int i = 0; i < ArraySize(gtf); i++)
+      hdr += ",share_" + TfName(gtf[i]);
+   WriteLine(h, hdr);
    for(int j = 0; j < nk; j++)
      {
       string p[];
@@ -1343,6 +1376,78 @@ string CtxBarHeader()
    return "symbol,bar_time,open,high,low,close,spread,tick_volume," + CtxHeader();
   }
 
+//+------------------------------------------------------------------+
+//| Nen M1 thuan (khong chi bao): Python gop ra moi khung, tinh moi    |
+//| chi bao. Lan dau ghi tu truoc lenh dau tien; sau do noi them.      |
+//+------------------------------------------------------------------+
+void ExportM1()
+  {
+   if(!InpExportM1)
+      return;
+   string syms[];
+   BarSymbols(syms);
+   for(int i = 0; i < ArraySize(syms); i++)
+     {
+      string s = syms[i];
+      string name = FName("m1_" + s);
+      int slot = -1;
+      for(int j = 0; j < ArraySize(g_m1Sym); j++)
+         if(g_m1Sym[j] == s) { slot = j; break; }
+
+      int h, first;
+      if(slot < 0)
+        {
+         datetime start = FirstDealTime() - InpM1LookbackDays * 86400;
+         int avail = Bars(s, PERIOD_M1);
+         first = iBarShift(s, PERIOD_M1, start, false);
+         if(first < 0 || first > avail - 2)
+           {
+            first = avail - 2;
+            PrintFormat("[TradeLogger] %s M1: chi co %d nen, khong du tu %s", s, avail, TS(start));
+           }
+         if(first < 1)
+            continue;
+         h = OpenOut(name, false);
+         if(h == INVALID_HANDLE)
+            continue;
+         WriteLine(h, "symbol,time,open,high,low,close,spread,tick_volume");
+         slot = ArraySize(g_m1Sym);
+         ArrayResize(g_m1Sym, slot + 1);
+         ArrayResize(g_m1Last, slot + 1);
+         g_m1Sym[slot]  = s;
+         g_m1Last[slot] = 0;
+        }
+      else
+        {
+         first = iBarShift(s, PERIOD_M1, g_m1Last[slot], false);
+         if(first <= 1)
+            continue; // chua co nen moi dong
+         h = OpenOut(name, true);
+         if(h == INVALID_HANDLE)
+            continue;
+        }
+
+      MqlRates r[];
+      ArraySetAsSeries(r, true);
+      int got = CopyRates(s, PERIOD_M1, 1, first, r);
+      int digits = (int)SymbolInfoInteger(s, SYMBOL_DIGITS);
+      int written = 0;
+      for(int k = got - 1; k >= 0; k--)
+        {
+         if(r[k].time <= g_m1Last[slot])
+            continue;
+         WriteLine(h, s + "," + TS(r[k].time) + "," + D(r[k].open, digits) + "," + D(r[k].high, digits) + "," +
+                   D(r[k].low, digits) + "," + D(r[k].close, digits) + "," + IntegerToString(r[k].spread) + "," +
+                   IntegerToString(r[k].tick_volume));
+         g_m1Last[slot] = r[k].time;
+         written++;
+        }
+      FileClose(h);
+      if(written > 1)
+         PrintFormat("[TradeLogger] Da ghi %d nen M1 %s vao %s", written, s, name);
+     }
+  }
+
 void ParseCtxTFs()
   {
    ArrayResize(g_ctxTF, 0);
@@ -1624,8 +1729,13 @@ bool AllSymbolsReady()
 
 int OnInit()
   {
-   string dir = InpUseCommonFolder ? TerminalInfoString(TERMINAL_COMMONDATA_PATH) + "\\Files"
-                                   : TerminalInfoString(TERMINAL_DATA_PATH) + "\\MQL5\\Files";
+   string dir = (InpUseCommonFolder ? TerminalInfoString(TERMINAL_COMMONDATA_PATH) + "\\Files"
+                                    : TerminalInfoString(TERMINAL_DATA_PATH) + "\\MQL5\\Files") + "\\" + LogDir();
+   int fflag = InpUseCommonFolder ? FILE_COMMON : 0;
+   if(StringLen(InpFolder) > 0)
+      FolderCreate(InpFolder, fflag); // tao thu muc cha truoc (an toan voi moi ban MT5)
+   if(!FolderCreate(LogDir(), fflag))
+      PrintFormat("[TradeLogger] Khong tao duoc thu muc %s, loi %d", LogDir(), GetLastError());
    // EA co the duoc khoi dong lai (doi tham so/khung) ma bien toan cuc van giu gia tri cu
    ArrayResize(g_ind, 0);
    for(int i = 0; i < ArraySize(g_si); i++)
@@ -1637,6 +1747,8 @@ int OnInit()
    ParseCtxTFs();
    ArrayResize(g_bbSym, 0);
    ArrayResize(g_bbLast, 0);
+   ArrayResize(g_m1Sym, 0);
+   ArrayResize(g_m1Last, 0);
    ArrayResize(g_sMagic, 0);
    ResetReplay();
    g_ordersDirty = false;
@@ -1695,6 +1807,7 @@ void OnTimer()
          ExportBars();
       if(InpExportCtxBars)
          ExportCtxBars();
+      ExportM1();
       Snapshot();
       g_initialDone = true;
       return;
@@ -1713,6 +1826,7 @@ void OnTimer()
      }
    if(InpExportCtxBars)
       ExportCtxBars();
+   ExportM1();
    if(InpExportBars && TimeCurrent() - g_lastBarsExport >= InpBarsRefreshHours * 3600)
       ExportBars();
   }

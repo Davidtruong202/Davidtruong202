@@ -9,7 +9,7 @@ Chỉ dùng thư viện chuẩn (không cần pandas).
 EA không có file .set (logger để InpIndicators = AUTO): chỉ cần tiền tố file, script tự tìm deals / events_v3 /
 ctxbars / auto và phân tích lần lượt từng magic:
 
-    python3 phan_tich_chung.py --prefix "C:/.../MQL5/Files/tradelog" --out bao_cao.md
+    python3 phan_tich_chung.py --prefix "C:/.../Common/Files/TradeLogger/tradelog" --out bao_cao.md
 
 Các mục của báo cáo:
   0. Tổng quan: số rổ, chiều, độ sâu rổ.
@@ -19,6 +19,7 @@ Các mục của báo cáo:
   4. Đóng khi rổ vẫn còn lệnh (tỉa / đóng một phần).
   5. Lệnh chờ (cần --events): khoảng cách lúc đặt, ngưỡng dời lệnh (refresh), khớp hay huỷ.
   6. Dò khung thời gian EA: thời điểm vào lệnh / đặt lệnh chờ có rơi đúng lúc mở nến M1…D1 không.
+  8. Quét mọi khung × mọi chỉ báo từ nến M1 (cần file _m1_, xem quet_khung.py): dò quy tắc vào lệnh.
   7. Dò chỉ báo EA dùng (cần --ctxbars): so phân bố từng chỉ báo lúc vào lệnh với toàn bộ nến,
      xếp hạng cột tách biệt nhất (KS) và gợi ý ngưỡng. Dùng khi KHÔNG có file .set (tài khoản Passview).
 Mọi khoảng cách theo đơn vị logger đã chọn (cột k_unit / unit: point hoặc pip).
@@ -283,7 +284,9 @@ def section_pending(path, magic, symbol, w):
 # ---------------------------------------------------------------------------
 # 6. Dò khung thời gian
 # ---------------------------------------------------------------------------
-TFS = [("M1", 60), ("M5", 300), ("M15", 900), ("M30", 1800), ("H1", 3600), ("H4", 14400), ("D1", 86400)]
+TFS = [("M1", 60), ("M2", 120), ("M3", 180), ("M4", 240), ("M5", 300), ("M6", 360), ("M10", 600),
+       ("M12", 720), ("M15", 900), ("M20", 1200), ("M30", 1800), ("H1", 3600), ("H2", 7200),
+       ("H3", 10800), ("H4", 14400), ("H6", 21600), ("H8", 28800), ("H12", 43200), ("D1", 86400)]
 ALIGN_WINDOW = 10  # giây: lệnh trong 10s đầu của nến được coi là "vào lúc mở nến"
 
 
@@ -482,13 +485,20 @@ def section_discover(rows, ctx_paths, w, tf=None, top=12):
 
 
 def find_files(prefix):
-    """Từ tiền tố file logger (vd .../MQL5/Files/tradelog) tìm deals, events_v3, ctxbars, auto."""
+    """Từ tiền tố file logger (vd .../Files/TradeLogger/tradelog/tradelog) hoặc chính thư mục log
+    (vd .../Files/TradeLogger/tradelog) tìm deals, events_v3, ctxbars, auto, m1."""
+    if os.path.isdir(prefix):
+        found = sorted(glob.glob(os.path.join(glob.escape(prefix), "*_deals.csv")))
+        if not found:
+            sys.exit(f"Không thấy file *_deals.csv trong thư mục {prefix}")
+        prefix = found[0][:-len("_deals.csv")]
     deals = prefix + "_deals.csv"
     events = prefix + "_events_v3.csv"
     ctx = sorted(glob.glob(glob.escape(prefix) + "_ctxbars_*.csv"))
     auto = prefix + "_auto.csv"
+    m1 = sorted(glob.glob(glob.escape(prefix) + "_m1_*.csv"))
     return (deals if os.path.exists(deals) else None, events if os.path.exists(events) else None, ctx,
-            auto if os.path.exists(auto) else None)
+            auto if os.path.exists(auto) else None, m1)
 
 
 def section_auto(path, w):
@@ -502,7 +512,7 @@ def section_auto(path, w):
     w("\nTICK = không khớp lúc mở nến khung nào (EA chạy theo tick hoặc lệnh chờ); ? = chưa đủ 10 rổ.\n")
 
 
-def report_one(rows, a, events, ctx, w):
+def report_one(rows, a, events, ctx, w, m1=()):
     baskets = section_overview(rows, w)
     section_first(rows, w)
     section_grid(rows, w)
@@ -513,12 +523,18 @@ def report_one(rows, a, events, ctx, w):
     tf = section_timeframe(rows, events, magic, a.symbol, w)
     if ctx:
         section_discover(rows, ctx, w, tf)
+    sym = Counter(r["symbol"] for r in rows).most_common(1)[0][0]
+    m1f = [p for p in m1 if os.path.basename(p).endswith(f"_m1_{sym}.csv")] or list(m1)
+    if m1f:
+        from quet_khung import section_scan  # import muộn: tránh vòng import
+        section_scan(rows, m1f[0], w)
 
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("deals", nargs="?", help="file <prefix>_deals.csv (bỏ trống nếu dùng --prefix)")
-    ap.add_argument("--prefix", help="tiền tố file logger, vd C:/.../MQL5/Files/tradelog: tự tìm mọi file")
+    ap.add_argument("--prefix", help="thư mục log (vd .../Files/TradeLogger/tradelog) hoặc tiền tố file: tự tìm mọi file")
+    ap.add_argument("--m1", nargs="*", default=[], help="file <prefix>_m1_<symbol>.csv (mục 8: quét mọi khung)")
     ap.add_argument("--events", help="file <prefix>_events_v3.csv (để phân tích lệnh chờ)")
     ap.add_argument("--magic", type=int, help="chỉ phân tích magic này (bỏ trống = lần lượt từng magic)")
     ap.add_argument("--symbol", help="chỉ phân tích symbol này")
@@ -528,12 +544,13 @@ def main():
     a = ap.parse_args()
 
     auto = None
-    deals, events, ctx = a.deals, a.events, list(a.ctxbars)
+    deals, events, ctx, m1 = a.deals, a.events, list(a.ctxbars), list(a.m1)
     if a.prefix:
-        d2, e2, c2, auto = find_files(a.prefix)
+        d2, e2, c2, auto, m2 = find_files(a.prefix)
         deals = deals or d2
         events = events or e2
         ctx = ctx or c2
+        m1 = m1 or m2
     if not deals:
         ap.error("cần file deals hoặc --prefix trỏ tới nơi có <prefix>_deals.csv")
 
@@ -547,7 +564,7 @@ def main():
     if not rows:
         w("Không có deal nào khớp bộ lọc.\n")
     elif a.magic is not None:
-        report_one(rows, a, events, ctx, w)
+        report_one(rows, a, events, ctx, w, m1)
     else:
         by_magic = defaultdict(list)
         for r in rows:
@@ -558,7 +575,7 @@ def main():
             if len(by_magic[m]) < a.min_deals:
                 continue
             w(f"\n---\n\n# Magic {m} ({len(by_magic[m])} deal)\n")
-            report_one(by_magic[m], a, events, ctx, w)
+            report_one(by_magic[m], a, events, ctx, w, m1)
         if skipped:
             w(f"\nBỏ qua magic ít hơn {a.min_deals} deal: {', '.join(skipped)}\n")
     text = "\n".join(lines)

@@ -46,7 +46,13 @@ Ví dụ: `EMA:H1:34,EMA:H1:89,RSI:M15:14,ATR:H1:14,BB:H1:20:2,MACD:H4:12:26:9`.
 Mọi giá trị chỉ báo lấy trên **nến đã đóng** ngay trước lúc khớp lệnh, nên tính lại từ lịch sử cũng ra đúng giá trị EA
 đã thấy lúc đó. Nếu EA dùng chỉ báo tuỳ chỉnh (file .ex5 riêng), logger không đọc được, cần bổ sung riêng.
 
-## File xuất ra (`MQL5/Files/`)
+## File xuất ra
+
+Từ bản 3.21 mọi file nằm chung **một thư mục riêng**: `Files\<InpFolder>\<InpFilePrefix>\`. Mặc định là
+`Files\TradeLogger\tradelog\`. Thư mục `Files` là `MQL5\Files` của terminal, hoặc
+`C:\Users\<tên>\AppData\Roaming\MetaQuotes\Terminal\Common\Files` nếu bật `InpUseCommonFolder`. Dòng đầu
+trong tab Experts in đường dẫn đầy đủ. Khi gửi log, chỉ cần nén **cả thư mục đó**.
+
 
 | File | Nội dung |
 |---|---|
@@ -56,6 +62,8 @@ Mọi giá trị chỉ báo lấy trên **nến đã đóng** ngay trước lúc
 | `<prefix>_ctxbars_<symbol>_<TF>.csv` | Mỗi nến khung EA kèm các cột `c_*` và `i_*`, để so "lúc EA vào lệnh" với "lúc không vào" |
 | `<prefix>_bars_<symbol>_<TF>.csv` | Nến kèm đặc trưng chung |
 | `<prefix>_symbols.csv` | Thông số symbol, đơn vị, chuỗi chỉ báo đã dùng |
+| `<prefix>_m1_<symbol>.csv` | Nến M1 thuần (giá, spread), từ `InpM1LookbackDays` ngày trước lệnh đầu, nối thêm liên tục. Python tự gộp ra **mọi khung** và tính **mọi chỉ báo** từ file này (mục 8) |
+| `<prefix>_auto.csv` | Mỗi magic: comment, số rổ BUY/SELL, lệnh thêm, khung đoán được (kiểm tra 19 khung M1…D1) |
 
 Các cột `k_*` quan trọng nhất (khoảng cách đều theo đơn vị `k_unit`):
 
@@ -105,10 +113,11 @@ Các bước:
 3. Sau vài ngày đến vài tuần, chạy báo cáo, chỉ cần tiền tố file:
 
    ```
-   python3 research/phan_tich_ea/phan_tich_chung.py --prefix "C:/.../MQL5/Files/tradelog" --out bao_cao.md
+   python3 research/phan_tich_ea/phan_tich_chung.py --prefix "C:/.../Common/Files/TradeLogger/tradelog" --out bao_cao.md
    ```
 
-   Script tự tìm `tradelog_deals.csv`, `tradelog_events_v3.csv`, `tradelog_ctxbars_*.csv`, `tradelog_auto.csv`, rồi
+   `--prefix` nhận luôn **thư mục log**. Script tự tìm `*_deals.csv`, `*_events_v3.csv`, `*_ctxbars_*.csv`,
+   `*_auto.csv`, `*_m1_*.csv`, rồi
    phân tích **lần lượt từng magic** (bỏ qua magic có dưới 20 deal; đổi bằng `--min-deals`). Chỉ phân tích một EA thì
    thêm `--magic <số>`.
 4. Đọc mục 6 và 7 của báo cáo:
@@ -139,6 +148,49 @@ Giới hạn của việc dò:
 - Điều kiện kết hợp, ví dụ "RSI < 30 **hoặc** giá chạm BB dưới", sẽ hiện ra yếu hơn điều kiện đơn.
 - Điều kiện không sinh ra lệnh thì không thấy được trực tiếp, ví dụ lọc tin (chỉ lộ qua khoảng trống không có lệnh) và
   cắt lỗ theo equity chưa từng kích hoạt.
+
+## Mục 8 — quét mọi khung × mọi chỉ báo từ nến M1 (`quet_khung.py`)
+
+Bộ quét trong MT5 (AUTO) chỉ có vài khung và chu kỳ cố định. Mục 8 dùng file nến M1 để Python tự tính:
+
+- **19 khung**: M1 M2 M3 M4 M5 M6 M10 M12 M15 M20 M30 H1 H2 H3 H4 H6 H8 H12 D1. Khung nào chưa đủ 300 nến
+  thì bỏ qua, nên D1 cần khoảng 1 năm M1.
+- **Mỗi khung khoảng 160 đặc trưng**: giá−EMA (16 chu kỳ 5…200), giá−SMA 20/50/200, **mọi cặp EMA** (120 cặp,
+  ví dụ EMA34−EMA89), RSI 2/3/5/7/9/14/21, CCI 14/20, ADX14 và +DI−−DI, BB20 %b, MACD và MACD−signal,
+  Stoch 5/3/3 và 14/3/3, ATR14, thân nến.
+- Công thức như MT5 (ATR = SMA của TR, MACD signal = SMA, ADX = EMA). Có thể lệch rất nhỏ ở vài trăm nến
+  đầu, do cách khởi tạo EMA.
+
+Cách dò:
+
+1. Lấy giá trị mọi đặc trưng tại nến **đã đóng** ngay trước mỗi lệnh đầu của rổ.
+2. So với 2000 thời điểm ngẫu nhiên **lúc EA đang rảnh**: không có rổ cùng chiều, và không nằm sát trước một lệnh.
+   Lúc rảnh mà điều kiện thật thỏa thì EA đã vào lệnh, nên điều kiện thật hiếm khi thỏa ở các thời điểm này.
+3. **Dò quy tắc từng bước.** Mỗi bước chọn điều kiện `≤`/`≥` ngưỡng bao hết các lệnh mà để lại ít thời điểm rảnh
+   nhất. Bước sau chỉ tính trên phần còn lại, nên chỉ báo "họ hàng" của điều kiện đã chọn tự bị loại.
+4. Chạy y hệt trên "lệnh giả" ngẫu nhiên để biết mức nhiễu. Báo cáo kèm bảng KS từng đặc trưng và khung nổi bật.
+
+Chạy riêng (khoảng 30 giây cho 80 ngày M1):
+
+```
+python3 research/phan_tich_ea/quet_khung.py --m1 <prefix>_m1_XAUUSD.csv --deals <prefix>_deals.csv --magic <magic>
+```
+
+Hoặc để `phan_tich_chung.py --prefix <thư mục>` tự chạy mục này.
+
+**Kết quả kiểm thử (nói thẳng):** dùng 80 ngày M1 giả lập và một EA ẩn với quy tắc: vào lệnh lúc mở nến M6, BUY khi
+EMA34 > EMA89 (M6) và RSI7 (M15) < 25, SELL ngược lại, 70 rổ.
+
+- Mục 6 đoán đúng khung **M6**.
+- Mục 8 tìm đúng **vùng**: quá bán/quá mua trên các khung M3–M30. RSI7 M15 có xuất hiện trong quy tắc. Quy tắc
+  dò được bao 97–100% lệnh và chỉ còn ~1% thời điểm rảnh thỏa, trong khi lệnh giả còn 70–80%.
+- Nhưng bước đầu lại chọn chỉ báo "họ hàng" (Stoch M30, MACD M12) thay vì đúng RSI7 M15, và **chưa tách được**
+  bộ lọc EMA34 > EMA89. Lý do: EA vào lệnh ngay khi điều kiện vừa bắt đầu đúng, nên các chỉ báo đo động lượng
+  "vừa đổi chiều" trông còn rõ hơn chính điều kiện gốc.
+
+Vì vậy hãy coi quy tắc dò được là **giả thuyết mô tả đúng hành vi**, chưa phải mã gốc. Muốn chốt: viết EA theo
+giả thuyết, backtest cùng giai đoạn, rồi so từng lệnh với EA gốc. Với dữ liệu thật càng nhiều rổ (≥ 50 mỗi
+chiều) thì càng đáng tin.
 
 ## Giới hạn
 
