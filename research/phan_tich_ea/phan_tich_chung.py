@@ -4,6 +4,7 @@
 Chỉ dùng thư viện chuẩn (không cần pandas).
 
     python3 phan_tich_chung.py triptrap_deals.csv --events triptrap_events_v3.csv --magic 202601 --out bao_cao.md
+    python3 phan_tich_chung.py x_deals.csv --events x_events_v3.csv --ctxbars x_ctxbars_XAUUSD_H1.csv --out bao_cao.md
 
 Các mục của báo cáo:
   0. Tổng quan: số rổ, chiều, độ sâu rổ.
@@ -12,6 +13,9 @@ Các mục của báo cáo:
   3. Đóng rổ: giá đóng so với giá trung bình, biên độ có lời tối đa sau lệnh cuối (trailing ảo), lý do đóng.
   4. Đóng khi rổ vẫn còn lệnh (tỉa / đóng một phần).
   5. Lệnh chờ (cần --events): khoảng cách lúc đặt, ngưỡng dời lệnh (refresh), khớp hay huỷ.
+  6. Dò khung thời gian EA: thời điểm vào lệnh / đặt lệnh chờ có rơi đúng lúc mở nến M1…D1 không.
+  7. Dò chỉ báo EA dùng (cần --ctxbars): so phân bố từng chỉ báo lúc vào lệnh với toàn bộ nến,
+     xếp hạng cột tách biệt nhất (KS) và gợi ý ngưỡng. Dùng khi KHÔNG có file .set (tài khoản Passview).
 Mọi khoảng cách theo đơn vị logger đã chọn (cột k_unit / unit: point hoặc pip).
 """
 import argparse
@@ -269,6 +273,188 @@ def section_pending(path, magic, symbol, w):
     if any(v is not None for v in spreads):
         w(f"Spread lúc đặt lệnh chờ (point): {dist_row(spreads, 0)}\n")
 
+# ---------------------------------------------------------------------------
+# 6. Dò khung thời gian
+# ---------------------------------------------------------------------------
+TFS = [("M1", 60), ("M5", 300), ("M15", 900), ("M30", 1800), ("H1", 3600), ("H4", 14400), ("D1", 86400)]
+ALIGN_WINDOW = 10  # giây: lệnh trong 10s đầu của nến được coi là "vào lúc mở nến"
+
+
+def tf_alignment(times_msc):
+    """Với mỗi khung: tỉ lệ thời điểm rơi vào ALIGN_WINDOW giây đầu nến, so với tỉ lệ nếu ngẫu nhiên.
+    Thời gian MT5 là giờ server tính từ epoch, nên nến M1…D1 bắt đầu đúng tại bội số của độ dài nến."""
+    out = []
+    n = len(times_msc)
+    for name, per in TFS:
+        hit = sum(1 for t in times_msc if (t / 1000.0) % per < ALIGN_WINDOW)
+        share = hit / n if n else 0
+        expect = ALIGN_WINDOW / per
+        out.append((name, per, hit, share, expect))
+    return out
+
+
+def tf_verdict(res):
+    # khung lớn nhất mà phần lớn lệnh vẫn rơi đúng lúc mở nến (vào đúng mở nến H1 thì cũng đúng mở nến M1/M5/M15)
+    best = None
+    for name, per, hit, share, expect in res:
+        if share >= 0.7 and share > 3 * expect:
+            best = name
+    return best
+
+
+def write_tf_table(title, times, w):
+    if len(times) < 10:
+        w(f"{title}: chỉ có {len(times)} mốc, cần ≥ 10 để kết luận.\n")
+        return None
+    res = tf_alignment(times)
+    w(f"{title} ({len(times)} mốc):\n")
+    w(f"| Khung | Rơi vào {ALIGN_WINDOW}s đầu nến | Nếu ngẫu nhiên | Gấp |")
+    w("|---|---|---|---|")
+    for name, per, hit, share, expect in res:
+        w(f"| {name} | {hit} ({share:.0%}) | {expect:.1%} | {share / expect:.1f}× |")
+    v = tf_verdict(res)
+    w("")
+    if v:
+        w(f"**→ EA ra quyết định khi mở nến {v}** (khung lớn nhất mà ≥ 70% mốc rơi vào {ALIGN_WINDOW}s đầu nến). "
+          f"Đặt `InpEntryTF = {v}` cho logger nếu chưa đúng.\n")
+    else:
+        w("**→ Không khớp lúc mở nến khung nào**: EA chạy theo tick (vào lệnh giữa nến, khi giá chạm điều kiện), "
+          "hoặc vào bằng lệnh chờ được khớp (khi đó xem bảng thời điểm đặt lệnh chờ).\n")
+    return v
+
+
+def section_timeframe(rows, events_path, magic, symbol, w):
+    w("## 6. Dò khung thời gian EA\n")
+    # lệnh khớp từ lệnh chờ: giờ khớp do giá quyết định, nên xem thêm bảng "đặt / dời lệnh chờ" bên dưới
+    first = [int(r["time_msc"]) for r in rows if r["entry"] == "IN" and r["k_idx"] == "1"]
+    write_tf_table("Thời điểm lệnh đầu của rổ", first, w)
+    adds = [int(r["time_msc"]) for r in rows if r["entry"] == "IN" and int(r["k_idx"]) >= 2]
+    if adds:
+        write_tf_table("Thời điểm lệnh thêm vào rổ (lưới/DCA)", adds, w)
+    if events_path:
+        ev = [r for r in read_csv(events_path)
+              if r.get("kind") == "ORDER" and r.get("event") in ("NEW", "MODIFY")
+              and (magic is None or r.get("magic") == str(magic))
+              and (not symbol or r.get("symbol") == symbol) and r.get("time_msc")]
+        if ev:
+            write_tf_table("Thời điểm đặt / dời lệnh chờ", [int(r["time_msc"]) for r in ev], w)
+
+
+# ---------------------------------------------------------------------------
+# 7. Dò chỉ báo
+# ---------------------------------------------------------------------------
+def ks(a, b):
+    """Thống kê Kolmogorov–Smirnov 2 mẫu: 0 = cùng phân bố, 1 = tách hẳn."""
+    a, b = sorted(a), sorted(b)
+    i = j = 0
+    d = 0.0
+    while i < len(a) and j < len(b):
+        x = min(a[i], b[j])
+        while i < len(a) and a[i] <= x:
+            i += 1
+        while j < len(b) and b[j] <= x:
+            j += 1
+        d = max(d, abs(i / len(a) - j / len(b)))
+    return d
+
+
+def add_derived(row, cols):
+    """Thêm cột hiệu số: EMA/SMA nhanh − chậm cùng khung, ADX +DI − −DI, MACD/Stoch main − signal."""
+    out = {}
+    mas = defaultdict(list)
+    for c in cols:
+        p = c.split("_")  # i_EMA_H1_20
+        if len(p) == 4 and p[1] in ("EMA", "SMA"):
+            try:
+                mas[p[2]].append((float(p[3]), c))
+            except ValueError:
+                pass
+    for tf, lst in mas.items():
+        lst.sort()
+        for x in range(len(lst)):
+            for y in range(x + 1, len(lst)):
+                a, b = num(row.get(lst[x][1])), num(row.get(lst[y][1]))
+                out[f"d_{lst[x][1][2:]}-{lst[y][1][2:]}"] = None if None in (a, b) else a - b
+    for c in cols:
+        if c.endswith("_pdi"):
+            base = c[:-4]
+            a, b = num(row.get(c)), num(row.get(base + "_mdi"))
+            out[f"d_{base[2:]}_pdi-mdi"] = None if None in (a, b) else a - b
+        if c.endswith("_main"):
+            base = c[:-5]
+            a, b = num(row.get(c)), num(row.get(base + "_sig"))
+            out[f"d_{base[2:]}_main-sig"] = None if None in (a, b) else a - b
+    return out
+
+
+def feature_table(rows, cols):
+    tab = []
+    for r in rows:
+        v = {c: num(r.get(c)) for c in cols}
+        v.update(add_derived(r, cols))
+        tab.append(v)
+    return tab
+
+
+def suggest(ent, pop):
+    """Gợi ý điều kiện: (1) lệnh hầu như cùng dấu trong khi nền chung chia đôi — kiểu "EMA nhanh > chậm";
+    (2) lệnh chỉ nằm ở một phía của phân bố chung — kiểu "RSI ≤ 30"."""
+    parts = []
+    pos = sum(1 for x in ent if x > 0) / len(ent)
+    pop_pos = sum(1 for x in pop if x > 0) / len(pop)
+    if max(pos, 1 - pos) >= 0.9 and 0.2 <= pop_pos <= 0.8:
+        parts.append(f"**> 0** ở {pos:.0%} lệnh (nền chung {pop_pos:.0%})" if pos > 0.5
+                     else f"**< 0** ở {1 - pos:.0%} lệnh (nền chung {1 - pop_pos:.0%})")
+    e_lo, e_hi = q(ent, .05), q(ent, .95)
+    if e_hi is not None and e_hi < q(pop, .75) and hi(ent) < q(pop, .9):
+        parts.append(f"≤ {hi(ent):.4g}")
+    if e_lo is not None and e_lo > q(pop, .25) and lo(ent) > q(pop, .1):
+        parts.append(f"≥ {lo(ent):.4g}")
+    return "; ".join(parts) if parts else "—"
+
+
+def section_discover(rows, ctx_paths, w, top=12):
+    w("## 7. Dò chỉ báo EA dùng (lệnh đầu so với toàn bộ nến)\n")
+    bars = []
+    for p in ctx_paths:
+        bars += read_csv(p)
+    cols = [c for c in ind_columns(rows) if bars and c in bars[0]]
+    if not cols:
+        w("File ctxbars không có cột i_* trùng với file deals (cần cùng chuỗi InpIndicators).\n")
+        return
+    pop = feature_table(bars, cols)
+    w(f"Nền chung: {len(bars)} nến từ {len(ctx_paths)} file ctxbars. Cột KS: 0 = lúc vào lệnh giống mọi lúc khác "
+      "(chỉ báo không liên quan), càng gần 1 càng tách biệt (EA nhiều khả năng lọc theo chỉ báo này). "
+      "Cột `d_*` là hiệu số tự tạo (EMA nhanh − chậm, +DI − −DI, MACD/Stoch main − signal).\n")
+    for side in ("BUY", "SELL"):
+        ent_rows = [r for r in rows if r["entry"] == "IN" and r["k_idx"] == "1" and r["k_side"] == side]
+        if len(ent_rows) < 15:
+            w(f"### {side}: chỉ có {len(ent_rows)} lệnh đầu, cần ≥ 15 để dò.\n")
+            continue
+        ent = feature_table(ent_rows, cols)
+        ranked = []
+        for c in ent[0].keys():
+            a = [x[c] for x in ent if x.get(c) is not None]
+            b = [x[c] for x in pop if x.get(c) is not None]
+            if len(a) < 15 or len(b) < 50:
+                continue
+            ranked.append((ks(a, b), c, a, b))
+        ranked.sort(reverse=True)
+        w(f"### {side} ({len(ent_rows)} lệnh đầu)\n")
+        w("| # | Cột | KS | Lúc vào: p5 / trung vị / p95 | Mọi nến: p5 / trung vị / p95 | Gợi ý điều kiện |")
+        w("|---|---|---|---|---|---|")
+        for i, (d, c, a, b) in enumerate(ranked[:top], 1):
+            w(f"| {i} | `{c}` | {d:.2f} | {f(q(a, .05), 2)} / {f(q(a, .5), 2)} / {f(q(a, .95), 2)} | "
+              f"{f(q(b, .05), 2)} / {f(q(b, .5), 2)} / {f(q(b, .95), 2)} | {suggest(a, b)} |")
+        w("")
+    w("Cách đọc:")
+    w("- KS ≥ 0.5 và gợi ý rõ ràng (ví dụ `≤ 30` cho RSI BUY) → gần như chắc EA dùng điều kiện đó.")
+    w("- Nhiều cột cùng khung, cùng loại (EMA20, EMA50 H1) cùng cao → thường chỉ 1 điều kiện gốc (ví dụ EMA nhanh > chậm).")
+    w("- Mọi cột KS < 0.2 → EA không lọc theo các chỉ báo đã ghi: thử bộ chỉ báo/khung khác, hoặc EA vào lệnh theo "
+      "giờ/giá thuần (lưới, lệnh chờ quanh giá).")
+    w("- Cần ≥ 30 lệnh đầu mỗi chiều để tin được; KS cao với ít lệnh có thể là ngẫu nhiên.")
+    w("")
+
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -276,6 +462,7 @@ def main():
     ap.add_argument("--events", help="file <prefix>_events_v3.csv (để phân tích lệnh chờ)")
     ap.add_argument("--magic", type=int, help="chỉ phân tích magic này")
     ap.add_argument("--symbol", help="chỉ phân tích symbol này")
+    ap.add_argument("--ctxbars", nargs="*", default=[], help="file <prefix>_ctxbars_<symbol>_<TF>.csv (để dò chỉ báo)")
     ap.add_argument("--out", help="ghi báo cáo Markdown ra file")
     a = ap.parse_args()
 
@@ -292,6 +479,10 @@ def main():
         section_close(baskets, w)
     if a.events:
         section_pending(a.events, a.magic, a.symbol, w)
+    if rows:
+        section_timeframe(rows, a.events, a.magic, a.symbol, w)
+        if a.ctxbars:
+            section_discover(rows, a.ctxbars, w)
     text = "\n".join(lines)
     print(text)
     if a.out:
