@@ -11,6 +11,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <deque>
 #include <ctime>
 #include <map>
 #include <string>
@@ -34,7 +35,7 @@ typedef int color;
 // Mảng động MQL5: truy cập ngoài phạm vi = lỗi nghiêm trọng (MQL5 dừng chương trình).
 template <typename T>
 struct MqlArray {
-    std::vector<T> v;
+    std::deque<T> v;  // deque: tránh std::vector<bool> (không trả về bool&)
     T &operator[](long i) {
         if (i < 0 || i >= (long)v.size()) {
             fprintf(stderr, "CRITICAL: array out of range (%ld / %zu)\n", i, v.size());

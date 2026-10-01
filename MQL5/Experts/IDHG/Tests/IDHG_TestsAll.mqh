@@ -5,10 +5,12 @@
 #define IDHG_TESTS_ALL_MQH
 
 #include "IDHG_TestsPhase1.mqh"
+#include "IDHG_TestsPhase2.mqh"
 
 void IdhgRunAllSharedTests(void)
   {
    IdhgRunPhase1Tests();
+   IdhgRunPhase2Tests();
   }
 
 #endif
