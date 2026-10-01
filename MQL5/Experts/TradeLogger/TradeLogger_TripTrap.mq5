@@ -1,6 +1,6 @@
 //+------------------------------------------------------------------+
 //|                                         TradeLogger_TripTrap.mq5 |
-//| = TradeLogger_Universal 3.00, chi khac GIA TRI MAC DINH: cai san  |
+//| = TradeLogger_Universal 3.10, chi khac GIA TRI MAC DINH: cai san  |
 //| cho EA "GoldVault Trip Trap" (magic 202601, chart H1, file .set   |
 //| MQL5/Presets/GoldVault_TripTrap.set):                            |
 //|  - ATR(14) H1: kiem tra GridMode ATR (buoc = ATR x 1.5)          |
@@ -26,9 +26,13 @@
 //|  - Ro lenh: tuoi ro, bien do co loi toi da sau lenh cuoi          |
 //|    (doan trailing ao / TP ao)                                     |
 //|  - Xuat nen khung vao lenh kem chi bao, noi them lien tuc        |
+//| 3.10: che do AUTO cho EA KHONG co file .set (vd tai khoan         |
+//|  Passview): InpIndicators = "AUTO" -> bo quet rong 10 chi bao x   |
+//|  3 khung M15/H1/H4; xuat ctxbars nhieu khung (InpCtxTFs); tu do   |
+//|  magic / comment / chieu / khung ra quyet dinh -> <prefix>_auto.csv|
 //+------------------------------------------------------------------+
 #property copyright "TradeLogger"
-#property version   "3.00"
+#property version   "3.10"
 #property description "Ban cai san cho EA GoldVault Trip Trap (magic 202601, chart H1)."
 #property description "Chay duoc voi tai khoan dang nhap bang mat khau investor (chi doc)."
 
@@ -48,7 +52,7 @@ input string          InpSymbolFilter     = "";         // Chỉ ghi symbol này
 
 input group "Chỉ báo của EA cần phân tích"
 input ENUM_TIMEFRAMES InpEntryTF          = PERIOD_H1;  // Khung EA chạy (nến đã đóng, giây trong nến)
-input string          InpIndicators       = "ATR:H1:14,RSI:H1:14,ADX:H1:14,EMA:H1:50,EMA:H1:200"; // TYPE:TF:tham số,... (xem tài liệu)
+input string          InpIndicators       = "ATR:H1:14,RSI:H1:14,ADX:H1:14,EMA:H1:50,EMA:H1:200";     // AUTO = quét rộng M15/H1/H4 (EA không có .set); hoặc TYPE:TF:tham số,...
 input ENUM_DIST_UNIT  InpDistUnit         = UNIT_POINT; // Đơn vị khoảng cách
 input double          InpPipSize          = 0;          // Cỡ pip khi dùng pip (0 = tự động)
 
@@ -58,10 +62,14 @@ input ENUM_TIMEFRAMES InpBiasTF           = PERIOD_H4;  // Khung xu hướng l�
 
 input group "Xuất nến để so sánh (vào lệnh vs không vào lệnh)"
 input bool            InpExportBars       = true;       // Xuất nến InpFeatureTF kèm đặc trưng chung
-input bool            InpExportCtxBars    = true;       // Xuất nến InpEntryTF kèm chỉ báo InpIndicators (nối thêm liên tục)
+input bool            InpExportCtxBars    = true;       // Xuất nến kèm chỉ báo InpIndicators (nối thêm liên tục)
+input string          InpCtxTFs           = "H1"; // Các khung xuất ctxbars, cách nhau dấu phẩy (trống = InpEntryTF)
 input string          InpBarSymbols       = "";         // Symbol cần xuất, cách nhau dấu phẩy (trống = tự lấy từ lịch sử lệnh)
 input int             InpBarsLookbackDays = 3;          // Lấy thêm N ngày trước lệnh đầu tiên
 input int             InpBarsRefreshHours = 6;          // Xuất lại file nến chung mỗi N giờ
+
+input group "Tự dò (EA không có file .set)"
+input bool            InpAutoReport       = true;       // Ghi <prefix>_auto.csv: magic, comment, chiều, khung đoán được
 
 input group "Theo dõi"
 input int             InpTimerSeconds     = 5;          // Chu kỳ kiểm tra (giây)
@@ -85,7 +93,7 @@ bool     g_snapInit = false;
 int      g_waitTicks = 0;
 
 //--- chi bao tu khai bao (InpIndicators)
-#define MAX_SPECS 16
+#define MAX_SPECS 40
 enum ENUM_SPEC { SP_EMA, SP_SMA, SP_RSI, SP_ATR, SP_ADX, SP_CCI, SP_BB, SP_MACD, SP_STOCH };
 int             g_nSpec = 0;
 int             g_specType[MAX_SPECS];
@@ -98,6 +106,41 @@ struct SymInd
    int               h[MAX_SPECS];
   };
 SymInd   g_si[];
+
+//--- bo quet rong cho che do AUTO: 10 chi bao pho bien x 3 khung + ATR D1 = 31
+string AutoSpecs()
+  {
+   string tfs[] = {"M15", "H1", "H4"};
+   string s = "";
+   for(int i = 0; i < ArraySize(tfs); i++)
+     {
+      string t = tfs[i];
+      s += "EMA:" + t + ":20,EMA:" + t + ":50,EMA:" + t + ":200,RSI:" + t + ":14,ATR:" + t + ":14,ADX:" + t + ":14," +
+           "BB:" + t + ":20:2,MACD:" + t + ":12:26:9,STOCH:" + t + ":5:3:3,CCI:" + t + ":14,";
+     }
+   return s + "ATR:D1:14";
+  }
+
+string SpecString()
+  {
+   string s = InpIndicators;
+   StringTrimLeft(s);
+   StringTrimRight(s);
+   string u = s;
+   StringToUpper(u);
+   return (u == "" || u == "AUTO") ? AutoSpecs() : s;
+  }
+
+//--- cac khung xuat ctxbars
+ENUM_TIMEFRAMES g_ctxTF[];
+
+//--- tu do: moi lenh vao (IN) cua moi magic
+long     g_aMagic[];
+string   g_aSym[];
+int      g_aSide[];
+long     g_aMsc[];
+bool     g_aFirst[];
+string   g_aComment[];
 
 //--- phat lai lich su deal -> vi the dang mo (de tinh boi canh ro lenh)
 ulong    g_pId[];
@@ -454,7 +497,7 @@ void ParseSpecs()
   {
    g_nSpec = 0;
    string items[];
-   int n = StringSplit(InpIndicators, ',', items);
+   int n = StringSplit(SpecString(), ',', items);
    for(int i = 0; i < n && g_nSpec < MAX_SPECS; i++)
      {
       string it = items[i];
@@ -502,7 +545,9 @@ void ParseSpecs()
       g_specName[k] = name;
       g_nSpec++;
      }
-   PrintFormat("[TradeLogger] %d chi bao tu khai bao tu '%s'", g_nSpec, InpIndicators);
+   PrintFormat("[TradeLogger] %d chi bao (%s)", g_nSpec, InpIndicators);
+   if(n > MAX_SPECS)
+      PrintFormat("[TradeLogger] Chi lay %d chi bao dau tien", MAX_SPECS);
   }
 
 int MakeSpecHandle(const string sym, const int k)
@@ -572,10 +617,11 @@ string CtxHeader()
   }
 
 //--- t/tmsc: thoi diem ra quyet dinh; price: gia de do khoang cach toi MA/BB
-bool CtxFeatures(const string sym, const datetime t, const long tmsc, const double price, string &out)
+bool CtxFeatures(const string sym, const ENUM_TIMEFRAMES etf, const datetime t, const long tmsc, const double price,
+                 string &out)
   {
    out = "";
-   int se = iBarShift(sym, InpEntryTF, t, false);
+   int se = iBarShift(sym, etf, t, false);
    if(se < 0)
       return false;
    int digits = (int)SymbolInfoInteger(sym, SYMBOL_DIGITS);
@@ -583,15 +629,15 @@ bool CtxFeatures(const string sym, const datetime t, const long tmsc, const doub
       digits = 5;
    double unit = UnitOf(sym);
 
-   datetime openT = iTime(sym, InpEntryTF, se);
+   datetime openT = iTime(sym, etf, se);
    double   sec   = openT > 0 ? (tmsc - (long)openT * 1000) / 1000.0 : EMPTY_VALUE;
-   datetime cT    = iTime(sym, InpEntryTF, se + 1);
+   datetime cT    = iTime(sym, etf, se + 1);
    MqlDateTime mt;
    TimeToStruct(t, mt);
    out = IntegerToString(mt.hour) + "," + IntegerToString(mt.day_of_week) + "," + VD(sec, 3) + "," +
          (cT > 0 ? TS(cT) : "") + "," +
-         VD(iOpen(sym, InpEntryTF, se + 1), digits) + "," + VD(iHigh(sym, InpEntryTF, se + 1), digits) + "," +
-         VD(iLow(sym, InpEntryTF, se + 1), digits) + "," + VD(iClose(sym, InpEntryTF, se + 1), digits);
+         VD(iOpen(sym, etf, se + 1), digits) + "," + VD(iHigh(sym, etf, se + 1), digits) + "," +
+         VD(iLow(sym, etf, se + 1), digits) + "," + VD(iClose(sym, etf, se + 1), digits);
 
    int j = SpecIndex(sym);
    for(int k = 0; k < g_nSpec; k++)
@@ -649,6 +695,8 @@ string BasketHeader()
 
 void ResetReplay()
   {
+   ArrayResize(g_aMagic, 0); ArrayResize(g_aSym, 0); ArrayResize(g_aSide, 0);
+   ArrayResize(g_aMsc, 0);   ArrayResize(g_aFirst, 0); ArrayResize(g_aComment, 0);
    ArrayResize(g_pId, 0); ArrayResize(g_pSym, 0); ArrayResize(g_pMagic, 0); ArrayResize(g_pSide, 0);
    ArrayResize(g_pPrice, 0); ArrayResize(g_pVol, 0); ArrayResize(g_pIdx, 0); ArrayResize(g_pBasket, 0);
    ArrayResize(g_bKey, 0); ArrayResize(g_bCur, 0);
@@ -778,6 +826,7 @@ string Replay(const ulong t, long &magic)
          g_bFirstIn[slot] = dtime;
         }
       g_bLastIn[slot]   = dtime;
+      AutoNote(magic, sym, side, HistoryDealGetInteger(t, DEAL_TIME_MSC), cnt == 0, HistoryDealGetString(t, DEAL_COMMENT));
       g_bPeakDone[slot] = false;
       basket = g_bCur[slot];
       age = (double)(dtime - g_bFirstIn[slot]);
@@ -831,6 +880,104 @@ string Replay(const ulong t, long &magic)
           (cnt > 0 ? D(lastP, digits) : "") + "," + (cnt > 0 ? D(lastL, 2) : "") + "," +
           VD(distLast, 1) + "," + VD(distAvg, 1) + "," + VD(ratio, 4) + "," + VD(posPips, 1) + "," +
           IntegerToString(after) + "," + D(pip, 6) + "," + VD(age, 0) + "," + VD(peak, 1);
+  }
+
+//+------------------------------------------------------------------+
+//| Tu do cho EA khong co file .set                                    |
+//+------------------------------------------------------------------+
+void AutoNote(const long magic, const string sym, const int side, const long msc, const bool first, const string cmt)
+  {
+   int n = ArraySize(g_aMagic);
+   ArrayResize(g_aMagic, n + 1, 1000); ArrayResize(g_aSym, n + 1, 1000); ArrayResize(g_aSide, n + 1, 1000);
+   ArrayResize(g_aMsc, n + 1, 1000);   ArrayResize(g_aFirst, n + 1, 1000); ArrayResize(g_aComment, n + 1, 1000);
+   g_aMagic[n] = magic; g_aSym[n] = sym; g_aSide[n] = side; g_aMsc[n] = msc; g_aFirst[n] = first;
+   g_aComment[n] = Clean(cmt);
+  }
+
+//--- khung lon nhat ma >= 70% thoi diem roi vao 10 giay dau nen (va > 3 lan ngau nhien)
+string GuessTF(const long &msc[], const int cnt, double &share[])
+  {
+   ENUM_TIMEFRAMES tfs[] = {PERIOD_M1, PERIOD_M5, PERIOD_M15, PERIOD_M30, PERIOD_H1, PERIOD_H4, PERIOD_D1};
+   ArrayResize(share, ArraySize(tfs));
+   string best = "";
+   for(int i = 0; i < ArraySize(tfs); i++)
+     {
+      long per = PeriodSeconds(tfs[i]);
+      int hit = 0;
+      for(int k = 0; k < cnt; k++)
+         if((msc[k] / 1000) % per < 10)
+            hit++;
+      share[i] = cnt > 0 ? (double)hit / cnt : 0;
+      if(cnt >= 10 && share[i] >= 0.7 && share[i] > 3.0 * 10.0 / per)
+         best = TfName(tfs[i]);
+     }
+   return best == "" ? (cnt >= 10 ? "TICK" : "?") : best;
+  }
+
+void AutoReport()
+  {
+   if(!InpAutoReport)
+      return;
+   int n = ArraySize(g_aMagic);
+   string keys[];
+   int nk = 0;
+   for(int i = 0; i < n; i++)
+     {
+      string k = IntegerToString(g_aMagic[i]) + "|" + g_aSym[i];
+      bool found = false;
+      for(int j = 0; j < nk; j++)
+         if(keys[j] == k) { found = true; break; }
+      if(!found)
+        {
+         ArrayResize(keys, nk + 1);
+         keys[nk++] = k;
+        }
+     }
+   int h = OpenOut(FName("auto"), false);
+   if(h == INVALID_HANDLE)
+      return;
+   WriteLine(h, "magic,symbol,first_entries,buy_first,sell_first,adds,tf_guess_first,tf_guess_all,comment_sample,"
+             "share_M1,share_M5,share_M15,share_M30,share_H1,share_H4,share_D1");
+   for(int j = 0; j < nk; j++)
+     {
+      string p[];
+      StringSplit(keys[j], '|', p);
+      long mg = StringToInteger(p[0]);
+      long fm[], am[];
+      int nf = 0, na = 0, nb = 0, ns = 0, adds = 0;
+      string cmt = "";
+      for(int i = 0; i < n; i++)
+        {
+         if(g_aMagic[i] != mg || g_aSym[i] != p[1])
+            continue;
+         ArrayResize(am, na + 1, 1000);
+         am[na++] = g_aMsc[i];
+         if(g_aFirst[i])
+           {
+            ArrayResize(fm, nf + 1, 1000);
+            fm[nf++] = g_aMsc[i];
+            if(g_aSide[i] == 0) nb++; else ns++;
+            if(cmt == "" && g_aComment[i] != "")
+               cmt = g_aComment[i];
+           }
+         else
+            adds++;
+        }
+      double sh[], sha[];
+      string tf1 = GuessTF(fm, nf, sh);
+      string tfa = GuessTF(am, na, sha);
+      string line = IntegerToString(mg) + "," + p[1] + "," + IntegerToString(nf) + "," + IntegerToString(nb) + "," +
+                    IntegerToString(ns) + "," + IntegerToString(adds) + "," + tf1 + "," + tfa + "," + cmt;
+      for(int i = 0; i < ArraySize(sh); i++)
+         line += "," + D(sh[i], 3);
+      WriteLine(h, line);
+      PrintFormat("[TradeLogger AUTO] magic=%I64d %s: %d ro (BUY %d / SELL %d), %d lenh them; khung doan: %s; comment: '%s'",
+                  mg, p[1], nf, nb, ns, adds, tf1, cmt);
+     }
+   FileClose(h);
+   if(nk > 0)
+      PrintFormat("[TradeLogger AUTO] Da ghi %s (%d magic). Dat InpMagicFilter = magic can phan tich, "
+                  "InpEntryTF = khung doan (TICK = EA chay theo tick / lenh cho).", FName("auto"), nk);
   }
 
 //+------------------------------------------------------------------+
@@ -909,7 +1056,7 @@ bool DealLine(const ulong t, string &line, const bool live = false)
    string b;
    long   tmsc  = HistoryDealGetInteger(t, DEAL_TIME_MSC);
    double price = HistoryDealGetDouble(t, DEAL_PRICE);
-   if(CtxFeatures(sym, tm, tmsc, price, b))
+   if(CtxFeatures(sym, InpEntryTF, tm, tmsc, price, b))
       line += b;
    else
       line += EmptyCols(CtxHeader());
@@ -1124,7 +1271,7 @@ void DumpSymbols()
                 IntegerToString(AccountInfoInteger(ACCOUNT_LEVERAGE)) + "," +
                 Clean(AccountInfoString(ACCOUNT_SERVER)) + "," + D(PipOf(s), 6) + "," +
                 IntegerToString(InpMagicFilter) + "," + UnitName() + "," + D(UnitOf(s), 6) + "," +
-                TfName(InpEntryTF) + "," + Clean(InpIndicators));
+                TfName(InpEntryTF) + "," + Clean(SpecString()));
      }
    FileClose(h);
   }
@@ -1195,19 +1342,49 @@ string CtxBarHeader()
    return "symbol,bar_time,open,high,low,close,spread,tick_volume," + CtxHeader();
   }
 
+void ParseCtxTFs()
+  {
+   ArrayResize(g_ctxTF, 0);
+   string items[];
+   int n = StringSplit(InpCtxTFs, ',', items);
+   for(int i = 0; i < n; i++)
+     {
+      string it = items[i];
+      StringTrimLeft(it);
+      StringTrimRight(it);
+      ENUM_TIMEFRAMES tf;
+      if(StringLen(it) == 0 || !StrToTF(it, tf))
+         continue;
+      int m = ArraySize(g_ctxTF);
+      ArrayResize(g_ctxTF, m + 1);
+      g_ctxTF[m] = tf;
+     }
+   if(ArraySize(g_ctxTF) == 0)
+     {
+      ArrayResize(g_ctxTF, 1);
+      g_ctxTF[0] = InpEntryTF;
+     }
+  }
+
 void ExportCtxBars()
+  {
+   for(int i = 0; i < ArraySize(g_ctxTF); i++)
+      ExportCtxBarsTF(g_ctxTF[i]);
+  }
+
+void ExportCtxBarsTF(const ENUM_TIMEFRAMES tf)
   {
    string syms[];
    BarSymbols(syms);
-   const ENUM_TIMEFRAMES tf = InpEntryTF;
    const int per = PeriodSeconds(tf);
    for(int i = 0; i < ArraySize(syms); i++)
      {
       string s = syms[i];
       string name = FName("ctxbars_" + s + "_" + TfName(tf));
+      string key  = s + "|" + TfName(tf);
       int slot = -1;
       for(int j = 0; j < ArraySize(g_bbSym); j++)
-         if(g_bbSym[j] == s) { slot = j; break; }
+         if(g_bbSym[j] == key) { slot = j; break; }
 
       int h, first;
       if(slot < 0)
@@ -1230,7 +1407,7 @@ void ExportCtxBars()
          slot = ArraySize(g_bbSym);
          ArrayResize(g_bbSym, slot + 1);
          ArrayResize(g_bbLast, slot + 1);
-         g_bbSym[slot]  = s;
+         g_bbSym[slot]  = key;
          g_bbLast[slot] = 0;
         }
       else
@@ -1255,7 +1432,7 @@ void ExportCtxBars()
          // dac trung tai thoi diem nen nay vua dong (= luc EA ra quyet dinh)
          datetime tclose = r[k].time + per;
          string f;
-         if(!CtxFeatures(s, tclose, (long)tclose * 1000, r[k].close, f))
+         if(!CtxFeatures(s, tf, tclose, (long)tclose * 1000, r[k].close, f))
             f = EmptyCols(CtxHeader());
          WriteLine(h, s + "," + TS(r[k].time) + "," + D(r[k].open, digits) + "," + D(r[k].high, digits) + "," +
                    D(r[k].low, digits) + "," + D(r[k].close, digits) + "," + IntegerToString(r[k].spread) + "," +
@@ -1456,6 +1633,7 @@ int OnInit()
             IndicatorRelease(g_si[i].h[k]);
    ArrayResize(g_si, 0);
    ParseSpecs();
+   ParseCtxTFs();
    ArrayResize(g_bbSym, 0);
    ArrayResize(g_bbLast, 0);
    ArrayResize(g_sMagic, 0);
@@ -1510,6 +1688,7 @@ void OnTimer()
          PrintFormat("[TradeLogger] Het thoi gian cho, van ghi file. Con thieu: %s", g_notReady);
       DumpSymbols();
       DumpAllDeals();
+      AutoReport();
       DumpOrders();
       if(InpExportBars)
          ExportBars();
@@ -1528,6 +1707,7 @@ void OnTimer()
      {
       DumpOrders();
       DumpSymbols();
+      AutoReport();
       g_ordersDirty = false;
      }
    if(InpExportCtxBars)

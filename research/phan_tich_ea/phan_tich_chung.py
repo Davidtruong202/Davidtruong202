@@ -6,6 +6,11 @@ Chỉ dùng thư viện chuẩn (không cần pandas).
     python3 phan_tich_chung.py triptrap_deals.csv --events triptrap_events_v3.csv --magic 202601 --out bao_cao.md
     python3 phan_tich_chung.py x_deals.csv --events x_events_v3.csv --ctxbars x_ctxbars_XAUUSD_H1.csv --out bao_cao.md
 
+EA không có file .set (logger để InpIndicators = AUTO): chỉ cần tiền tố file, script tự tìm deals / events_v3 /
+ctxbars / auto và phân tích lần lượt từng magic:
+
+    python3 phan_tich_chung.py --prefix "C:/.../MQL5/Files/tradelog" --out bao_cao.md
+
 Các mục của báo cáo:
   0. Tổng quan: số rổ, chiều, độ sâu rổ.
   1. Lệnh đầu: giờ/thứ, giây trong nến (vào lúc mở nến hay giữa nến), chỉ báo lúc vào (cột i_*), spread.
@@ -20,6 +25,8 @@ Mọi khoảng cách theo đơn vị logger đã chọn (cột k_unit / unit: po
 """
 import argparse
 import csv
+import glob
+import os
 import sys
 from collections import Counter, defaultdict
 
@@ -327,7 +334,7 @@ def section_timeframe(rows, events_path, magic, symbol, w):
     w("## 6. Dò khung thời gian EA\n")
     # lệnh khớp từ lệnh chờ: giờ khớp do giá quyết định, nên xem thêm bảng "đặt / dời lệnh chờ" bên dưới
     first = [int(r["time_msc"]) for r in rows if r["entry"] == "IN" and r["k_idx"] == "1"]
-    write_tf_table("Thời điểm lệnh đầu của rổ", first, w)
+    verdict = write_tf_table("Thời điểm lệnh đầu của rổ", first, w)
     adds = [int(r["time_msc"]) for r in rows if r["entry"] == "IN" and int(r["k_idx"]) >= 2]
     if adds:
         write_tf_table("Thời điểm lệnh thêm vào rổ (lưới/DCA)", adds, w)
@@ -337,7 +344,9 @@ def section_timeframe(rows, events_path, magic, symbol, w):
               and (magic is None or r.get("magic") == str(magic))
               and (not symbol or r.get("symbol") == symbol) and r.get("time_msc")]
         if ev:
-            write_tf_table("Thời điểm đặt / dời lệnh chờ", [int(r["time_msc"]) for r in ev], w)
+            v2 = write_tf_table("Thời điểm đặt / dời lệnh chờ", [int(r["time_msc"]) for r in ev], w)
+            verdict = verdict or v2
+    return verdict
 
 
 # ---------------------------------------------------------------------------
@@ -413,11 +422,27 @@ def suggest(ent, pop):
     return "; ".join(parts) if parts else "—"
 
 
-def section_discover(rows, ctx_paths, w, top=12):
+def pick_ctx(ctx_paths, symbol, tf):
+    """Chọn 1 file ctxbars (không trộn nhiều khung): đúng symbol, ưu tiên khung đoán được, rồi H1."""
+    cands = [p for p in ctx_paths if not symbol or f"_ctxbars_{symbol}_" in os.path.basename(p)] or list(ctx_paths)
+    for want in (tf, "H1"):
+        if want:
+            m = [p for p in cands if os.path.basename(p).endswith(f"_{want}.csv")]
+            if m:
+                return m[0]
+    return cands[0] if cands else None
+
+
+def section_discover(rows, ctx_paths, w, tf=None, top=12):
     w("## 7. Dò chỉ báo EA dùng (lệnh đầu so với toàn bộ nến)\n")
-    bars = []
-    for p in ctx_paths:
-        bars += read_csv(p)
+    symbol = Counter(r["symbol"] for r in rows).most_common(1)[0][0]
+    path = pick_ctx(ctx_paths, symbol, tf)
+    if not path:
+        w("Không có file ctxbars.\n")
+        return
+    w(f"File nền chung: `{os.path.basename(path)}`" + (f" (khớp khung đoán được {tf})" if tf and path.endswith(f"_{tf}.csv") else "") + "\n")
+    bars = [b for b in read_csv(path) if b.get("symbol", symbol) == symbol]
+    ctx_paths = [path]
     cols = [c for c in ind_columns(rows) if bars and c in bars[0]]
     if not cols:
         w("File ctxbars không có cột i_* trùng với file deals (cần cùng chuỗi InpIndicators).\n")
@@ -456,33 +481,86 @@ def section_discover(rows, ctx_paths, w, top=12):
     w("")
 
 
+def find_files(prefix):
+    """Từ tiền tố file logger (vd .../MQL5/Files/tradelog) tìm deals, events_v3, ctxbars, auto."""
+    deals = prefix + "_deals.csv"
+    events = prefix + "_events_v3.csv"
+    ctx = sorted(glob.glob(glob.escape(prefix) + "_ctxbars_*.csv"))
+    auto = prefix + "_auto.csv"
+    return (deals if os.path.exists(deals) else None, events if os.path.exists(events) else None, ctx,
+            auto if os.path.exists(auto) else None)
+
+
+def section_auto(path, w):
+    w("## Magic có trong tài khoản (file auto của logger)\n")
+    rows = read_csv(path)
+    w("| Magic | Symbol | Rổ | BUY / SELL | Lệnh thêm | Khung đoán (lệnh đầu) | Comment |")
+    w("|---|---|---|---|---|---|---|")
+    for r in sorted(rows, key=lambda r: -int(r["first_entries"] or 0)):
+        w(f"| {r['magic']} | {r['symbol']} | {r['first_entries']} | {r['buy_first']} / {r['sell_first']} | "
+          f"{r['adds']} | {r['tf_guess_first']} | {r['comment_sample']} |")
+    w("\nTICK = không khớp lúc mở nến khung nào (EA chạy theo tick hoặc lệnh chờ); ? = chưa đủ 10 rổ.\n")
+
+
+def report_one(rows, a, events, ctx, w):
+    baskets = section_overview(rows, w)
+    section_first(rows, w)
+    section_grid(rows, w)
+    section_close(baskets, w)
+    magic = int(rows[0]["magic"]) if a.magic is None else a.magic
+    if events:
+        section_pending(events, magic, a.symbol, w)
+    tf = section_timeframe(rows, events, magic, a.symbol, w)
+    if ctx:
+        section_discover(rows, ctx, w, tf)
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("deals", help="file <prefix>_deals.csv")
+    ap.add_argument("deals", nargs="?", help="file <prefix>_deals.csv (bỏ trống nếu dùng --prefix)")
+    ap.add_argument("--prefix", help="tiền tố file logger, vd C:/.../MQL5/Files/tradelog: tự tìm mọi file")
     ap.add_argument("--events", help="file <prefix>_events_v3.csv (để phân tích lệnh chờ)")
-    ap.add_argument("--magic", type=int, help="chỉ phân tích magic này")
+    ap.add_argument("--magic", type=int, help="chỉ phân tích magic này (bỏ trống = lần lượt từng magic)")
     ap.add_argument("--symbol", help="chỉ phân tích symbol này")
     ap.add_argument("--ctxbars", nargs="*", default=[], help="file <prefix>_ctxbars_<symbol>_<TF>.csv (để dò chỉ báo)")
+    ap.add_argument("--min-deals", type=int, default=20, help="bỏ qua magic có ít deal hơn (mặc định 20)")
     ap.add_argument("--out", help="ghi báo cáo Markdown ra file")
     a = ap.parse_args()
 
-    rows = load_deals(a.deals, a.magic, a.symbol)
+    auto = None
+    deals, events, ctx = a.deals, a.events, list(a.ctxbars)
+    if a.prefix:
+        d2, e2, c2, auto = find_files(a.prefix)
+        deals = deals or d2
+        events = events or e2
+        ctx = ctx or c2
+    if not deals:
+        ap.error("cần file deals hoặc --prefix trỏ tới nơi có <prefix>_deals.csv")
+
     lines = []
     w = lines.append
-    w(f"# Phân tích log EA — {a.deals}\n")
+    w(f"# Phân tích log EA — {deals}\n")
+    if auto:
+        section_auto(auto, w)
+
+    rows = load_deals(deals, a.magic, a.symbol)
     if not rows:
         w("Không có deal nào khớp bộ lọc.\n")
+    elif a.magic is not None:
+        report_one(rows, a, events, ctx, w)
     else:
-        baskets = section_overview(rows, w)
-        section_first(rows, w)
-        section_grid(rows, w)
-        section_close(baskets, w)
-    if a.events:
-        section_pending(a.events, a.magic, a.symbol, w)
-    if rows:
-        section_timeframe(rows, a.events, a.magic, a.symbol, w)
-        if a.ctxbars:
-            section_discover(rows, a.ctxbars, w)
+        by_magic = defaultdict(list)
+        for r in rows:
+            by_magic[r["magic"]].append(r)
+        order = sorted(by_magic, key=lambda m: -len(by_magic[m]))
+        skipped = [m for m in order if len(by_magic[m]) < a.min_deals]
+        for m in order:
+            if len(by_magic[m]) < a.min_deals:
+                continue
+            w(f"\n---\n\n# Magic {m} ({len(by_magic[m])} deal)\n")
+            report_one(by_magic[m], a, events, ctx, w)
+        if skipped:
+            w(f"\nBỏ qua magic ít hơn {a.min_deals} deal: {', '.join(skipped)}\n")
     text = "\n".join(lines)
     print(text)
     if a.out:

@@ -19,7 +19,7 @@ nguyên văn lỗi để tôi sửa.
 | `InpMagicFilter` | Magic của EA. Chưa biết thì để `0`, chạy một lúc, xem cột `magic` trong `<prefix>_deals.csv`, rồi đặt lại |
 | `InpSymbolFilter` | Symbol EA chạy (trống = tất cả) |
 | `InpEntryTF` | **Khung chart gắn EA** (ví dụ H1). Dùng để đo "giây kể từ mở nến" và lấy nến đã đóng |
-| `InpIndicators` | Chỉ báo EA dùng, lấy từ file .set / mô tả EA (cú pháp bên dưới) |
+| `InpIndicators` | Chỉ báo EA dùng, lấy từ file .set / mô tả EA (cú pháp bên dưới). Không biết thì để `AUTO` |
 | `InpDistUnit` | `Point` nếu file .set của EA ghi khoảng cách bằng point; `Pip` nếu ghi bằng pip |
 | `InpFeatureTF` / `InpBiasTF` | Khung cho bộ đặc trưng chung (ATR/RSI/EMA20-50-200/BB/MACD/Stoch/PDH-PDL) |
 
@@ -27,7 +27,7 @@ Nhớ tăng Tools → Options → Charts → **Max bars in chart** để đủ l
 
 ### Cú pháp `InpIndicators`
 
-`LOẠI:KHUNG:tham số`, nhiều chỉ báo cách nhau dấu phẩy, tối đa 16. Thiếu tham số thì dùng giá trị mặc định.
+`LOẠI:KHUNG:tham số`, nhiều chỉ báo cách nhau dấu phẩy, tối đa 40. Để `AUTO` thì logger tự dùng bộ quét rộng (xem mục EA không có file .set). Thiếu tham số thì dùng giá trị mặc định.
 
 | Loại | Tham số (mặc định) | Cột ghi ra |
 |---|---|---|
@@ -84,33 +84,43 @@ lot × 1.6, trailing bắt đầu 100 bước 50. Báo cáo tìm lại được:
 
 Phần MQL5 chưa được kiểm thử.
 
-## Chỉ có tài khoản Passview (không có file .set)
+## EA hoàn toàn không có file .set (ví dụ chỉ có tài khoản Passview) — chế độ AUTO
 
 Logger đọc lệnh trên server, nên đăng nhập bằng mật khẩu investor vẫn ghi đủ. Những gì không thấy được là input, khung
-chart và chỉ báo của EA. Hai mục cuối của báo cáo tự dò các thông tin này:
+chart và chỉ báo của EA. Bản Universal 3.10 **mặc định đã ở chế độ AUTO**, không cần biết gì về EA:
 
-1. Chạy logger với `InpMagicFilter = 0`, `InpDistUnit = Point`, `InpExportCtxBars = true`, `InpEntryTF = H1`, và một
-   bộ chỉ báo quét rộng (đủ 16, mức tối đa):
+| Input | Mặc định | Tác dụng |
+|---|---|---|
+| `InpIndicators` | `AUTO` | Bộ quét rộng 31 cột: EMA20/50/200, RSI14, ATR14, ADX14, BB20/2, MACD 12/26/9, Stoch 5/3/3, CCI14 trên **M15, H1, H4**, cộng ATR D1 |
+| `InpCtxTFs` | `M15,H1,H4` | Xuất file nến kèm chỉ báo cho **cả 3 khung**, để so với khung EA thật sự dùng |
+| `InpAutoReport` | true | Ghi `<prefix>_auto.csv` và in vào tab Experts: mọi magic trong tài khoản, comment lệnh (thường lộ tên EA), số rổ BUY/SELL, số lệnh thêm, **khung đoán được** |
+| `InpMagicFilter` | 0 | Ghi tất cả magic; báo cáo sẽ tách riêng từng magic |
+
+Các bước:
+
+1. Gắn `TradeLogger_Universal.mq5` lên một chart bất kỳ của tài khoản Passview, chỉ đổi `InpFilePrefix` nếu muốn.
+   Nên chạy liên tục (VPS là tốt nhất).
+2. Xem tab Experts: dòng `[TradeLogger AUTO] magic=... khung doan: H1; comment: '...'` cho biết ngay có những EA nào
+   và mỗi EA ra quyết định theo khung nào (`TICK` = chạy theo tick hoặc lệnh chờ).
+3. Sau vài ngày đến vài tuần, chạy báo cáo, chỉ cần tiền tố file:
 
    ```
-   EMA:M15:20,EMA:M15:50,EMA:H1:20,EMA:H1:50,EMA:H1:200,EMA:H4:50,RSI:M15:14,RSI:H1:14,RSI:H4:14,ATR:H1:14,ATR:D1:14,ADX:H1:14,BB:H1:20:2,MACD:H1:12:26:9,STOCH:H1:5:3:3,CCI:H1:14
+   python3 research/phan_tich_ea/phan_tich_chung.py --prefix "C:/.../MQL5/Files/tradelog" --out bao_cao.md
    ```
 
-2. Sau vài ngày, chạy báo cáo:
-
-   ```
-   python3 research/phan_tich_ea/phan_tich_chung.py x_deals.csv --events x_events_v3.csv --ctxbars x_ctxbars_XAUUSD_H1.csv --out bao_cao.md
-   ```
-
-3. **Mục 6 — dò khung thời gian:** với từng khung M1…D1, đếm tỉ lệ lệnh rơi vào 10 giây đầu nến, rồi so với tỉ lệ nếu
-   ngẫu nhiên. Khung lớn nhất có ≥ 70% lệnh rơi đúng lúc mở nến chính là khung EA ra quyết định. Nếu khung đó khác H1,
-   đặt lại `InpEntryTF` và **đổi khung trong `InpIndicators`** cho khớp, rồi thu log lại. Nếu không khung nào khớp, EA
-   chạy theo tick hoặc vào bằng lệnh chờ. Khi có file events, script cũng dò thời điểm đặt và dời lệnh chờ.
-4. **Mục 7 — dò chỉ báo:** với từng cột chỉ báo `i_*`, và các cột hiệu số tự tạo `d_*` (EMA nhanh − chậm, +DI − −DI,
-   MACD/Stoch main − signal), so phân bố lúc vào lệnh đầu với phân bố trên mọi nến (file ctxbars). Script tính thống kê
-   KS, xếp hạng các cột, tách riêng BUY và SELL, rồi gợi ý điều kiện như `≤ 30`, `≥ 70`, `> 0 ở 100% lệnh`.
-5. Bỏ những chỉ báo có KS thấp, thay bằng chỉ báo hoặc khung khác (giữ trong giới hạn 16), rồi thu log tiếp cho đến
-   khi các cột đứng đầu ổn định.
+   Script tự tìm `tradelog_deals.csv`, `tradelog_events_v3.csv`, `tradelog_ctxbars_*.csv`, `tradelog_auto.csv`, rồi
+   phân tích **lần lượt từng magic** (bỏ qua magic có dưới 20 deal; đổi bằng `--min-deals`). Chỉ phân tích một EA thì
+   thêm `--magic <số>`.
+4. Đọc mục 6 và 7 của báo cáo:
+   - **Mục 6 — dò khung thời gian:** với từng khung M1…D1, đếm tỉ lệ lệnh rơi vào 10 giây đầu nến, rồi so với tỉ lệ
+     nếu ngẫu nhiên. Khung lớn nhất có ≥ 70% lệnh rơi đúng lúc mở nến chính là khung EA ra quyết định. Có file events
+     thì script dò cả thời điểm đặt và dời lệnh chờ.
+   - **Mục 7 — dò chỉ báo:** tự chọn file ctxbars **đúng khung vừa đoán được**. Với từng cột chỉ báo `i_*` và cột hiệu
+     số tự tạo `d_*` (EMA nhanh − chậm, +DI − −DI, MACD/Stoch main − signal), so phân bố lúc vào lệnh đầu với phân bố
+     trên mọi nến. Script tính KS, xếp hạng các cột, tách riêng BUY và SELL, rồi gợi ý điều kiện như `≤ 30`, `≥ 70`,
+     `> 0 ở 100% lệnh`.
+5. Nếu khung đoán được nằm ngoài M15/H1/H4 (ví dụ M5 hoặc D1), hoặc mọi cột đều có KS thấp, đổi `InpIndicators` sang
+   danh sách tự khai báo với khung đó (tối đa 40 chỉ báo), rồi thu log tiếp.
 
 Kiểm thử bằng một EA ẩn có quy tắc đã biết. Quy tắc: vào lệnh lúc mở nến H1; BUY khi RSI H1 < 30 và EMA20 > EMA50,
 SELL khi RSI H1 > 70 và EMA20 < EMA50. Dữ liệu: 30 000 nến H1, 209 lệnh đầu. Báo cáo tìm ra:
@@ -118,6 +128,10 @@ SELL khi RSI H1 > 70 và EMA20 < EMA50. Dữ liệu: 30 000 nến H1, 209 lệnh
 - BUY: `RSI ≤ 30`, `EMA20 − EMA50 > 0 ở 100% lệnh`;
 - SELL: `RSI ≥ 70.07`, `EMA20 − EMA50 < 0 ở 100% lệnh`;
 - ADX và Stoch (không liên quan) đều có KS < 0.15.
+
+Thử thêm `--prefix` trên một thư mục log trộn 2 EA (EA ẩn trên + một EA kiểu Trip Trap). Script tự tách 2 magic, đoán
+`H1` cho EA ẩn và `TICK` cho EA lệnh chờ, rồi chọn đúng file ctxbars H1 để dò. Phần AUTO trong MQL5 (bộ quét rộng,
+file `_auto.csv`, ctxbars nhiều khung) **chưa được compile hay chạy thử**.
 
 Giới hạn của việc dò:
 - Chỉ tìm được chỉ báo **có trong danh sách đã ghi**. Chỉ báo tự viết (.ex5 riêng) thì không dò được.
