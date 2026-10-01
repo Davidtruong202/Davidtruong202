@@ -6,11 +6,13 @@
 
 #include "IDHG_TestsPhase1.mqh"
 #include "IDHG_TestsPhase2.mqh"
+#include "IDHG_TestsPhase3.mqh"
 
 void IdhgRunAllSharedTests(void)
   {
    IdhgRunPhase1Tests();
    IdhgRunPhase2Tests();
+   IdhgRunPhase3Tests();
   }
 
 #endif

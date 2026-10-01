@@ -343,8 +343,8 @@ public:
    void              SetThrottle(const int sec) { m_throttleSec = sec; }
    void              SetQuiet(const bool q) { m_quiet = q; }
    //--- In ngay (sự kiện quan trọng: gửi lệnh, xác nhận, lỗi)
-   void              Info(const string msg) { if(!m_quiet) Print("[IDHG] ", msg); }
-   void              Warn(const string msg) { if(!m_quiet) Print("[IDHG][CẢNH BÁO] ", msg); }
+   void              Info(const string msg) const { if(!m_quiet) Print("[IDHG] ", msg); }
+   void              Warn(const string msg) const { if(!m_quiet) Print("[IDHG][CẢNH BÁO] ", msg); }
    //--- In có giới hạn theo key (sự kiện lặp lại mỗi tick)
    bool              Throttled(const string key, const string msg, const datetime now)
      {
