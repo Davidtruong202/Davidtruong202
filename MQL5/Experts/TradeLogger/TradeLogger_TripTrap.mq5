@@ -1,11 +1,11 @@
 //+------------------------------------------------------------------+
 //|                                         TradeLogger_TripTrap.mq5 |
-//| = TradeLogger_Universal 3.10, chi khac GIA TRI MAC DINH: cai san  |
-//| cho EA "GoldVault Trip Trap" (magic 202601, chart H1, file .set   |
-//| MQL5/Presets/GoldVault_TripTrap.set):                            |
-//|  - ATR(14) H1: kiem tra GridMode ATR (buoc = ATR x 1.5)          |
-//|  - RSI(14) H1 70/30, ADX(14) H1 25: bo loc RSI/ADX cua EA        |
-//|  - Don vi POINT, dung don vi cua file .set (100/200/300 point)   |
+//| = TradeLogger_Universal 3.11, chi khac GIA TRI MAC DINH: cai san  |
+//| cho EA "GoldVault Trip Trap" (magic 202601, chart M5 theo huong   |
+//| dan tac gia, file .set MQL5/Presets/GoldVault_TripTrap.set):      |
+//|  - ATR(14) M5: kiem tra GridMode ATR (buoc = ATR x 1.5)          |
+//|  - RSI(14) M5 70/30, ADX(14) M5 25: bo loc RSI/ADX cua EA        |
+//|  - Them EMA50/200 M5 va RSI/ADX H1 de xem boi canh               |
 //|  - Lenh cho BUY/SELL STOP: khoang cach dat, nguong refresh       |
 //|  - Ghost Trail ao: k_peak_after_last so voi gia dong             |
 //+------------------------------------------------------------------+
@@ -28,12 +28,13 @@
 //|  - Xuat nen khung vao lenh kem chi bao, noi them lien tuc        |
 //| 3.10: che do AUTO cho EA KHONG co file .set (vd tai khoan         |
 //|  Passview): InpIndicators = "AUTO" -> bo quet rong 10 chi bao x   |
-//|  3 khung M15/H1/H4; xuat ctxbars nhieu khung (InpCtxTFs); tu do   |
+//|  4 khung M5/M15/H1/H4 (3.11 them M5); xuat ctxbars nhieu khung;   |
+//|  tu do                                                            |
 //|  magic / comment / chieu / khung ra quyet dinh -> <prefix>_auto.csv|
 //+------------------------------------------------------------------+
 #property copyright "TradeLogger"
-#property version   "3.10"
-#property description "Ban cai san cho EA GoldVault Trip Trap (magic 202601, chart H1)."
+#property version   "3.11"
+#property description "Ban cai san cho EA GoldVault Trip Trap (magic 202601, chart M5)."
 #property description "Chay duoc voi tai khoan dang nhap bang mat khau investor (chi doc)."
 
 enum ENUM_DIST_UNIT
@@ -51,19 +52,19 @@ input long            InpMagicFilter      = 202601;          // Chỉ ghi magic 
 input string          InpSymbolFilter     = "";         // Chỉ ghi symbol này (trống = tất cả)
 
 input group "Chỉ báo của EA cần phân tích"
-input ENUM_TIMEFRAMES InpEntryTF          = PERIOD_H1;  // Khung EA chạy (nến đã đóng, giây trong nến)
-input string          InpIndicators       = "ATR:H1:14,RSI:H1:14,ADX:H1:14,EMA:H1:50,EMA:H1:200";     // AUTO = quét rộng M15/H1/H4 (EA không có .set); hoặc TYPE:TF:tham số,...
+input ENUM_TIMEFRAMES InpEntryTF          = PERIOD_M5;  // Khung EA chạy (nến đã đóng, giây trong nến)
+input string          InpIndicators       = "ATR:M5:14,RSI:M5:14,ADX:M5:14,EMA:M5:50,EMA:M5:200,RSI:H1:14,ADX:H1:14";     // AUTO = quét rộng M5/M15/H1/H4 (EA không có .set); hoặc TYPE:TF:tham số,...
 input ENUM_DIST_UNIT  InpDistUnit         = UNIT_POINT; // Đơn vị khoảng cách
 input double          InpPipSize          = 0;          // Cỡ pip khi dùng pip (0 = tự động)
 
 input group "Đặc trưng thị trường chung"
-input ENUM_TIMEFRAMES InpFeatureTF        = PERIOD_H1;  // Khung tính đặc trưng lúc vào lệnh
-input ENUM_TIMEFRAMES InpBiasTF           = PERIOD_H4;  // Khung xu hướng lớn
+input ENUM_TIMEFRAMES InpFeatureTF        = PERIOD_M5;  // Khung tính đặc trưng lúc vào lệnh
+input ENUM_TIMEFRAMES InpBiasTF           = PERIOD_H1;  // Khung xu hướng lớn
 
 input group "Xuất nến để so sánh (vào lệnh vs không vào lệnh)"
 input bool            InpExportBars       = true;       // Xuất nến InpFeatureTF kèm đặc trưng chung
 input bool            InpExportCtxBars    = true;       // Xuất nến kèm chỉ báo InpIndicators (nối thêm liên tục)
-input string          InpCtxTFs           = "H1"; // Các khung xuất ctxbars, cách nhau dấu phẩy (trống = InpEntryTF)
+input string          InpCtxTFs           = "M5"; // Các khung xuất ctxbars, cách nhau dấu phẩy (trống = InpEntryTF)
 input string          InpBarSymbols       = "";         // Symbol cần xuất, cách nhau dấu phẩy (trống = tự lấy từ lịch sử lệnh)
 input int             InpBarsLookbackDays = 3;          // Lấy thêm N ngày trước lệnh đầu tiên
 input int             InpBarsRefreshHours = 6;          // Xuất lại file nến chung mỗi N giờ
@@ -93,7 +94,7 @@ bool     g_snapInit = false;
 int      g_waitTicks = 0;
 
 //--- chi bao tu khai bao (InpIndicators)
-#define MAX_SPECS 40
+#define MAX_SPECS 48
 enum ENUM_SPEC { SP_EMA, SP_SMA, SP_RSI, SP_ATR, SP_ADX, SP_CCI, SP_BB, SP_MACD, SP_STOCH };
 int             g_nSpec = 0;
 int             g_specType[MAX_SPECS];
@@ -107,10 +108,10 @@ struct SymInd
   };
 SymInd   g_si[];
 
-//--- bo quet rong cho che do AUTO: 10 chi bao pho bien x 3 khung + ATR D1 = 31
+//--- bo quet rong cho che do AUTO: 10 chi bao pho bien x 4 khung + ATR D1 = 41
 string AutoSpecs()
   {
-   string tfs[] = {"M15", "H1", "H4"};
+   string tfs[] = {"M5", "M15", "H1", "H4"};
    string s = "";
    for(int i = 0; i < ArraySize(tfs); i++)
      {

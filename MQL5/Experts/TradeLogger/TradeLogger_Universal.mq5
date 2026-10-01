@@ -18,11 +18,12 @@
 //|  - Xuat nen khung vao lenh kem chi bao, noi them lien tuc        |
 //| 3.10: che do AUTO cho EA KHONG co file .set (vd tai khoan         |
 //|  Passview): InpIndicators = "AUTO" -> bo quet rong 10 chi bao x   |
-//|  3 khung M15/H1/H4; xuat ctxbars nhieu khung (InpCtxTFs); tu do   |
+//|  4 khung M5/M15/H1/H4 (3.11 them M5); xuat ctxbars nhieu khung;   |
+//|  tu do                                                            |
 //|  magic / comment / chieu / khung ra quyet dinh -> <prefix>_auto.csv|
 //+------------------------------------------------------------------+
 #property copyright "TradeLogger"
-#property version   "3.10"
+#property version   "3.11"
 #property description "Ghi log lenh (deal/order/position) + dac trung thi truong ra CSV, cho moi loai EA."
 #property description "Chay duoc voi tai khoan dang nhap bang mat khau investor (chi doc)."
 
@@ -42,7 +43,7 @@ input string          InpSymbolFilter     = "";         // Chỉ ghi symbol này
 
 input group "Chỉ báo của EA cần phân tích"
 input ENUM_TIMEFRAMES InpEntryTF          = PERIOD_H1;  // Khung EA chạy (nến đã đóng, giây trong nến)
-input string          InpIndicators       = "AUTO";     // AUTO = quét rộng M15/H1/H4 (EA không có .set); hoặc TYPE:TF:tham số,...
+input string          InpIndicators       = "AUTO";     // AUTO = quét rộng M5/M15/H1/H4 (EA không có .set); hoặc TYPE:TF:tham số,...
 input ENUM_DIST_UNIT  InpDistUnit         = UNIT_POINT; // Đơn vị khoảng cách
 input double          InpPipSize          = 0;          // Cỡ pip khi dùng pip (0 = tự động)
 
@@ -53,7 +54,7 @@ input ENUM_TIMEFRAMES InpBiasTF           = PERIOD_H4;  // Khung xu hướng l�
 input group "Xuất nến để so sánh (vào lệnh vs không vào lệnh)"
 input bool            InpExportBars       = true;       // Xuất nến InpFeatureTF kèm đặc trưng chung
 input bool            InpExportCtxBars    = true;       // Xuất nến kèm chỉ báo InpIndicators (nối thêm liên tục)
-input string          InpCtxTFs           = "M15,H1,H4"; // Các khung xuất ctxbars, cách nhau dấu phẩy (trống = InpEntryTF)
+input string          InpCtxTFs           = "M5,M15,H1,H4"; // Các khung xuất ctxbars, cách nhau dấu phẩy (trống = InpEntryTF)
 input string          InpBarSymbols       = "";         // Symbol cần xuất, cách nhau dấu phẩy (trống = tự lấy từ lịch sử lệnh)
 input int             InpBarsLookbackDays = 3;          // Lấy thêm N ngày trước lệnh đầu tiên
 input int             InpBarsRefreshHours = 6;          // Xuất lại file nến chung mỗi N giờ
@@ -83,7 +84,7 @@ bool     g_snapInit = false;
 int      g_waitTicks = 0;
 
 //--- chi bao tu khai bao (InpIndicators)
-#define MAX_SPECS 40
+#define MAX_SPECS 48
 enum ENUM_SPEC { SP_EMA, SP_SMA, SP_RSI, SP_ATR, SP_ADX, SP_CCI, SP_BB, SP_MACD, SP_STOCH };
 int             g_nSpec = 0;
 int             g_specType[MAX_SPECS];
@@ -97,10 +98,10 @@ struct SymInd
   };
 SymInd   g_si[];
 
-//--- bo quet rong cho che do AUTO: 10 chi bao pho bien x 3 khung + ATR D1 = 31
+//--- bo quet rong cho che do AUTO: 10 chi bao pho bien x 4 khung + ATR D1 = 41
 string AutoSpecs()
   {
-   string tfs[] = {"M15", "H1", "H4"};
+   string tfs[] = {"M5", "M15", "H1", "H4"};
    string s = "";
    for(int i = 0; i < ArraySize(tfs); i++)
      {
