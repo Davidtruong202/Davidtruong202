@@ -15,13 +15,13 @@
 //|  Bản kiểm thử đầu tiên - thông số mặc định KHÔNG phải tối ưu.     |
 //+------------------------------------------------------------------+
 #property copyright "EA MASTER 4PP"
-#property version   "1.10"
+#property version   "1.11"
 #property description "EA MASTER tổng hợp 4 phương pháp (RSI / SMC / Fibo Pivot / Quasimodo)."
 #property description "Bản dùng để backtest từng phương pháp - KHÔNG phải setting tối ưu."
 
 #include <Trade\Trade.mqh>
 
-#define EAM_VERSION "1.10"
+#define EAM_VERSION "1.11"
 #define DIR_BULL    1
 #define DIR_BEAR    -1
 #define SO_PP       4
@@ -2816,6 +2816,13 @@ int OnInit()
             " - rủi ro cộng dồn tới ", PP1_SoTangToiDa, " tầng.");
    if(Bat_LocTin && MQLInfoInteger(MQL_TESTER) != 0)
       Print("LƯU Ý: Lọc tin không hoạt động trong Strategy Tester.");
+
+   //--- Vẽ bảng ngay, và cập nhật theo timer để bảng vẫn hiện khi thị trường đóng cửa (không có tick)
+   if(HienThiBang && g_veDuoc)
+     {
+      EventSetTimer(1);
+      CapNhatBangKhongTick();
+     }
    return INIT_SUCCEEDED;
   }
 
@@ -2824,6 +2831,7 @@ int OnInit()
 //+------------------------------------------------------------------+
 void OnDeinit(const int reason)
   {
+   EventKillTimer();
    if(MQLInfoInteger(MQL_TESTER) != 0 || reason == REASON_REMOVE) InThongKeTheoPP();
    if(g_hRSI1 != INVALID_HANDLE) IndicatorRelease(g_hRSI1);
    if(g2_hATR200 != INVALID_HANDLE) IndicatorRelease(g2_hATR200);
@@ -2859,6 +2867,24 @@ void OnTradeTransaction(const MqlTradeTransaction &trans, const MqlTradeRequest 
    GhiNhatKy("DONG", pp, (ulong)HistoryDealGetInteger(trans.deal, DEAL_POSITION_ID), loai,
              HistoryDealGetDouble(trans.deal, DEAL_VOLUME), HistoryDealGetDouble(trans.deal, DEAL_PRICE),
              0.0, 0.0, p, lyDo, HistoryDealGetString(trans.deal, DEAL_COMMENT));
+  }
+
+//+------------------------------------------------------------------+
+//| Cập nhật bảng khi không có tick (cuối tuần, mất kết nối...)      |
+//+------------------------------------------------------------------+
+void CapNhatBangKhongTick()
+  {
+   DemLenh(g_dem);
+   g_choPhepVaoLenh = CheckRiskManager(g_lyDoKhoa);
+   g_dbLast = 0;   // vẽ ngay, bỏ qua giới hạn 1 giây
+   UpdateDashboard();
+  }
+
+void OnTimer()
+  {
+   //--- OnTick đã vẽ bảng trong 2 giây gần nhất thì bỏ qua
+   if(g_dbLast != 0 && GetTickCount() - g_dbLast < 2000) return;
+   CapNhatBangKhongTick();
   }
 
 //+------------------------------------------------------------------+
