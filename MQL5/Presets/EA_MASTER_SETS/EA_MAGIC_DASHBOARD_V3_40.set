@@ -1,0 +1,20 @@
+﻿; EA MAGIC DASHBOARD V3.40 - theo dõi 10 SET EA MASTER + các EA đang chạy
+; Chế độ 1 = gộp theo SET (Magic / 10). Đổi InpCheDoNhom=2 để xem chi tiết từng PP.
+InpRefreshSeconds=15
+InpActiveDays=7
+InpIncludeMagic0=false
+InpActiveMagics=1588,6868,9998,9999,85555,86778,11111,301,302,303,304,305,306,307,308,309,310
+InpMagicNames=301=S01 PP1 RSI M1 (gốc);302=S02 PP1 RSI M5;303=S03 PP2 SMC M15;304=S04 PP2 SMC H1 + lọc H4;305=S05 PP3 Pivot bật lại M15;306=S06 PP3 Pivot phá vỡ M15;307=S07 PP4 QM M15;308=S08 PP4 QM H1;309=S09 4 PP độc lập BALANCED;310=S10 4 PP SAFE không đối nghịch
+InpCheDoNhom=1
+InpHeSoSet=10
+InpVirtualCapital=5000.0
+InpVirtualStart=2026.10.01 00:00
+InpKeepBurnedState=true
+InpMinTrades=30
+InpXuatCSV=true
+InpTenFileCSV=EA_SET_RANKING.csv
+InpMaxRows=30
+InpPanelWidth=2200
+InpFontSize=11
+InpChartMonoColor=460295
+InpRestoreChartOnRemove=true

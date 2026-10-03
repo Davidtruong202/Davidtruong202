@@ -15,13 +15,13 @@
 //|  Bản kiểm thử đầu tiên - thông số mặc định KHÔNG phải tối ưu.     |
 //+------------------------------------------------------------------+
 #property copyright "EA MASTER 4PP"
-#property version   "1.00"
+#property version   "1.10"
 #property description "EA MASTER tổng hợp 4 phương pháp (RSI / SMC / Fibo Pivot / Quasimodo)."
 #property description "Bản dùng để backtest từng phương pháp - KHÔNG phải setting tối ưu."
 
 #include <Trade\Trade.mqh>
 
-#define EAM_VERSION "1.00"
+#define EAM_VERSION "1.10"
 #define DIR_BULL    1
 #define DIR_BEAR    -1
 #define SO_PP       4
@@ -84,13 +84,19 @@ enum ENUM_PP3_CHE_DO
 //+------------------------------------------------------------------+
 input group "=== 1. CÀI ĐẶT CHUNG ==="
 input long             Magic_Goc             = 160;          // Magic gốc (Magic PP = Magic_Goc*10 + số PP)
-input string           TienTo_Comment        = "MASTER";     // Tiền tố comment lệnh
+input string           TienTo_Comment        = "MASTER";     // Tên SET / tiền tố comment (vd S01 -> S01_PP2_BUY_SW)
 input ENUM_BO_THONG_SO BoThongSo             = BTS_CAN_BANG; // Bộ thông số (ghi đè Risk%, giới hạn lệnh, DD, thua LT)
 input ENUM_TIMEFRAMES  Signal_Timeframe      = PERIOD_M15;   // Khung tín hiệu chung (PP để CURRENT sẽ dùng khung này)
 input ENUM_HUONG_GD    HuongGiaoDich         = HGD_CA_HAI;   // Hướng giao dịch cho phép
 input double           TruotGia_Pips         = 3.0;          // Trượt giá tối đa (pips)
 input double           KichThuocPip_TuyChinh = 0.0;          // Kích thước 1 pip theo giá (0 = tự động, XAU = 0.10)
 input bool             InLogChiTiet          = true;         // In log chi tiết (tín hiệu / lý do bỏ qua)
+
+input group "=== 1B. CHẠY NHIỀU SET TRÊN 1 TÀI KHOẢN ==="
+input double   VonAo_USD     = 0.0;                  // Vốn ảo của SET (0 = dùng Balance/Equity thật)
+input datetime VonAo_BatDau  = D'2026.10.01 00:00'; // Mốc bắt đầu tính vốn ảo (trùng mốc Dashboard)
+input bool     GhiNhatKyCSV  = true;                 // Ghi nhật ký mọi lệnh mở/đóng ra CSV
+input string   TenFileNhatKy = "";                   // Tên file nhật ký (trống = EAM_<SET>_<Magic>.csv, thư mục Common\Files)
 
 input group "=== 2. BẬT / TẮT CHIẾN LƯỢC ==="
 input bool Bat_ChienLuoc_1 = true; // PP1 - RSI quá mua / quá bán
@@ -391,6 +397,9 @@ string   g_lyDoKhoa         = "";
 double   g_ddNgayHienTai    = 0.0;
 double   g_ddTKHienTai      = 0.0;
 string   g_gvDinh           = "";
+double   g_loiNhuanSet      = 0.0;    // lợi nhuận đã đóng của SET từ mốc vốn ảo
+bool     g_dinhKhoiTao      = false;
+string   g_fileNhatKy       = "";
 
 //--- Lọc tin
 datetime g_tinThoiGian[];
@@ -768,6 +777,28 @@ void ApDungBoThongSo()
      }
   }
 
+//--- Vốn ảo: mỗi SET coi như 1 tài khoản riêng (để nhiều SET chạy chung 1 tài khoản demo)
+bool   DungVonAo()       { return (VonAo_USD > 0.0); }
+double SoDuTinhToan()    { return (DungVonAo() ? VonAo_USD + g_loiNhuanSet : AccountInfoDouble(ACCOUNT_BALANCE)); }
+double EquityTinhToan()  { return (DungVonAo() ? VonAo_USD + g_loiNhuanSet + g_dem.floating : AccountInfoDouble(ACCOUNT_EQUITY)); }
+
+//--- Lợi nhuận đã đóng của SET kể từ mốc vốn ảo (mọi deal của các Magic thuộc SET)
+void TinhLaiLoiNhuanSet()
+  {
+   g_loiNhuanSet = 0.0;
+   if(!DungVonAo()) return;
+   if(!HistorySelect(VonAo_BatDau, TimeCurrent() + 86400)) return;
+   int n = HistoryDealsTotal();
+   for(int i = 0; i < n; i++)
+     {
+      ulong dl = HistoryDealGetTicket(i);
+      if(dl == 0) continue;
+      if(PPTuMagic(HistoryDealGetInteger(dl, DEAL_MAGIC)) == 0) continue;
+      g_loiNhuanSet += HistoryDealGetDouble(dl, DEAL_PROFIT) + HistoryDealGetDouble(dl, DEAL_SWAP)
+                     + HistoryDealGetDouble(dl, DEAL_COMMISSION) + HistoryDealGetDouble(dl, DEAL_FEE);
+     }
+  }
+
 //--- Tính lại lợi nhuận đã đóng trong ngày + chuỗi thua liên tiếp (chỉ lệnh của EA trên symbol này)
 void TinhLaiThongKeNgay()
   {
@@ -775,6 +806,7 @@ void TinhLaiThongKeNgay()
    g_thuaLienTiep     = 0;
    g_soLenhDongNgay   = 0;
    g_canTinhLaiLichSu = false;
+   TinhLaiLoiNhuanSet();
    if(!HistorySelect(g_ngayHienTai, TimeCurrent() + 86400)) return;
    int n = HistoryDealsTotal();
    for(int i = 0; i < n; i++)
@@ -784,7 +816,8 @@ void TinhLaiThongKeNgay()
       if(HistoryDealGetString(dl, DEAL_SYMBOL) != _Symbol) continue;
       if(PPTuMagic(HistoryDealGetInteger(dl, DEAL_MAGIC)) == 0) continue;
       ENUM_DEAL_ENTRY en = (ENUM_DEAL_ENTRY)HistoryDealGetInteger(dl, DEAL_ENTRY);
-      double p = HistoryDealGetDouble(dl, DEAL_PROFIT) + HistoryDealGetDouble(dl, DEAL_SWAP) + HistoryDealGetDouble(dl, DEAL_COMMISSION);
+      double p = HistoryDealGetDouble(dl, DEAL_PROFIT) + HistoryDealGetDouble(dl, DEAL_SWAP) +
+                 HistoryDealGetDouble(dl, DEAL_COMMISSION) + HistoryDealGetDouble(dl, DEAL_FEE);
       g_loiNhuanDongNgay += p;
       if(en == DEAL_ENTRY_OUT || en == DEAL_ENTRY_OUT_BY || en == DEAL_ENTRY_INOUT)
         {
@@ -807,26 +840,37 @@ bool CheckRiskManager(string &lyDo)
   {
    long t = (long)TimeCurrent();
    datetime ngay = (datetime)(t - t % 86400);
-   if(ngay != g_ngayHienTai)
+   bool ngayMoi = (ngay != g_ngayHienTai);
+   bool lanDau  = (g_ngayHienTai == 0);
+   if(ngayMoi)
      {
-      bool lanDau = (g_ngayHienTai == 0);
       g_ngayHienTai = ngay;
-      g_balanceDauNgay = AccountInfoDouble(ACCOUNT_BALANCE);
       if(g_khoaNgay) LogPP(0, "Sang ngày mới -> mở khóa giới hạn ngày.");
       g_khoaNgay = false;
       g_lyDoKhoaNgay = "";
       g_canTinhLaiLichSu = true;
       g3_daGiaoDich = 0;
-      if(!lanDau) LogChiTiet(0, "Ngày mới " + TimeToString(ngay, TIME_DATE) + " | balance đầu ngày = " + D2(g_balanceDauNgay));
      }
    if(g_canTinhLaiLichSu) TinhLaiThongKeNgay();
-
-   double eq = AccountInfoDouble(ACCOUNT_EQUITY);
-   if(eq > g_dinhEquity)
+   if(ngayMoi)
      {
-      g_dinhEquity = eq;
-      if(MQLInfoInteger(MQL_TESTER) == 0) GlobalVariableSet(g_gvDinh, g_dinhEquity);
+      g_balanceDauNgay = SoDuTinhToan();
+      if(!lanDau) LogChiTiet(0, "Ngày mới " + TimeToString(ngay, TIME_DATE) + " | balance đầu ngày" +
+                             (DungVonAo() ? " (vốn ảo)" : "") + " = " + D2(g_balanceDauNgay));
      }
+
+   double eq = EquityTinhToan();
+   if(!g_dinhKhoiTao)
+     {
+      //--- Chỉ nhớ đỉnh equity qua các lần khởi động khi chạy thật (Tester luôn bắt đầu từ equity hiện tại)
+      g_dinhEquity = eq;
+      if(DungVonAo()) g_dinhEquity = MathMax(eq, VonAo_USD);
+      if(MQLInfoInteger(MQL_TESTER) == 0 && !ResetDinhEquityKhiKhoiDong && GlobalVariableCheck(g_gvDinh))
+         g_dinhEquity = MathMax(g_dinhEquity, GlobalVariableGet(g_gvDinh));
+      g_dinhKhoiTao = true;
+     }
+   if(eq > g_dinhEquity) g_dinhEquity = eq;
+   if(MQLInfoInteger(MQL_TESTER) == 0) GlobalVariableSet(g_gvDinh, g_dinhEquity);
    g_ddNgayHienTai = (g_balanceDauNgay > 0.0 ? MathMax(0.0, (g_balanceDauNgay - eq) / g_balanceDauNgay * 100.0) : 0.0);
    g_ddTKHienTai   = (g_dinhEquity > 0.0 ? MathMax(0.0, (g_dinhEquity - eq) / g_dinhEquity * 100.0) : 0.0);
 
@@ -979,7 +1023,7 @@ double TinhLoMoiLot(const int huong, const double giaVao, const double sl)
 double CalculateLot(const int pp, const int huong, const double giaVao, const double sl, const double lotCoDinh, string &lyDo)
   {
    double vmin = SymbolInfoDouble(_Symbol, SYMBOL_VOLUME_MIN);
-   double bal  = AccountInfoDouble(ACCOUNT_BALANCE);
+   double bal  = SoDuTinhToan();
    double lot  = 0.0;
    if(lotCoDinh > 0.0)
       lot = lotCoDinh;
@@ -1046,6 +1090,54 @@ void LogTuChoi(const int pp, const int huong, const string lyDo)
    g_lastRejectMsg[pp]  = key;
    g_lastRejectTime[pp] = TimeCurrent();
    if(InLogChiTiet) LogPP(pp, "Bỏ qua tín hiệu " + HuongStr(huong) + " - lý do: " + lyDo);
+  }
+
+//+------------------------------------------------------------------+
+//| NHẬT KÝ LỆNH CSV (Common\Files) - để so sánh các SET về sau     |
+//+------------------------------------------------------------------+
+string ChuoiCSV(string v)
+  {
+   StringReplace(v, ";", ",");
+   StringReplace(v, "\r", " ");
+   StringReplace(v, "\n", " ");
+   return v;
+  }
+
+void GhiNhatKy(const string suKien, const int pp, const ulong ticket, const string loai, const double lot,
+               const double gia, const double sl, const double tp, const double loiNhuan, const string ghiChu,
+               const string comment)
+  {
+   if(!GhiNhatKyCSV || g_fileNhatKy == "") return;
+   int h = FileOpen(g_fileNhatKy, FILE_READ | FILE_WRITE | FILE_TXT | FILE_UNICODE | FILE_COMMON | FILE_SHARE_READ);
+   if(h == INVALID_HANDLE)
+     {
+      LogPP(0, "Không mở được file nhật ký " + g_fileNhatKy + " (lỗi " + IntegerToString(GetLastError()) + ")");
+      return;
+     }
+   if(FileSize(h) <= 2)
+      FileWriteString(h, "Thoi gian;SET;Magic;PP;Su kien;Ticket;Loai;Lot;Gia;SL;TP;Loi nhuan;Spread pips;"
+                         + "Bo TS;Xung dot;Khung PP;Comment;Ghi chu\r\n");
+   FileSeek(h, 0, SEEK_END);
+   string dong = TimeToString(TimeCurrent(), TIME_DATE | TIME_SECONDS)
+               + ";" + ChuoiCSV(TienTo_Comment)
+               + ";" + IntegerToString(pp > 0 ? MagicCuaPP(pp) : Magic_Goc)
+               + ";" + (pp > 0 ? g_ppTen[pp] + " " + g_ppMoTa[pp] : "-")
+               + ";" + suKien
+               + ";" + IntegerToString((long)ticket)
+               + ";" + loai
+               + ";" + D2(lot)
+               + ";" + D(gia)
+               + ";" + (sl > 0.0 ? D(sl) : "")
+               + ";" + (tp > 0.0 ? D(tp) : "")
+               + ";" + D2(loiNhuan)
+               + ";" + DoubleToString(SpreadPips(), 1)
+               + ";" + g_tenBoThongSo
+               + ";" + TenCheDoXungDot()
+               + ";" + (pp > 0 ? TfStr(g_tf[pp]) : "")
+               + ";" + ChuoiCSV(comment)
+               + ";" + ChuoiCSV(ghiChu) + "\r\n";
+   FileWriteString(h, dong);
+   FileClose(h);
   }
 
 //+------------------------------------------------------------------+
@@ -1139,6 +1231,8 @@ bool OpenTrade(STinHieu &s)
       LogPP(s.pp, StringFormat("LỖI mở lệnh %s: retcode=%u (%s) | lot=%s giá=%s SL=%s TP=%s spread=%.1f pips",
                                (laMua ? "BUY" : "SELL"), rc, g_trade.ResultRetcodeDescription(),
                                D2(lot), D(gia), D(sl), D(tp), SpreadPips()));
+      GhiNhatKy("LOI MO", s.pp, 0, (laMua ? "BUY" : "SELL"), lot, gia, sl, tp, 0.0,
+                "retcode " + IntegerToString((int)rc) + " " + g_trade.ResultRetcodeDescription() + " | " + s.lyDo, cmt);
       return false;
      }
 
@@ -1160,6 +1254,7 @@ bool OpenTrade(STinHieu &s)
                             (laMua ? "BUY" : "SELL"), IntegerToString((long)posId), D(giaKhop), D(sl),
                             (tp > 0.0 ? D(tp) : "không"), D2(lot), G2P(MathAbs(giaKhop - sl)), SpreadPips(),
                             (int)MagicCuaPP(s.pp), cmt, s.lyDo));
+   GhiNhatKy("MO", s.pp, posId, (laMua ? "BUY" : "SELL"), lot, giaKhop, sl, tp, 0.0, s.lyDo, cmt);
    return true;
   }
 
@@ -2529,11 +2624,11 @@ void UpdateDashboard()
    ObjectSetInteger(0, bg, OBJPROP_XSIZE, 20 * Bang_CoChu + 110);
    ObjectSetInteger(0, bg, OBJPROP_YSIZE, soDong * (Bang_CoChu + 7) + 10);
 
-   double bal = AccountInfoDouble(ACCOUNT_BALANCE);
-   double eq  = AccountInfoDouble(ACCOUNT_EQUITY);
+   double bal = SoDuTinhToan();
+   double eq  = EquityTinhToan();
    double pnlNgay = g_loiNhuanDongNgay + g_dem.floating;
    int n = 0;
-   DB_Dong(n++, "EA MASTER v" + EAM_VERSION + "  |  " + _Symbol, clrGold);
+   DB_Dong(n++, "EA MASTER v" + EAM_VERSION + "  |  SET " + TienTo_Comment + "  |  " + _Symbol, clrGold);
    DB_Dong(n++, StringFormat("Magic: %d  (PP1-PP4: %d - %d)", (int)Magic_Goc, (int)MagicCuaPP(1), (int)MagicCuaPP(4)), clrSilver);
    DB_Dong(n++, "Bộ TS: " + g_tenBoThongSo + "  |  Xung đột: " + TenCheDoXungDot(), clrSilver);
    for(int pp = 1; pp <= SO_PP; pp++)
@@ -2541,8 +2636,8 @@ void UpdateDashboard()
                                 (g_ppBat[pp] ? "ON" : "OFF"), g_dem.pp[pp]), (g_ppBat[pp] ? clrLime : clrGray));
    DB_Dong(n++, StringFormat("BUY đang mở: %d  |  SELL đang mở: %d", g_dem.buy, g_dem.sell), clrWhite);
    DB_Dong(n++, StringFormat("Tổng position: %d / %d", g_dem.tong, g_maxTong), clrWhite);
-   DB_Dong(n++, "Balance: " + D2(bal), clrWhite);
-   DB_Dong(n++, "Equity: " + D2(eq), clrWhite);
+   DB_Dong(n++, (DungVonAo() ? "Balance (vốn ảo): " : "Balance: ") + D2(bal), clrWhite);
+   DB_Dong(n++, (DungVonAo() ? "Equity (vốn ảo): " : "Equity: ") + D2(eq), clrWhite);
    DB_Dong(n++, "Floating Profit: " + D2(g_dem.floating), (g_dem.floating >= 0.0 ? clrLime : clrTomato));
    DB_Dong(n++, StringFormat("DD hiện tại: %.2f%%  |  DD ngày: %.2f%%", g_ddTKHienTai, g_ddNgayHienTai), clrWhite);
    DB_Dong(n++, StringFormat("Profit ngày: %.2f  (đã đóng %.2f)", pnlNgay, g_loiNhuanDongNgay), (pnlNgay >= 0.0 ? clrLime : clrTomato));
@@ -2683,14 +2778,12 @@ int OnInit()
    g4_lastArmedBosTime = 0;  g4_lastArmedShoulderTime = 0;
 
    //--- Risk Manager
-   g_gvDinh = "EAM_" + IntegerToString(Magic_Goc) + "_DINH_EQUITY";
-   double eq = AccountInfoDouble(ACCOUNT_EQUITY);
-   g_dinhEquity = eq;
-   //--- Chỉ nhớ đỉnh equity qua các lần khởi động khi chạy thật (Tester luôn bắt đầu từ equity hiện tại)
-   bool laTester = (MQLInfoInteger(MQL_TESTER) != 0);
-   if(!laTester && !ResetDinhEquityKhiKhoiDong && GlobalVariableCheck(g_gvDinh))
-      g_dinhEquity = MathMax(eq, GlobalVariableGet(g_gvDinh));
-   if(!laTester) GlobalVariableSet(g_gvDinh, g_dinhEquity);
+   //--- Khóa đỉnh equity tách riêng giữa chế độ thật và vốn ảo (đổi mốc vốn ảo = đo lại)
+   g_gvDinh = "EAM_" + IntegerToString(Magic_Goc) +
+              (DungVonAo() ? "_DINH_VA_" + IntegerToString((long)VonAo_BatDau) : "_DINH_EQUITY");
+   g_dinhEquity  = 0.0;
+   g_dinhKhoiTao = false;
+   g_loiNhuanSet = 0.0;
    g_ngayHienTai      = 0;
    g_khoaNgay         = false;
    g_khoaTaiKhoan     = false;
@@ -2698,6 +2791,9 @@ int OnInit()
 
    ArrayResize(g_lenh, 0);
    ArrayResize(g_dsTinHieu, 0);
+   g_fileNhatKy = (TenFileNhatKy != "" ? TenFileNhatKy :
+                   "EAM_" + TienTo_Comment + "_" + IntegerToString(Magic_Goc) +
+                   (MQLInfoInteger(MQL_TESTER) != 0 ? "_TESTER" : "") + ".csv");
    CapNhatLenhTheoDoi();
    DemLenh(g_dem);
 
@@ -2711,7 +2807,10 @@ int OnInit()
    for(int pp = 1; pp <= SO_PP; pp++)
       Print(StringFormat("%s %s: %s | khung %s | magic %d", g_ppTen[pp], g_ppMoTa[pp], (g_ppBat[pp] ? "BẬT" : "TẮT"),
                          TfStr(g_tf[pp]), (int)MagicCuaPP(pp)));
-   Print("Xung đột tín hiệu: ", TenCheDoXungDot(), " | Đỉnh equity: ", D2(g_dinhEquity));
+   Print("Xung đột tín hiệu: ", TenCheDoXungDot(), " | SET: ", TienTo_Comment,
+         (DungVonAo() ? " | VỐN ẢO " + D2(VonAo_USD) + " từ " + TimeToString(VonAo_BatDau, TIME_DATE | TIME_MINUTES)
+                      : " | dùng Balance/Equity thật"));
+   if(GhiNhatKyCSV) Print("Nhật ký lệnh: Common\\Files\\", g_fileNhatKy);
    if(PP1_BatNhoiLenh)
       Print("CẢNH BÁO: PP1 đang BẬT nhồi lệnh (DCA)", (PP1_HeSoLot > 1.0 ? " + MARTINGALE (hệ số lot > 1)" : ""),
             " - rủi ro cộng dồn tới ", PP1_SoTangToiDa, " tầng.");
@@ -2741,7 +2840,25 @@ void OnDeinit(const int reason)
 //+------------------------------------------------------------------+
 void OnTradeTransaction(const MqlTradeTransaction &trans, const MqlTradeRequest &request, const MqlTradeResult &result)
   {
-   if(trans.type == TRADE_TRANSACTION_DEAL_ADD) g_canTinhLaiLichSu = true;
+   if(trans.type != TRADE_TRANSACTION_DEAL_ADD) return;
+   g_canTinhLaiLichSu = true;
+   if(!GhiNhatKyCSV || trans.deal == 0) return;
+   if(!HistoryDealSelect(trans.deal)) return;
+   if(HistoryDealGetString(trans.deal, DEAL_SYMBOL) != _Symbol) return;
+   int pp = PPTuMagic(HistoryDealGetInteger(trans.deal, DEAL_MAGIC));
+   if(pp == 0) return;
+   ENUM_DEAL_ENTRY en = (ENUM_DEAL_ENTRY)HistoryDealGetInteger(trans.deal, DEAL_ENTRY);
+   if(en != DEAL_ENTRY_OUT && en != DEAL_ENTRY_OUT_BY && en != DEAL_ENTRY_INOUT) return;
+   double p = HistoryDealGetDouble(trans.deal, DEAL_PROFIT) + HistoryDealGetDouble(trans.deal, DEAL_SWAP) +
+              HistoryDealGetDouble(trans.deal, DEAL_COMMISSION) + HistoryDealGetDouble(trans.deal, DEAL_FEE);
+   ENUM_DEAL_REASON rs = (ENUM_DEAL_REASON)HistoryDealGetInteger(trans.deal, DEAL_REASON);
+   string lyDo = (rs == DEAL_REASON_SL ? "Cham SL" : (rs == DEAL_REASON_TP ? "Cham TP" :
+                 (rs == DEAL_REASON_SO ? "Stop out" : (rs == DEAL_REASON_EXPERT ? "EA dong" : "Dong tay/khac"))));
+   //--- deal đóng của lệnh BUY là deal SELL và ngược lại
+   string loai = (HistoryDealGetInteger(trans.deal, DEAL_TYPE) == DEAL_TYPE_SELL ? "BUY" : "SELL");
+   GhiNhatKy("DONG", pp, (ulong)HistoryDealGetInteger(trans.deal, DEAL_POSITION_ID), loai,
+             HistoryDealGetDouble(trans.deal, DEAL_VOLUME), HistoryDealGetDouble(trans.deal, DEAL_PRICE),
+             0.0, 0.0, p, lyDo, HistoryDealGetString(trans.deal, DEAL_COMMENT));
   }
 
 //+------------------------------------------------------------------+
