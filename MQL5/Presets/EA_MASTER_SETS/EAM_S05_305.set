@@ -1,6 +1,8 @@
-﻿; EA MASTER 4PP v1.10 - SET S05: PP3 Pivot bật lại M15
+﻿; EA MASTER 4PP v1.20 - SET S05: PP3 Pivot bật lại M15
 ; Magic 305 -> lệnh PP1..PP4 = 3051..3054 ; comment S05_PPx_BUY/SELL
 ; Gắn trên chart XAUUSD riêng (khung chart bất kỳ). Mỗi SET 1 chart.
+ChonSet=0
+GhiKetQuaTester=true
 Magic_Goc=305
 TienTo_Comment=S05
 BoThongSo=2

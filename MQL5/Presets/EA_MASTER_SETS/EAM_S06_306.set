@@ -1,6 +1,8 @@
-﻿; EA MASTER 4PP v1.10 - SET S06: PP3 Pivot phá vỡ M15
+﻿; EA MASTER 4PP v1.20 - SET S06: PP3 Pivot phá vỡ M15
 ; Magic 306 -> lệnh PP1..PP4 = 3061..3064 ; comment S06_PPx_BUY/SELL
 ; Gắn trên chart XAUUSD riêng (khung chart bất kỳ). Mỗi SET 1 chart.
+ChonSet=0
+GhiKetQuaTester=true
 Magic_Goc=306
 TienTo_Comment=S06
 BoThongSo=2

@@ -1,6 +1,8 @@
-﻿; EA MASTER 4PP v1.10 - SET S01: PP1 RSI M1 (gốc)
+﻿; EA MASTER 4PP v1.20 - SET S01: PP1 RSI M1 (gốc)
 ; Magic 301 -> lệnh PP1..PP4 = 3011..3014 ; comment S01_PPx_BUY/SELL
 ; Gắn trên chart XAUUSD riêng (khung chart bất kỳ). Mỗi SET 1 chart.
+ChonSet=0
+GhiKetQuaTester=true
 Magic_Goc=301
 TienTo_Comment=S01
 BoThongSo=2

@@ -15,13 +15,13 @@
 //|  Bản kiểm thử đầu tiên - thông số mặc định KHÔNG phải tối ưu.     |
 //+------------------------------------------------------------------+
 #property copyright "EA MASTER 4PP"
-#property version   "1.11"
+#property version   "1.20"
 #property description "EA MASTER tổng hợp 4 phương pháp (RSI / SMC / Fibo Pivot / Quasimodo)."
 #property description "Bản dùng để backtest từng phương pháp - KHÔNG phải setting tối ưu."
 
 #include <Trade\Trade.mqh>
 
-#define EAM_VERSION "1.11"
+#define EAM_VERSION "1.20"
 #define DIR_BULL    1
 #define DIR_BEAR    -1
 #define SO_PP       4
@@ -82,6 +82,10 @@ enum ENUM_PP3_CHE_DO
 //+------------------------------------------------------------------+
 //| INPUT                                                            |
 //+------------------------------------------------------------------+
+input group "=== 0. CHỌN SET DỰNG SẴN (BACKTEST NHIỀU SET) ==="
+input int    ChonSet         = 0;    // Chọn SET dựng sẵn: 0 = dùng Input bên dưới | 1-22 = SET B01-B22 (Optimization)
+input bool   GhiKetQuaTester = true; // Ghi kết quả mỗi lượt Tester vào Common\Files\EAM_BACKTEST_KET_QUA.csv
+
 input group "=== 1. CÀI ĐẶT CHUNG ==="
 input long             Magic_Goc             = 160;          // Magic gốc (Magic PP = Magic_Goc*10 + số PP)
 input string           TienTo_Comment        = "MASTER";     // Tên SET / tiền tố comment (vd S01 -> S01_PP2_BUY_SW)
@@ -419,6 +423,34 @@ int g_hATRQL[5] = {-1, -1, -1, -1, -1};   // ATR cho PP2..PP4 (trailing ATR + SL
 //--- Bảng hiển thị
 uint g_dbLast = 0;
 
+//--- Bản sao các Input có thể bị SET dựng sẵn (ChonSet) ghi đè
+string v_TienTo_Comment;
+ENUM_BO_THONG_SO v_BoThongSo;
+ENUM_TIMEFRAMES v_Signal_Timeframe;
+bool v_Bat_ChienLuoc_1;
+bool v_Bat_ChienLuoc_2;
+bool v_Bat_ChienLuoc_3;
+bool v_Bat_ChienLuoc_4;
+bool v_ChanLenhNguocChieu;
+ENUM_CHE_DO_XUNG_DOT v_CheDo_XungDot;
+ENUM_KIEU_TRAILING v_QL_KieuTrailing;
+ENUM_TIMEFRAMES v_PP1_Timeframe;
+int v_PP1_RSI_ChuKy;
+double v_PP1_RSI_VaoBan;
+double v_PP1_RSI_VaoMua;
+ENUM_TIMEFRAMES v_PP2_Timeframe;
+ENUM_PP2_LOAI_OB v_PP2_LoaiOB;
+bool v_PP2_LocHTF;
+ENUM_TIMEFRAMES v_PP2_HTF;
+bool v_PP2_LocPremiumDiscount;
+ENUM_TIMEFRAMES v_PP3_Timeframe;
+ENUM_PP3_CHE_DO v_PP3_CheDo;
+ENUM_KIEU_TP v_PP3_KieuTP;
+ENUM_TIMEFRAMES v_PP4_Timeframe;
+bool v_PP4_ChoNenTuChoi;
+string   g_moTaSet      = "Theo Input";
+datetime g_tgBatDauTest = 0;
+
 //+------------------------------------------------------------------+
 //| Biến toàn cục - PP2 (SMC)                                        |
 //+------------------------------------------------------------------+
@@ -592,7 +624,7 @@ double DiemPP(const int pp)
 
 string TenCheDoXungDot()
   {
-   switch(CheDo_XungDot)
+   switch(v_CheDo_XungDot)
      {
       case XD_DOC_LAP:          return "Độc lập";
       case XD_DA_SO:            return "Đa số";
@@ -605,7 +637,7 @@ string TenCheDoXungDot()
 ENUM_TIMEFRAMES ResolveTF(const ENUM_TIMEFRAMES tf)
   {
    if(tf != PERIOD_CURRENT) return tf;
-   if(Signal_Timeframe != PERIOD_CURRENT) return Signal_Timeframe;
+   if(v_Signal_Timeframe != PERIOD_CURRENT) return v_Signal_Timeframe;
    return (ENUM_TIMEFRAMES)_Period;
   }
 
@@ -751,7 +783,7 @@ void DongTatCaLenhEA(const string lyDo)
 //+------------------------------------------------------------------+
 void ApDungBoThongSo()
   {
-   switch(BoThongSo)
+   switch(v_BoThongSo)
      {
       case BTS_AN_TOAN:
          g_tenBoThongSo = "SAFE";
@@ -1119,7 +1151,7 @@ void GhiNhatKy(const string suKien, const int pp, const ulong ticket, const stri
                          + "Bo TS;Xung dot;Khung PP;Comment;Ghi chu\r\n");
    FileSeek(h, 0, SEEK_END);
    string dong = TimeToString(TimeCurrent(), TIME_DATE | TIME_SECONDS)
-               + ";" + ChuoiCSV(TienTo_Comment)
+               + ";" + ChuoiCSV(v_TienTo_Comment)
                + ";" + IntegerToString(pp > 0 ? MagicCuaPP(pp) : Magic_Goc)
                + ";" + (pp > 0 ? g_ppTen[pp] + " " + g_ppMoTa[pp] : "-")
                + ";" + suKien
@@ -1217,7 +1249,7 @@ bool OpenTrade(STinHieu &s)
       return false;
      }
 
-   string cmt = TienTo_Comment + "_PP" + IntegerToString(s.pp) + "_" + (laMua ? "BUY" : "SELL");
+   string cmt = v_TienTo_Comment + "_PP" + IntegerToString(s.pp) + "_" + (laMua ? "BUY" : "SELL");
    if(s.nhan != "") cmt += "_" + s.nhan;
    if(StringLen(cmt) > 31) cmt = StringSubstr(cmt, 0, 31);
 
@@ -1285,7 +1317,7 @@ void ThemTinHieu(const int pp, const int huong, const double sl, const double tp
 
 bool ChapNhanTheoXungDot(STinHieu &s, string &lyDo)
   {
-   if(CheDo_XungDot == XD_DOC_LAP || s.laNhoiLenh) return true;
+   if(v_CheDo_XungDot == XD_DOC_LAP || s.laNhoiLenh) return true;
    int    soMua = 0, soBan = 0;
    double diemMua = 0.0, diemBan = 0.0;
    long   now = (long)TimeCurrent();
@@ -1298,19 +1330,19 @@ bool ChapNhanTheoXungDot(STinHieu &s, string &lyDo)
      }
    string tk = StringFormat("BUY=%d (%.1f điểm) / SELL=%d (%.1f điểm)", soMua, diemMua, soBan, diemBan);
    bool laMua = (s.huong == DIR_BULL);
-   if(CheDo_XungDot == XD_DA_SO)
+   if(v_CheDo_XungDot == XD_DA_SO)
      {
       if(laMua ? (soMua > soBan) : (soBan > soMua)) return true;
       lyDo = "Xung đột - đa số không ủng hộ: " + tk;
       return false;
      }
-   if(CheDo_XungDot == XD_KHONG_DOI_NGHICH)
+   if(v_CheDo_XungDot == XD_KHONG_DOI_NGHICH)
      {
       if(laMua ? (soBan == 0) : (soMua == 0)) return true;
       lyDo = "Xung đột - có tín hiệu đối nghịch: " + tk;
       return false;
      }
-   if(CheDo_XungDot == XD_DIEM_SO)
+   if(v_CheDo_XungDot == XD_DIEM_SO)
      {
       double chenh = (laMua ? diemMua - diemBan : diemBan - diemMua);
       double diem  = (laMua ? diemMua : diemBan);
@@ -1344,7 +1376,7 @@ bool KiemTraTruocKhiVao(STinHieu &s, string &lyDo)
       lyDo = StringFormat("Đã đạt tối đa lệnh của %s (%d)", g_ppTen[s.pp], maxPP);
       return false;
      }
-   if(ChanLenhNguocChieu)
+   if(v_ChanLenhNguocChieu)
      {
       if(s.huong == DIR_BULL && g_dem.sell > 0) { lyDo = "Đang có lệnh SELL của EA (chặn ngược chiều)"; return false; }
       if(s.huong == DIR_BEAR && g_dem.buy > 0)  { lyDo = "Đang có lệnh BUY của EA (chặn ngược chiều)";  return false; }
@@ -1467,16 +1499,16 @@ void QuanLyMotLenh(const int idx)
      }
 
    //--- Trailing stop
-   if(QL_KieuTrailing != TRAIL_TAT)
+   if(v_QL_KieuTrailing != TRAIL_TAT)
      {
       double slMoi = 0.0;
-      if(QL_KieuTrailing == TRAIL_PIPS)
+      if(v_QL_KieuTrailing == TRAIL_PIPS)
         {
          double loiPips = (laMua ? G2P(tk.bid - giaVao) : G2P(giaVao - tk.ask));
          if(loiPips >= QL_Trail_KhoaPips + QL_Trail_KhoangCachPips)
             slMoi = (laMua ? tk.bid - P2G(QL_Trail_KhoangCachPips) : tk.ask + P2G(QL_Trail_KhoangCachPips));
         }
-      else if(QL_KieuTrailing == TRAIL_ATR && profitR >= QL_Trail_BatDauR)
+      else if(v_QL_KieuTrailing == TRAIL_ATR && profitR >= QL_Trail_BatDauR)
         {
          double atr = LayGiaTriChiBao(g_hATRQL[pp], 0, 1);
          if(atr != EMPTY_VALUE && atr > 0.0)
@@ -1612,12 +1644,12 @@ void CheckStrategy1()
    if(!g_ppBat[1]) return;
 
    //--- VÀO SELL: RSI cắt lên vùng quá mua
-   if(ban.soLenh == 0 && rsiPrev < PP1_RSI_VaoBan && rsiNow >= PP1_RSI_VaoBan)
+   if(ban.soLenh == 0 && rsiPrev < v_PP1_RSI_VaoBan && rsiNow >= v_PP1_RSI_VaoBan)
      {
       double sl = tk.bid + P2G(PP1_SL_Pips);
       double tp = (PP1_TP_Pips > 0.0 ? tk.bid - P2G(PP1_TP_Pips) : 0.0);
       ThemTinHieu(1, DIR_BEAR, sl, tp, 0.0, false, "",
-                  StringFormat("RSI cắt lên %.1f (RSI=%.2f, nến trước=%.2f)", PP1_RSI_VaoBan, rsiNow, rsiPrev));
+                  StringFormat("RSI cắt lên %.1f (RSI=%.2f, nến trước=%.2f)", v_PP1_RSI_VaoBan, rsiNow, rsiPrev));
      }
    //--- NHỒI SELL (chỉ khi người dùng bật)
    else if(PP1_BatNhoiLenh && !g_laNetting && ban.soLenh > 0 && ban.soLenh < PP1_SoTangToiDa)
@@ -1632,12 +1664,12 @@ void CheckStrategy1()
      }
 
    //--- VÀO BUY: RSI cắt xuống vùng quá bán
-   if(mua.soLenh == 0 && rsiPrev > PP1_RSI_VaoMua && rsiNow <= PP1_RSI_VaoMua)
+   if(mua.soLenh == 0 && rsiPrev > v_PP1_RSI_VaoMua && rsiNow <= v_PP1_RSI_VaoMua)
      {
       double sl = tk.ask - P2G(PP1_SL_Pips);
       double tp = (PP1_TP_Pips > 0.0 ? tk.ask + P2G(PP1_TP_Pips) : 0.0);
       ThemTinHieu(1, DIR_BULL, sl, tp, 0.0, false, "",
-                  StringFormat("RSI cắt xuống %.1f (RSI=%.2f, nến trước=%.2f)", PP1_RSI_VaoMua, rsiNow, rsiPrev));
+                  StringFormat("RSI cắt xuống %.1f (RSI=%.2f, nến trước=%.2f)", v_PP1_RSI_VaoMua, rsiNow, rsiPrev));
      }
    //--- NHỒI BUY
    else if(PP1_BatNhoiLenh && !g_laNetting && mua.soLenh > 0 && mua.soLenh < PP1_SoTangToiDa)
@@ -1911,20 +1943,20 @@ int PP2_CapNhatNenMoi()
 //--- Bias khung lớn (port phần Swing của CalcHTFBias; chỉ dùng nến đã đóng)
 int PP2_TinhBiasHTF()
   {
-   datetime t = iTime(_Symbol, PP2_HTF, 0);
+   datetime t = iTime(_Symbol, v_PP2_HTF, 0);
    if(t == 0 || t == g2_htfLastCalc) return g2_htfBias;
    int pl    = PP2_DoDaiSwing;
    int need  = MathMax(pl, 5) * 4 + 10;
-   int avail = Bars(_Symbol, PP2_HTF) - 1;
+   int avail = Bars(_Symbol, v_PP2_HTF) - 1;
    if(avail < need) need = avail;
    if(need < pl * 2 + 2) return g2_htfBias;
    double h[], l[], c[];
    ArraySetAsSeries(h, false);
    ArraySetAsSeries(l, false);
    ArraySetAsSeries(c, false);
-   if(CopyHigh(_Symbol, PP2_HTF, 1, need, h) < need) return g2_htfBias;
-   if(CopyLow(_Symbol, PP2_HTF, 1, need, l) < need) return g2_htfBias;
-   if(CopyClose(_Symbol, PP2_HTF, 1, need, c) < need) return g2_htfBias;
+   if(CopyHigh(_Symbol, v_PP2_HTF, 1, need, h) < need) return g2_htfBias;
+   if(CopyLow(_Symbol, v_PP2_HTF, 1, need, l) < need) return g2_htfBias;
+   if(CopyClose(_Symbol, v_PP2_HTF, 1, need, c) < need) return g2_htfBias;
    int    swBias = 0;
    double swPivH = 0.0, swPivL = 0.0;
    bool   hCross = false, lCross = false;
@@ -1976,7 +2008,7 @@ void PP2_DanhGiaTinHieu()
       choBan = (g2_swTr == DIR_BEAR);
      }
    int htf = 0;
-   if(PP2_LocHTF)
+   if(v_PP2_LocHTF)
      {
       htf = PP2_TinhBiasHTF();
       if(htf != DIR_BULL) choMua = false;
@@ -1984,7 +2016,7 @@ void PP2_DanhGiaTinHieu()
      }
    bool   coEq = (g2_swH.level != EMPTY_VALUE && g2_swL.level != EMPTY_VALUE && g2_swH.level > g2_swL.level);
    double eq   = (coEq ? (g2_swH.level + g2_swL.level) / 2.0 : 0.0);
-   if(PP2_LocPremiumDiscount)
+   if(v_PP2_LocPremiumDiscount)
      {
       if(!coEq) { choMua = false; choBan = false; }
       else
@@ -1998,7 +2030,7 @@ void PP2_DanhGiaTinHieu()
    MqlTick tk;
    if(!SymbolInfoTick(_Symbol, tk)) return;
    string trendStr = (g2_swTr == DIR_BULL ? "TĂNG" : (g2_swTr == DIR_BEAR ? "GIẢM" : "chưa rõ"));
-   string htfStr   = (PP2_LocHTF ? (" | HTF " + TfStr(PP2_HTF) + "=" + (htf == DIR_BULL ? "TĂNG" : (htf == DIR_BEAR ? "GIẢM" : "chưa rõ"))) : "");
+   string htfStr   = (v_PP2_LocHTF ? (" | HTF " + TfStr(v_PP2_HTF) + "=" + (htf == DIR_BULL ? "TĂNG" : (htf == DIR_BEAR ? "GIẢM" : "chưa rõ"))) : "");
 
    for(int lan = 0; lan < 2; lan++)
      {
@@ -2007,12 +2039,12 @@ void PP2_DanhGiaTinHieu()
       if(bias == DIR_BEAR && !choBan) continue;
       int idx = -1;
       bool laSwing = false;
-      if(PP2_LoaiOB != OB_NOI_BO)
+      if(v_PP2_LoaiOB != OB_NOI_BO)
         {
          idx = PP2_TimOBCham(g2_swOB, bias, r);
          if(idx >= 0) laSwing = true;
         }
-      if(idx < 0 && PP2_LoaiOB != OB_SWING) idx = PP2_TimOBCham(g2_inOB, bias, r);
+      if(idx < 0 && v_PP2_LoaiOB != OB_SWING) idx = PP2_TimOBCham(g2_inOB, bias, r);
       if(idx < 0) continue;
 
       double obHi, obLo;
@@ -2125,7 +2157,7 @@ bool PP3_TinhPivot()
 
 double PP3_TimTP(const int huong, const double entry, const double rui)
   {
-   if(PP3_KieuTP == TP_THEO_CAU_TRUC)
+   if(v_PP3_KieuTP == TP_THEO_CAU_TRUC)
      {
       double minD = KhoangCachDungToiThieu() + P2G(1.0);
       if(huong == DIR_BULL)
@@ -2152,13 +2184,13 @@ void PP3_TaoLenh(const int huong, const double mucGia, const string tenMuc, cons
    if(huong == DIR_BULL)
      {
       entry = tk.ask;
-      sl = (PP3_CheDo == PP3_BAT_LAI ? MathMin(r1.low, mucGia) : mucGia) - P2G(PP3_SL_DemPips);
+      sl = (v_PP3_CheDo == PP3_BAT_LAI ? MathMin(r1.low, mucGia) : mucGia) - P2G(PP3_SL_DemPips);
       if(entry - sl < minSL) sl = entry - minSL;
      }
    else
      {
       entry = tk.bid;
-      sl = (PP3_CheDo == PP3_BAT_LAI ? MathMax(r1.high, mucGia) : mucGia) + P2G(PP3_SL_DemPips);
+      sl = (v_PP3_CheDo == PP3_BAT_LAI ? MathMax(r1.high, mucGia) : mucGia) + P2G(PP3_SL_DemPips);
       if(sl - entry < minSL) sl = entry + minSL;
      }
    double rui = MathAbs(entry - sl);
@@ -2170,7 +2202,7 @@ void PP3_TaoLenh(const int huong, const double mucGia, const string tenMuc, cons
       LogTuChoi(3, huong, StringFormat("R:R %.2f < tối thiểu %.2f tại %s", rr, PP3_RR_ToiThieu, tenMuc));
       return;
      }
-   string cheDo = (PP3_CheDo == PP3_BAT_LAI ? "Bật lại tại " : "Phá vỡ ");
+   string cheDo = (v_PP3_CheDo == PP3_BAT_LAI ? "Bật lại tại " : "Phá vỡ ");
    ThemTinHieu(3, huong, sl, tp, 0.0, false, tenMuc,
                StringFormat("%s%s=%s | nến: O=%s H=%s L=%s C=%s | R:R=%.2f", cheDo, tenMuc, D(mucGia),
                             D(r1.open), D(r1.high), D(r1.low), D(r1.close), rr));
@@ -2188,7 +2220,7 @@ void CheckStrategy3()
    if(r[0].time < g3_ngayD1) return;   // nến thuộc ngày cũ -> pivot không áp dụng
    int soMuc = MathMax(1, MathMin(3, PP3_SoMucSR));
 
-   if(PP3_CheDo == PP3_BAT_LAI)
+   if(v_PP3_CheDo == PP3_BAT_LAI)
      {
       int kMua = -1, kBan = -1;
       for(int k = soMuc - 1; k >= 0; k--)   // mức sâu nhất bị chạm mà nến đóng cửa quay lại
@@ -2444,7 +2476,7 @@ void PP4_CheckArmedSetupForEntry()
    if(g4_setup.isBull)
      {
       if(priorClose < g4_setup.headPrice) { PP4_CancelArmedSetup("bị vô hiệu (đóng cửa phá Head)"); return; }
-      if(!PP4_ChoNenTuChoi)
+      if(!v_PP4_ChoNenTuChoi)
         {
          if(priorClose <= g4_setup.qmLinePrice - buffer) PP4_TaoTinHieu(true, "Entry 1");
         }
@@ -2459,7 +2491,7 @@ void PP4_CheckArmedSetupForEntry()
         }
       if(g4_setup.isActive && g4_setup.entry2Valid)
         {
-         if(!PP4_ChoNenTuChoi)
+         if(!v_PP4_ChoNenTuChoi)
            {
             if(priorClose <= g4_setup.entry2Price - buffer) PP4_TaoTinHieu(true, "Entry 2");
            }
@@ -2477,7 +2509,7 @@ void PP4_CheckArmedSetupForEntry()
    else
      {
       if(priorClose > g4_setup.headPrice) { PP4_CancelArmedSetup("bị vô hiệu (đóng cửa phá Head)"); return; }
-      if(!PP4_ChoNenTuChoi)
+      if(!v_PP4_ChoNenTuChoi)
         {
          if(priorClose >= g4_setup.qmLinePrice + buffer) PP4_TaoTinHieu(false, "Entry 1");
         }
@@ -2492,7 +2524,7 @@ void PP4_CheckArmedSetupForEntry()
         }
       if(g4_setup.isActive && g4_setup.entry2Valid)
         {
-         if(!PP4_ChoNenTuChoi)
+         if(!v_PP4_ChoNenTuChoi)
            {
             if(priorClose >= g4_setup.entry2Price + buffer) PP4_TaoTinHieu(false, "Entry 2");
            }
@@ -2628,7 +2660,7 @@ void UpdateDashboard()
    double eq  = EquityTinhToan();
    double pnlNgay = g_loiNhuanDongNgay + g_dem.floating;
    int n = 0;
-   DB_Dong(n++, "EA MASTER v" + EAM_VERSION + "  |  SET " + TienTo_Comment + "  |  " + _Symbol, clrGold);
+   DB_Dong(n++, "EA MASTER v" + EAM_VERSION + "  |  SET " + v_TienTo_Comment + "  |  " + _Symbol, clrGold);
    DB_Dong(n++, StringFormat("Magic: %d  (PP1-PP4: %d - %d)", (int)Magic_Goc, (int)MagicCuaPP(1), (int)MagicCuaPP(4)), clrSilver);
    DB_Dong(n++, "Bộ TS: " + g_tenBoThongSo + "  |  Xung đột: " + TenCheDoXungDot(), clrSilver);
    for(int pp = 1; pp <= SO_PP; pp++)
@@ -2689,19 +2721,173 @@ void InThongKeTheoPP()
   }
 
 //+------------------------------------------------------------------+
+//| SET DỰNG SẴN (ChonSet) - dùng cho Optimization nhiều SET         |
+//| Mỗi SET bắt đầu từ: tắt cả 4 PP, BALANCED, độc lập, khung M15,   |
+//| PP1 M1, rồi chỉ đổi đúng các thông số ghi trong case.            |
+//+------------------------------------------------------------------+
+#define SO_SET_DUNG_SAN 22
+
+void SaoChepInput()
+  {
+   v_TienTo_Comment = TienTo_Comment;
+   v_BoThongSo = BoThongSo;
+   v_Signal_Timeframe = Signal_Timeframe;
+   v_Bat_ChienLuoc_1 = Bat_ChienLuoc_1;
+   v_Bat_ChienLuoc_2 = Bat_ChienLuoc_2;
+   v_Bat_ChienLuoc_3 = Bat_ChienLuoc_3;
+   v_Bat_ChienLuoc_4 = Bat_ChienLuoc_4;
+   v_ChanLenhNguocChieu = ChanLenhNguocChieu;
+   v_CheDo_XungDot = CheDo_XungDot;
+   v_QL_KieuTrailing = QL_KieuTrailing;
+   v_PP1_Timeframe = PP1_Timeframe;
+   v_PP1_RSI_ChuKy = PP1_RSI_ChuKy;
+   v_PP1_RSI_VaoBan = PP1_RSI_VaoBan;
+   v_PP1_RSI_VaoMua = PP1_RSI_VaoMua;
+   v_PP2_Timeframe = PP2_Timeframe;
+   v_PP2_LoaiOB = PP2_LoaiOB;
+   v_PP2_LocHTF = PP2_LocHTF;
+   v_PP2_HTF = PP2_HTF;
+   v_PP2_LocPremiumDiscount = PP2_LocPremiumDiscount;
+   v_PP3_Timeframe = PP3_Timeframe;
+   v_PP3_CheDo = PP3_CheDo;
+   v_PP3_KieuTP = PP3_KieuTP;
+   v_PP4_Timeframe = PP4_Timeframe;
+   v_PP4_ChoNenTuChoi = PP4_ChoNenTuChoi;
+  }
+
+bool ApDungChonSet()
+  {
+   if(ChonSet <= 0) return true;
+   if(ChonSet > SO_SET_DUNG_SAN) return false;
+   v_Bat_ChienLuoc_1 = false; v_Bat_ChienLuoc_2 = false; v_Bat_ChienLuoc_3 = false; v_Bat_ChienLuoc_4 = false;
+   v_BoThongSo = BTS_CAN_BANG; v_CheDo_XungDot = XD_DOC_LAP; v_ChanLenhNguocChieu = false;
+   v_QL_KieuTrailing = TRAIL_TAT; v_Signal_Timeframe = PERIOD_M15;
+   v_PP1_Timeframe = PERIOD_M1; v_PP1_RSI_ChuKy = 19; v_PP1_RSI_VaoBan = 70.0; v_PP1_RSI_VaoMua = 30.0;
+   v_PP2_Timeframe = PERIOD_M15; v_PP2_LoaiOB = OB_CA_HAI; v_PP2_LocHTF = false; v_PP2_HTF = PERIOD_H4; v_PP2_LocPremiumDiscount = false;
+   v_PP3_Timeframe = PERIOD_M15; v_PP3_CheDo = PP3_BAT_LAI; v_PP3_KieuTP = TP_THEO_CAU_TRUC;
+   v_PP4_Timeframe = PERIOD_M15; v_PP4_ChoNenTuChoi = false;
+   switch(ChonSet)
+     {
+      case 1: g_moTaSet = "PP1 RSI M1 (gốc)"; v_Bat_ChienLuoc_1 = true; v_PP1_Timeframe = PERIOD_M1; break;
+      case 2: g_moTaSet = "PP1 RSI M5"; v_Bat_ChienLuoc_1 = true; v_PP1_Timeframe = PERIOD_M5; break;
+      case 3: g_moTaSet = "PP1 RSI M15"; v_Bat_ChienLuoc_1 = true; v_PP1_Timeframe = PERIOD_M15; break;
+      case 4: g_moTaSet = "PP1 RSI(14) 75/25 M5"; v_Bat_ChienLuoc_1 = true; v_PP1_Timeframe = PERIOD_M5; v_PP1_RSI_ChuKy = 14; v_PP1_RSI_VaoBan = 75.0; v_PP1_RSI_VaoMua = 25.0; break;
+      case 5: g_moTaSet = "PP2 SMC M15"; v_Bat_ChienLuoc_2 = true; v_PP2_Timeframe = PERIOD_M15; break;
+      case 6: g_moTaSet = "PP2 SMC H1"; v_Bat_ChienLuoc_2 = true; v_PP2_Timeframe = PERIOD_H1; break;
+      case 7: g_moTaSet = "PP2 SMC H1 + lọc HTF H4"; v_Bat_ChienLuoc_2 = true; v_PP2_Timeframe = PERIOD_H1; v_PP2_LocHTF = true; v_PP2_HTF = PERIOD_H4; break;
+      case 8: g_moTaSet = "PP2 SMC M15 + Premium/Discount"; v_Bat_ChienLuoc_2 = true; v_PP2_Timeframe = PERIOD_M15; v_PP2_LocPremiumDiscount = true; break;
+      case 9: g_moTaSet = "PP2 SMC M15 chỉ OB swing"; v_Bat_ChienLuoc_2 = true; v_PP2_Timeframe = PERIOD_M15; v_PP2_LoaiOB = OB_SWING; break;
+      case 10: g_moTaSet = "PP3 Pivot bật lại M15"; v_Bat_ChienLuoc_3 = true; v_PP3_Timeframe = PERIOD_M15; v_PP3_CheDo = PP3_BAT_LAI; break;
+      case 11: g_moTaSet = "PP3 Pivot bật lại M5"; v_Bat_ChienLuoc_3 = true; v_PP3_Timeframe = PERIOD_M5; v_PP3_CheDo = PP3_BAT_LAI; break;
+      case 12: g_moTaSet = "PP3 Pivot bật lại M15 TP R:R"; v_Bat_ChienLuoc_3 = true; v_PP3_Timeframe = PERIOD_M15; v_PP3_CheDo = PP3_BAT_LAI; v_PP3_KieuTP = TP_THEO_RR; break;
+      case 13: g_moTaSet = "PP3 Pivot phá vỡ M15"; v_Bat_ChienLuoc_3 = true; v_PP3_Timeframe = PERIOD_M15; v_PP3_CheDo = PP3_PHA_VO; break;
+      case 14: g_moTaSet = "PP4 QM M15"; v_Bat_ChienLuoc_4 = true; v_PP4_Timeframe = PERIOD_M15; break;
+      case 15: g_moTaSet = "PP4 QM H1"; v_Bat_ChienLuoc_4 = true; v_PP4_Timeframe = PERIOD_H1; break;
+      case 16: g_moTaSet = "PP4 QM M5"; v_Bat_ChienLuoc_4 = true; v_PP4_Timeframe = PERIOD_M5; break;
+      case 17: g_moTaSet = "PP4 QM M15 chờ nến từ chối"; v_Bat_ChienLuoc_4 = true; v_PP4_Timeframe = PERIOD_M15; v_PP4_ChoNenTuChoi = true; break;
+      case 18: g_moTaSet = "PP4 QM M15 trailing ATR"; v_Bat_ChienLuoc_4 = true; v_PP4_Timeframe = PERIOD_M15; v_QL_KieuTrailing = TRAIL_ATR; break;
+      case 19: g_moTaSet = "PP2 SMC M15 trailing ATR"; v_Bat_ChienLuoc_2 = true; v_PP2_Timeframe = PERIOD_M15; v_QL_KieuTrailing = TRAIL_ATR; break;
+      case 20: g_moTaSet = "4PP BALANCED độc lập"; v_Bat_ChienLuoc_1 = true; v_Bat_ChienLuoc_2 = true; v_Bat_ChienLuoc_3 = true; v_Bat_ChienLuoc_4 = true; break;
+      case 21: g_moTaSet = "4PP SAFE không đối nghịch"; v_Bat_ChienLuoc_1 = true; v_Bat_ChienLuoc_2 = true; v_Bat_ChienLuoc_3 = true; v_Bat_ChienLuoc_4 = true; v_BoThongSo = BTS_AN_TOAN; v_CheDo_XungDot = XD_KHONG_DOI_NGHICH; v_ChanLenhNguocChieu = true; break;
+      case 22: g_moTaSet = "4PP BALANCED đa số thắng"; v_Bat_ChienLuoc_1 = true; v_Bat_ChienLuoc_2 = true; v_Bat_ChienLuoc_3 = true; v_Bat_ChienLuoc_4 = true; v_CheDo_XungDot = XD_DA_SO; break;
+     }
+   v_TienTo_Comment = StringFormat("B%02d", ChonSet);
+   return true;
+  }
+
+//+------------------------------------------------------------------+
+//| KẾT QUẢ TESTER: 1 dòng / lượt vào Common\Files (gom mọi lượt)    |
+//+------------------------------------------------------------------+
+double OnTester()
+  {
+   double loiNhuan = TesterStatistics(STAT_PROFIT);
+   double soLenh   = TesterStatistics(STAT_TRADES);
+   double ddTien   = TesterStatistics(STAT_EQUITY_DD);
+   //--- Tiêu chí tùy chỉnh (Custom max): Recovery = Lợi nhuận / Max DD, chỉ tính khi đủ 30 lệnh
+   double diem = (soLenh >= 30 ? loiNhuan / MathMax(ddTien, 1.0) : 0.0);
+   if(!GhiKetQuaTester) return diem;
+
+   //--- Thống kê riêng từng PP
+   double lnPP[5];
+   int    slPP[5], thPP[5];
+   ArrayInitialize(lnPP, 0.0);
+   ArrayInitialize(slPP, 0);
+   ArrayInitialize(thPP, 0);
+   if(HistorySelect(0, TimeCurrent() + 86400))
+     {
+      int n = HistoryDealsTotal();
+      for(int i = 0; i < n; i++)
+        {
+         ulong dl = HistoryDealGetTicket(i);
+         if(dl == 0) continue;
+         int pp = PPTuMagic(HistoryDealGetInteger(dl, DEAL_MAGIC));
+         if(pp == 0) continue;
+         double p = HistoryDealGetDouble(dl, DEAL_PROFIT) + HistoryDealGetDouble(dl, DEAL_SWAP) +
+                    HistoryDealGetDouble(dl, DEAL_COMMISSION) + HistoryDealGetDouble(dl, DEAL_FEE);
+         lnPP[pp] += p;
+         ENUM_DEAL_ENTRY en = (ENUM_DEAL_ENTRY)HistoryDealGetInteger(dl, DEAL_ENTRY);
+         if(en == DEAL_ENTRY_OUT || en == DEAL_ENTRY_OUT_BY || en == DEAL_ENTRY_INOUT)
+           {
+            slPP[pp]++;
+            if(p > 0.0) thPP[pp]++;
+           }
+        }
+     }
+
+   string ten = "EAM_BACKTEST_KET_QUA.csv";
+   int h = INVALID_HANDLE;
+   for(int lan = 0; lan < 20 && h == INVALID_HANDLE; lan++)
+      h = FileOpen(ten, FILE_READ | FILE_WRITE | FILE_TXT | FILE_UNICODE | FILE_COMMON | FILE_SHARE_READ | FILE_SHARE_WRITE);
+   if(h == INVALID_HANDLE) return diem;
+   if(FileSize(h) <= 2)
+      FileWriteString(h, "ChonSet;Mo ta;Symbol;Tu;Den;Von dau;Loi nhuan;PF;Expected payoff;So lenh;Thang %;"
+                         + "Max DD equity %;Max DD equity $;Recovery;Sharpe;Diem;"
+                         + "PP1 lenh;PP1 thang %;PP1 LN;PP2 lenh;PP2 thang %;PP2 LN;"
+                         + "PP3 lenh;PP3 thang %;PP3 LN;PP4 lenh;PP4 thang %;PP4 LN\r\n");
+   FileSeek(h, 0, SEEK_END);
+   string dong = IntegerToString(ChonSet) + ";" + g_moTaSet + ";" + _Symbol
+               + ";" + TimeToString(g_tgBatDauTest, TIME_DATE) + ";" + TimeToString(TimeCurrent(), TIME_DATE)
+               + ";" + DoubleToString(TesterStatistics(STAT_INITIAL_DEPOSIT), 2)
+               + ";" + DoubleToString(loiNhuan, 2)
+               + ";" + DoubleToString(TesterStatistics(STAT_PROFIT_FACTOR), 2)
+               + ";" + DoubleToString(TesterStatistics(STAT_EXPECTED_PAYOFF), 2)
+               + ";" + DoubleToString(soLenh, 0)
+               + ";" + DoubleToString(soLenh > 0 ? 100.0 * TesterStatistics(STAT_PROFIT_TRADES) / soLenh : 0.0, 1)
+               + ";" + DoubleToString(TesterStatistics(STAT_EQUITYDD_PERCENT), 2)
+               + ";" + DoubleToString(ddTien, 2)
+               + ";" + DoubleToString(TesterStatistics(STAT_RECOVERY_FACTOR), 2)
+               + ";" + DoubleToString(TesterStatistics(STAT_SHARPE_RATIO), 2)
+               + ";" + DoubleToString(diem, 3);
+   for(int pp = 1; pp <= SO_PP; pp++)
+      dong += ";" + IntegerToString(slPP[pp])
+            + ";" + DoubleToString(slPP[pp] > 0 ? 100.0 * thPP[pp] / slPP[pp] : 0.0, 1)
+            + ";" + DoubleToString(lnPP[pp], 2);
+   FileWriteString(h, dong + "\r\n");
+   FileClose(h);
+   return diem;
+  }
+
+//+------------------------------------------------------------------+
 //| OnInit                                                           |
 //+------------------------------------------------------------------+
 int OnInit()
   {
+   SaoChepInput();
+   if(!ApDungChonSet())
+     {
+      Print("LỖI INPUT: ChonSet phải từ 0 đến ", SO_SET_DUNG_SAN);
+      return INIT_PARAMETERS_INCORRECT;
+     }
+   g_tgBatDauTest = TimeCurrent();
    //--- Kiểm tra tham số phi lý
    if(Magic_Goc <= 0)                                  { Print("LỖI INPUT: Magic_Goc phải > 0"); return INIT_PARAMETERS_INCORRECT; }
    if(PP1_SL_Pips <= 0.0)                              { Print("LỖI INPUT: PP1_SL_Pips phải > 0 (EA không cho phép lệnh không SL)"); return INIT_PARAMETERS_INCORRECT; }
-   if(BoThongSo == BTS_TUY_CHINH && (Risk_Percent <= 0.0 || Risk_Percent > 10.0))
+   if(v_BoThongSo == BTS_TUY_CHINH && (Risk_Percent <= 0.0 || Risk_Percent > 10.0))
                                                        { Print("LỖI INPUT: Risk_Percent phải trong (0; 10]"); return INIT_PARAMETERS_INCORRECT; }
    if(!SuDung_AutoLot && Lot_CoDinh <= 0.0)            { Print("LỖI INPUT: Lot_CoDinh phải > 0"); return INIT_PARAMETERS_INCORRECT; }
-   if(BoThongSo == BTS_TUY_CHINH && (MaxLenh_Tong <= 0 || MaxLenh_Buy <= 0 || MaxLenh_Sell <= 0 || MaxLenh_MoiPP <= 0))
+   if(v_BoThongSo == BTS_TUY_CHINH && (MaxLenh_Tong <= 0 || MaxLenh_Buy <= 0 || MaxLenh_Sell <= 0 || MaxLenh_MoiPP <= 0))
                                                        { Print("LỖI INPUT: các giới hạn số lệnh phải > 0"); return INIT_PARAMETERS_INCORRECT; }
-   if(PP1_RSI_ChuKy < 2 || PP2_DoDaiSwing < 2 || PP2_DoDaiNoiBo < 2 || PP4_SwingLookback < 1 || PP4_ATR_ChuKy < 1)
+   if(v_PP1_RSI_ChuKy < 2 || PP2_DoDaiSwing < 2 || PP2_DoDaiNoiBo < 2 || PP4_SwingLookback < 1 || PP4_ATR_ChuKy < 1)
                                                        { Print("LỖI INPUT: chu kỳ / độ dài swing không hợp lệ"); return INIT_PARAMETERS_INCORRECT; }
    if(PP2_RR <= 0.0 || PP3_RR <= 0.0 || PP4_RR <= 0.0) { Print("LỖI INPUT: R:R phải > 0"); return INIT_PARAMETERS_INCORRECT; }
    if(PP1_BatNhoiLenh && (PP1_HeSoLot < 1.0 || PP1_HeSoLot > 3.0 || PP1_SoTangToiDa < 1 || PP1_SoTangToiDa > 10 || PP1_BuocNhoi_Pips <= 0.0))
@@ -2724,16 +2910,16 @@ int OnInit()
    g_veDuoc    = !(MQLInfoInteger(MQL_TESTER) != 0 && MQLInfoInteger(MQL_VISUAL_MODE) == 0);
 
    g_ppBat[0] = false;
-   g_ppBat[1] = Bat_ChienLuoc_1;
-   g_ppBat[2] = Bat_ChienLuoc_2;
-   g_ppBat[3] = Bat_ChienLuoc_3;
-   g_ppBat[4] = Bat_ChienLuoc_4;
+   g_ppBat[1] = v_Bat_ChienLuoc_1;
+   g_ppBat[2] = v_Bat_ChienLuoc_2;
+   g_ppBat[3] = v_Bat_ChienLuoc_3;
+   g_ppBat[4] = v_Bat_ChienLuoc_4;
 
    g_tf[0] = ResolveTF(PERIOD_CURRENT);
-   g_tf[1] = ResolveTF(PP1_Timeframe);
-   g_tf[2] = ResolveTF(PP2_Timeframe);
-   g_tf[3] = ResolveTF(PP3_Timeframe);
-   g_tf[4] = ResolveTF(PP4_Timeframe);
+   g_tf[1] = ResolveTF(v_PP1_Timeframe);
+   g_tf[2] = ResolveTF(v_PP2_Timeframe);
+   g_tf[3] = ResolveTF(v_PP3_Timeframe);
+   g_tf[4] = ResolveTF(v_PP4_Timeframe);
 
    for(int pp = 0; pp <= SO_PP; pp++)
      {
@@ -2748,7 +2934,7 @@ int OnInit()
      }
 
    //--- Handle chỉ báo (RSI luôn tạo để vẫn thoát được giỏ PP1 khi PP1 bị tắt)
-   g_hRSI1 = iRSI(_Symbol, g_tf[1], PP1_RSI_ChuKy, PRICE_CLOSE);
+   g_hRSI1 = iRSI(_Symbol, g_tf[1], v_PP1_RSI_ChuKy, PRICE_CLOSE);
    if(g_hRSI1 == INVALID_HANDLE) { Print("LỖI: không tạo được RSI cho PP1"); return INIT_FAILED; }
    for(int pp = 2; pp <= SO_PP; pp++)
      {
@@ -2792,7 +2978,7 @@ int OnInit()
    ArrayResize(g_lenh, 0);
    ArrayResize(g_dsTinHieu, 0);
    g_fileNhatKy = (TenFileNhatKy != "" ? TenFileNhatKy :
-                   "EAM_" + TienTo_Comment + "_" + IntegerToString(Magic_Goc) +
+                   "EAM_" + v_TienTo_Comment + "_" + IntegerToString(Magic_Goc) +
                    (MQLInfoInteger(MQL_TESTER) != 0 ? "_TESTER" : "") + ".csv");
    CapNhatLenhTheoDoi();
    DemLenh(g_dem);
@@ -2807,7 +2993,8 @@ int OnInit()
    for(int pp = 1; pp <= SO_PP; pp++)
       Print(StringFormat("%s %s: %s | khung %s | magic %d", g_ppTen[pp], g_ppMoTa[pp], (g_ppBat[pp] ? "BẬT" : "TẮT"),
                          TfStr(g_tf[pp]), (int)MagicCuaPP(pp)));
-   Print("Xung đột tín hiệu: ", TenCheDoXungDot(), " | SET: ", TienTo_Comment,
+   Print("SET dựng sẵn: ", (ChonSet > 0 ? StringFormat("B%02d - ", ChonSet) + g_moTaSet : "không (dùng Input)"));
+   Print("Xung đột tín hiệu: ", TenCheDoXungDot(), " | SET: ", v_TienTo_Comment,
          (DungVonAo() ? " | VỐN ẢO " + D2(VonAo_USD) + " từ " + TimeToString(VonAo_BatDau, TIME_DATE | TIME_MINUTES)
                       : " | dùng Balance/Equity thật"));
    if(GhiNhatKyCSV) Print("Nhật ký lệnh: Common\\Files\\", g_fileNhatKy);
