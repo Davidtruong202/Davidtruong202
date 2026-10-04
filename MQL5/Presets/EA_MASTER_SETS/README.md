@@ -146,3 +146,10 @@ File: `EAM_TESTER_VONG4_RISK3_SPREAD50.set` (53-102) hoặc `EAM_TESTER_TATCA102
 
 Tester: Fast genetic based algorithm + Custom max. Khuyến nghị Date 2024.01.01-2026.09.30,
 Forward = Custom 2026.01.01 để có cột kết quả Forward (dữ liệu không dùng để tối ưu).
+
+## EA_MASTER_SETAO_V100: 1 chart - nhiều SET ảo
+
+Gắn 1 chart XAUUSD. 6 SET mặc định (F1-F6) lấy từ kết quả tối ưu A/B/C. Lệnh ẢO (không gửi lên sàn),
+vốn ảo 5000/SET, rủi ro 3%. File: Common\Files\EAM_SETAO_<MaPhien>_LENH.csv (mọi lệnh ảo),
+_TONGKET.csv (bảng xếp hạng), _TRANGTHAI.txt (để chạy tiếp sau khi khởi động lại).
+Chạy được cả trong Strategy Tester (1 lượt test = so sánh cả 6 SET).
