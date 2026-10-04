@@ -1,0 +1,5 @@
+name,Hand_FirstDist,Hand_MinDist1,Hand_AddGap1,Hand_MinDist2,Hand_AddGap2,Hand_OrderThresh,Hand_MoveStep,Hand_InitLot,Hand_AddLotMult,Hand_SideTP,Hand_SideSL,Hand_AllStopLoss,Hand_PauseLoss,NetClosePL,EA_StartTime,EA_StopTime,InpBasketMaxLoss,InpHardSLATR,InpFlattenOnClose,InpMaxLayers,InpMaxTotalLots,InpDailyLossLimit,InpPeakRetracePct,InpSpikeEnable,InpSpikeUSD,InpSpikePauseMin,InpSpikeRemovePend,MaxLot,DailyProfitTarget
+CanBang,160,90,200,240,320,5,50,0.02,1.2,525,2200,450,1400,375,09:00,18:00,1300,6.0,true,7,100,0,50,true,6.0,20,false,0.2,0
+AnToan,160,90,200,240,320,5,50,0.01,1.2,525,2200,450,1400,375,09:00,18:00,1300,6.0,true,7,100,0,50,true,6.0,20,false,0.2,0
+DuPhong_DDthap,30,70,240,140,260,11,120,0.02,1.15,75,2500,450,2300,325,09:00,18:00,0,6.0,true,6,0.8,0,30,true,6.0,20,true,0.1,1100
+set710taikhoan20k,70,100,110,140,160,6,50,0.02,1.15,250,1000,150,1500,250,03:00,15:00,0,0,true,0,100,0,100,false,3.0,30,true,10,0

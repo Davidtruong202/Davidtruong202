@@ -309,3 +309,11 @@ def main_bridge(to=None, amp=0.45, name=None):
     ts, bs, as_ = synth_ticks_bridge(m1, amp=amp)
     name = name or ("ticks_bridge.bin" if not to else "ticks_bridge_test.bin")
     print("tick cầu Brown:", write_ticks(os.path.join(OUT, name), ts, bs, as_))
+
+
+def main_bridge_seed(seed):
+    m1 = pd.read_csv(M1_CSV, sep=";")
+    m1["time"] = pd.to_datetime(m1["time"], format="%Y.%m.%d %H:%M:%S")
+    m1 = m1.sort_values("time").drop_duplicates("time").reset_index(drop=True)
+    ts, bs, as_ = synth_ticks_bridge(m1, seed=seed)
+    print("tick cầu Brown seed", seed, write_ticks(os.path.join(OUT, "ticks_bridge_s%d.bin" % seed), ts, bs, as_))
