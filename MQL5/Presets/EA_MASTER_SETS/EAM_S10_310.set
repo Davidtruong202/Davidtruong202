@@ -1,4 +1,4 @@
-﻿; EA MASTER 4PP v1.31 - SET S10: 4 PP SAFE không đối nghịch
+﻿; EA MASTER 4PP v1.32 - SET S10: 4 PP SAFE không đối nghịch
 ; Magic 310 -> lệnh PP1..PP4 = 3101..3104 ; comment S10_PPx_BUY/SELL
 ; Gắn trên chart XAUUSD riêng (khung chart bất kỳ). Mỗi SET 1 chart.
 ChonSet=0

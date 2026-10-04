@@ -15,13 +15,13 @@
 //|  Bản kiểm thử đầu tiên - thông số mặc định KHÔNG phải tối ưu.     |
 //+------------------------------------------------------------------+
 #property copyright "EA MASTER 4PP"
-#property version   "1.31"
+#property version   "1.32"
 #property description "EA MASTER tổng hợp 4 phương pháp (RSI / SMC / Fibo Pivot / Quasimodo)."
 #property description "Bản dùng để backtest từng phương pháp - KHÔNG phải setting tối ưu."
 
 #include <Trade\Trade.mqh>
 
-#define EAM_VERSION "1.31"
+#define EAM_VERSION "1.32"
 #define DIR_BULL    1
 #define DIR_BEAR    -1
 #define SO_PP       4
@@ -83,7 +83,7 @@ enum ENUM_PP3_CHE_DO
 //| INPUT                                                            |
 //+------------------------------------------------------------------+
 input group "=== 0. CHỌN SET DỰNG SẴN (BACKTEST NHIỀU SET) ==="
-input int    ChonSet         = 0;    // Chọn SET dựng sẵn: 0 = dùng Input | 1-22 vòng 1 | 23-40 vòng 2 (Optimization)
+input int    ChonSet         = 0;    // Chọn SET dựng sẵn: 0 = dùng Input | 1-22 vòng 1 | 23-40 vòng 2 | 41-52 vòng 3 (Optimization)
 input bool   GhiKetQuaTester = true; // Ghi kết quả mỗi lượt Tester vào Common\Files\EAM_BACKTEST_KET_QUA.csv
 
 input group "=== 1. CÀI ĐẶT CHUNG ==="
@@ -2780,7 +2780,7 @@ void InThongKeTheoPP()
 //| Mỗi SET bắt đầu từ: tắt cả 4 PP, BALANCED, độc lập, khung M15,   |
 //| PP1 M1, rồi chỉ đổi đúng các thông số ghi trong case.            |
 //+------------------------------------------------------------------+
-#define SO_SET_DUNG_SAN 40
+#define SO_SET_DUNG_SAN 52
 
 void SaoChepInput()
   {
@@ -2873,6 +2873,18 @@ bool ApDungChonSet()
       case 38: g_moTaSet = "V2 PP4 H1 không hòa vốn"; v_Bat_ChienLuoc_4 = true; v_PP4_Timeframe = PERIOD_H1; v_QL_BatHoaVon = false; break;
       case 39: g_moTaSet = "V2 PP2 H1 + PP4 H1"; v_Bat_ChienLuoc_2 = true; v_Bat_ChienLuoc_4 = true; v_PP2_Timeframe = PERIOD_H1; v_PP4_Timeframe = PERIOD_H1; break;
       case 40: g_moTaSet = "V2 PP2 H1 OB swing + PP4 H1"; v_Bat_ChienLuoc_2 = true; v_Bat_ChienLuoc_4 = true; v_PP2_Timeframe = PERIOD_H1; v_PP2_LoaiOB = OB_SWING; v_PP4_Timeframe = PERIOD_H1; break;
+      case 41: g_moTaSet = "V3 PP2 M15 OB swing không cần nến xác nhận"; v_Bat_ChienLuoc_2 = true; v_PP2_Timeframe = PERIOD_M15; v_PP2_LoaiOB = OB_SWING; v_PP2_YeuCauNenXacNhan = false; break;
+      case 42: g_moTaSet = "V3 PP2 M15 xét 10 OB, 2 lệnh/PP"; v_Bat_ChienLuoc_2 = true; v_PP2_Timeframe = PERIOD_M15; v_PP2_SoOBXemXet = 10; v_BoThongSo = BTS_MAO_HIEM; break;
+      case 43: g_moTaSet = "V3 PP2 M15 lọc HTF H1"; v_Bat_ChienLuoc_2 = true; v_PP2_Timeframe = PERIOD_M15; v_PP2_LocHTF = true; v_PP2_HTF = PERIOD_H1; break;
+      case 44: g_moTaSet = "V3 PP2 M15 lọc HTF H4"; v_Bat_ChienLuoc_2 = true; v_PP2_Timeframe = PERIOD_M15; v_PP2_LocHTF = true; v_PP2_HTF = PERIOD_H4; break;
+      case 45: g_moTaSet = "V3 PP2 M5 lọc HTF H1"; v_Bat_ChienLuoc_2 = true; v_PP2_Timeframe = PERIOD_M5; v_PP2_LocHTF = true; v_PP2_HTF = PERIOD_H1; break;
+      case 46: g_moTaSet = "V3 PP2 M5 OB swing lọc HTF H1"; v_Bat_ChienLuoc_2 = true; v_PP2_Timeframe = PERIOD_M5; v_PP2_LoaiOB = OB_SWING; v_PP2_LocHTF = true; v_PP2_HTF = PERIOD_H1; break;
+      case 47: g_moTaSet = "V3 PP2 M15 swing 30"; v_Bat_ChienLuoc_2 = true; v_PP2_Timeframe = PERIOD_M15; v_PP2_DoDaiSwing = 30; break;
+      case 48: g_moTaSet = "V3 PP2 M15 swing 20 OB swing"; v_Bat_ChienLuoc_2 = true; v_PP2_Timeframe = PERIOD_M15; v_PP2_DoDaiSwing = 20; v_PP2_LoaiOB = OB_SWING; break;
+      case 49: g_moTaSet = "V3 PP2 M30 swing 30"; v_Bat_ChienLuoc_2 = true; v_PP2_Timeframe = PERIOD_M30; v_PP2_DoDaiSwing = 30; break;
+      case 50: g_moTaSet = "V3 PP2 H1 swing 20"; v_Bat_ChienLuoc_2 = true; v_PP2_Timeframe = PERIOD_H1; v_PP2_DoDaiSwing = 20; break;
+      case 51: g_moTaSet = "V3 PP2 M15 OB swing + PP4 H1"; v_Bat_ChienLuoc_2 = true; v_Bat_ChienLuoc_4 = true; v_PP2_Timeframe = PERIOD_M15; v_PP2_LoaiOB = OB_SWING; v_PP4_Timeframe = PERIOD_H1; break;
+      case 52: g_moTaSet = "V3 PP2 M15 OB swing + PP4 M15 R:R 3"; v_Bat_ChienLuoc_2 = true; v_Bat_ChienLuoc_4 = true; v_PP2_Timeframe = PERIOD_M15; v_PP2_LoaiOB = OB_SWING; v_PP4_Timeframe = PERIOD_M15; v_PP4_RR = 3.0; break;
      }
    v_TienTo_Comment = StringFormat("B%02d", ChonSet);
    return true;
