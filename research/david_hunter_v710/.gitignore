@@ -1,0 +1,5 @@
+du_lieu/
+dh710sim
+*.log
+log_*
+__pycache__/
