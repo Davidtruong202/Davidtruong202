@@ -135,3 +135,14 @@ File: `EAM_TESTER_VONG4_RISK3_SPREAD50.set` (53-102) hoặc `EAM_TESTER_TATCA102
 | 100 | V4 PP2 M30 + PP4 M30 |
 | 101 | V4 PP2 M5 lọc HTF H1 + PP4 M15 |
 | 102 | V4 PP2 M15 + PP3 bật lại M15 + PP4 H1 |
+
+## Tối ưu thông số (EA v1.40, ChonSet = 0) - thư mục TOI_UU
+
+| File | Gốc từ set | Thông số được tối ưu |
+|---|---|---|
+| V140_TOIUU_A_PP2_H1.set | 26 / 91 / 92 / 83 / 89 | PP2 R:R, đệm SL, SL tối thiểu, độ dài swing, số OB, nến xác nhận, loại OB, hòa vốn (bật/tắt, tại R), 1 hay 2 lệnh/PP |
+| V140_TOIUU_B_PP2_M15_OBSWING.set | 64 / 32 | như A, khung M15 |
+| V140_TOIUU_C_PP2H1_PP4H1.set | 39 / 51 | PP2 R:R/loại OB/nến xác nhận + PP4 R:R, đệm SL, lookback, số nến chờ, Entry 2, hòa vốn |
+
+Tester: Fast genetic based algorithm + Custom max. Khuyến nghị Date 2024.01.01-2026.09.30,
+Forward = Custom 2026.01.01 để có cột kết quả Forward (dữ liệu không dùng để tối ưu).
