@@ -153,3 +153,11 @@ Gắn 1 chart XAUUSD. 6 SET mặc định (F1-F6) lấy từ kết quả tối �
 vốn ảo 5000/SET, rủi ro 3%. File: Common\Files\EAM_SETAO_<MaPhien>_LENH.csv (mọi lệnh ảo),
 _TONGKET.csv (bảng xếp hạng), _TRANGTHAI.txt (để chạy tiếp sau khi khởi động lại).
 Chạy được cả trong Strategy Tester (1 lượt test = so sánh cả 6 SET).
+
+## EA_MASTER_PRO_V200: bản chạy tài khoản thật (hỗ trợ Cent)
+
+- Mỗi SET có THAT=1 (lệnh thật) hoặc THAT=0 (ảo). Mặc định chỉ F6 chạy thật.
+- Magic lệnh thật = Magic_Goc*100 + số SET*10 + PP (mặc định 26 -> F6: 2662 PP2, 2664 PP4).
+- Rủi ro thật mặc định 1%/lệnh (backtest dùng 3%), chốt chặn 5%, tối đa 4 lệnh thật,
+  DD ngày 10%, DD tổng 30% (chỉ chặn lệnh mới), spread tối đa 50 pip.
+- Nhật ký: Common\Files\EAM_PRO_<MaPhien>_LENH.csv / _TONGKET.csv / _TRANGTHAI.txt
