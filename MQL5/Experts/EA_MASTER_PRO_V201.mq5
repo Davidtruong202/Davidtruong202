@@ -12,7 +12,7 @@
 //|    lệnh, DD ngày, DD tổng, lọc spread.                            |
 //+------------------------------------------------------------------+
 #property copyright "EA MASTER PRO"
-#property version   "2.00"
+#property version   "2.01"
 #property description "EA MASTER PRO - PP2 SMC + PP4 QM, nhiều SET (thật / ảo), hỗ trợ tài khoản Cent."
 #property description "Lệnh thật luôn có SL. Hãy chạy demo trước khi dùng tiền thật."
 
@@ -22,7 +22,7 @@
 #define DIR_BULL    1
 #define DIR_BEAR    -1
 #define OBJ_PREFIX  "EAMP_"
-#define EA_VER      "2.00"
+#define EA_VER      "2.01"
 
 //+------------------------------------------------------------------+
 //| INPUT                                                            |
@@ -1502,7 +1502,7 @@ void UpdateDashboard()
    //--- Tiêu đề
    UiRect("HEAD", X, Y, W, 48, C_HEAD, C_LINE);
    UiText("TITLE", "EA MASTER PRO", X + 14, Y + 6, 14, C_GOLD, UI_FONTB);
-   UiText("SUB", _Symbol + "  •  v" + EA_VER + "  •  " + (cent ? "Tài khoản CENT (" + cur + ")" : "Tài khoản " + cur) + "  •  "
+   UiText("SUB", _Symbol + " • v" + EA_VER + " • " + (cent ? "TK CENT (" + cur + ")" : "TK " + cur) + " • "
           + TimeToString(TimeCurrent(), TIME_DATE | TIME_MINUTES), X + 15, Y + 29, 8, C_MUTED, UI_FONT);
    UiRect("BADGE", X + W - 210, Y + 12, 196, 24, (khoa ? C'120,70,20' : C'20,90,56'), (khoa ? C'200,120,40' : C_GREEN));
    UiText("BADGE_T", (khoa ? "■ TẠM DỪNG LỆNH MỚI" : "● ĐANG CHẠY"), X + W - 112, Y + 16, 9, C_TEXT, UI_FONTB);
@@ -1563,12 +1563,15 @@ void UpdateDashboard()
 
    //--- Chân bảng
    int fy = ty + 26 + m * 26 + 6;
-   UiText("FOOT1", StringFormat("Lệnh THẬT: rủi ro %.1f%%/lệnh • chốt chặn %.1f%% • tối đa %d lệnh • spread ≤ %.0f pip • DD ngày %s • DD tổng %s",
-                                RuiRo_That_PT, ChotChan_PT, MaxLenhThat_Tong, Spread_ToiDa_Pips,
-                                (Bat_DDNgay ? DoubleToString(DDNgay_PT, 0) + "%" : "tắt"), (Bat_DDTong ? DoubleToString(DDTong_PT, 0) + "%" : "tắt")),
-          X + 14, fy, 8, C_MUTED, UI_FONT);
-   UiText("FOOT2", (khoa ? "Tạm dừng: " + g_lyDoKhoa : "Lợi nhuận SET ẢO tính trên vốn ảo, rủi ro " + DoubleToString(Risk_PT, 1)
-          + "%. Nhật ký: Common\\Files\\" + g_fileLenh), X + 14, fy + 16, 8, (khoa ? C_GOLD : C_MUTED), UI_FONT);
+   //--- Mỗi nhãn MT5 tối đa 63 ký tự -> chia nhỏ
+   UiText("FOOT1", StringFormat("Lệnh THẬT: rủi ro %.1f%%/lệnh • chốt chặn %.1f%% • tối đa %d lệnh",
+                                RuiRo_That_PT, ChotChan_PT, MaxLenhThat_Tong), X + 14, fy, 8, C_MUTED, UI_FONT);
+   UiText("FOOT1B", StringFormat("Spread ≤ %.0f pip • DD ngày %s • DD tổng %s", Spread_ToiDa_Pips,
+                                 (Bat_DDNgay ? DoubleToString(DDNgay_PT, 0) + "%" : "tắt"), (Bat_DDTong ? DoubleToString(DDTong_PT, 0) + "%" : "tắt")),
+          X + W - 14, fy, 8, C_MUTED, UI_FONT, true);
+   UiText("FOOT2", (khoa ? "TẠM DỪNG: " + g_lyDoKhoa : "SET ẢO: tính trên vốn ảo, rủi ro " + DoubleToString(Risk_PT, 1) + "%/lệnh"),
+          X + 14, fy + 16, 8, (khoa ? C_GOLD : C_MUTED), UI_FONT);
+   UiText("FOOT2B", "Nhật ký: Common\\Files\\EAM_PRO_" + MaPhien + "_*.csv", X + W - 14, fy + 16, 8, C_MUTED, UI_FONT, true);
    ChartRedraw(0);
   }
 
