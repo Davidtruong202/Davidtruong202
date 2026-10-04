@@ -15,13 +15,13 @@
 //|  Bản kiểm thử đầu tiên - thông số mặc định KHÔNG phải tối ưu.     |
 //+------------------------------------------------------------------+
 #property copyright "EA MASTER 4PP"
-#property version   "1.32"
+#property version   "1.40"
 #property description "EA MASTER tổng hợp 4 phương pháp (RSI / SMC / Fibo Pivot / Quasimodo)."
 #property description "Bản dùng để backtest từng phương pháp - KHÔNG phải setting tối ưu."
 
 #include <Trade\Trade.mqh>
 
-#define EAM_VERSION "1.32"
+#define EAM_VERSION "1.40"
 #define DIR_BULL    1
 #define DIR_BEAR    -1
 #define SO_PP       4
@@ -83,7 +83,7 @@ enum ENUM_PP3_CHE_DO
 //| INPUT                                                            |
 //+------------------------------------------------------------------+
 input group "=== 0. CHỌN SET DỰNG SẴN (BACKTEST NHIỀU SET) ==="
-input int    ChonSet         = 0;    // Chọn SET dựng sẵn: 0 = dùng Input | 1-22 vòng 1 | 23-40 vòng 2 | 41-52 vòng 3 (Optimization)
+input int    ChonSet         = 0;    // Chọn SET dựng sẵn: 0 = dùng Input | 1-52 vòng 1-3 | 53-102 vòng 4 (Optimization)
 input bool   GhiKetQuaTester = true; // Ghi kết quả mỗi lượt Tester vào Common\Files\EAM_BACKTEST_KET_QUA.csv
 
 input group "=== 1. CÀI ĐẶT CHUNG ==="
@@ -112,6 +112,7 @@ input group "=== 3. KHỐI LƯỢNG (LOT) ==="
 input bool   SuDung_AutoLot          = true; // Dùng Auto Lot theo % rủi ro
 input double Lot_CoDinh              = 0.01; // Lot cố định (khi tắt Auto Lot)
 input double Risk_Percent            = 0.5;  // Rủi ro mỗi lệnh % Balance [chỉ khi TÙY CHỈNH]
+input double Risk_GhiDe_PT           = 0.0;  // Ghi đè Risk% cho MỌI bộ thông số / SET (0 = không ghi đè)
 input double Lot_ToiDa               = 1.0;  // Lot tối đa cho 1 lệnh (chặn lot bất thường)
 input bool   ChoPhepDungLotToiThieu  = true; // Cho dùng lot min khi lot theo rủi ro < lot min
 input double HeSoRuiRoToiDaVoiLotMin = 2.0;  // ...chỉ khi rủi ro thực tế <= hệ số x Risk%
@@ -816,6 +817,7 @@ void ApDungBoThongSo()
          g_thuaLTMax = ThuaLienTiep_ToiDa;
          break;
      }
+   if(Risk_GhiDe_PT > 0.0) g_riskPct = Risk_GhiDe_PT;
   }
 
 //--- Vốn ảo: mỗi SET coi như 1 tài khoản riêng (để nhiều SET chạy chung 1 tài khoản demo)
@@ -2780,7 +2782,7 @@ void InThongKeTheoPP()
 //| Mỗi SET bắt đầu từ: tắt cả 4 PP, BALANCED, độc lập, khung M15,   |
 //| PP1 M1, rồi chỉ đổi đúng các thông số ghi trong case.            |
 //+------------------------------------------------------------------+
-#define SO_SET_DUNG_SAN 52
+#define SO_SET_DUNG_SAN 102
 
 void SaoChepInput()
   {
@@ -2885,6 +2887,56 @@ bool ApDungChonSet()
       case 50: g_moTaSet = "V3 PP2 H1 swing 20"; v_Bat_ChienLuoc_2 = true; v_PP2_Timeframe = PERIOD_H1; v_PP2_DoDaiSwing = 20; break;
       case 51: g_moTaSet = "V3 PP2 M15 OB swing + PP4 H1"; v_Bat_ChienLuoc_2 = true; v_Bat_ChienLuoc_4 = true; v_PP2_Timeframe = PERIOD_M15; v_PP2_LoaiOB = OB_SWING; v_PP4_Timeframe = PERIOD_H1; break;
       case 52: g_moTaSet = "V3 PP2 M15 OB swing + PP4 M15 R:R 3"; v_Bat_ChienLuoc_2 = true; v_Bat_ChienLuoc_4 = true; v_PP2_Timeframe = PERIOD_M15; v_PP2_LoaiOB = OB_SWING; v_PP4_Timeframe = PERIOD_M15; v_PP4_RR = 3.0; break;
+      case 53: g_moTaSet = "V4 PP2 M5"; v_Bat_ChienLuoc_2 = true; v_PP2_Timeframe = PERIOD_M5; break;
+      case 54: g_moTaSet = "V4 PP2 M5 OB swing"; v_Bat_ChienLuoc_2 = true; v_PP2_Timeframe = PERIOD_M5; v_PP2_LoaiOB = OB_SWING; break;
+      case 55: g_moTaSet = "V4 PP2 M5 không xác nhận"; v_Bat_ChienLuoc_2 = true; v_PP2_Timeframe = PERIOD_M5; v_PP2_YeuCauNenXacNhan = false; break;
+      case 56: g_moTaSet = "V4 PP2 M5 OB swing không xác nhận"; v_Bat_ChienLuoc_2 = true; v_PP2_Timeframe = PERIOD_M5; v_PP2_LoaiOB = OB_SWING; v_PP2_YeuCauNenXacNhan = false; break;
+      case 57: g_moTaSet = "V4 PP2 M5 lọc HTF H1"; v_Bat_ChienLuoc_2 = true; v_PP2_Timeframe = PERIOD_M5; v_PP2_LocHTF = true; v_PP2_HTF = PERIOD_H1; break;
+      case 58: g_moTaSet = "V4 PP2 M5 OB swing lọc HTF H1"; v_Bat_ChienLuoc_2 = true; v_PP2_Timeframe = PERIOD_M5; v_PP2_LoaiOB = OB_SWING; v_PP2_LocHTF = true; v_PP2_HTF = PERIOD_H1; break;
+      case 59: g_moTaSet = "V4 PP2 M5 swing 30"; v_Bat_ChienLuoc_2 = true; v_PP2_Timeframe = PERIOD_M5; v_PP2_DoDaiSwing = 30; break;
+      case 60: g_moTaSet = "V4 PP2 M5 swing 30 không xác nhận"; v_Bat_ChienLuoc_2 = true; v_PP2_Timeframe = PERIOD_M5; v_PP2_DoDaiSwing = 30; v_PP2_YeuCauNenXacNhan = false; break;
+      case 61: g_moTaSet = "V4 PP2 M5 R:R 1.5 không hòa vốn"; v_Bat_ChienLuoc_2 = true; v_PP2_Timeframe = PERIOD_M5; v_PP2_RR = 1.5; v_QL_BatHoaVon = false; break;
+      case 62: g_moTaSet = "V4 PP2 M5 R:R 3, 10 OB, 2 lệnh"; v_Bat_ChienLuoc_2 = true; v_PP2_Timeframe = PERIOD_M5; v_PP2_RR = 3.0; v_PP2_SoOBXemXet = 10; v_BoThongSo = BTS_MAO_HIEM; break;
+      case 63: g_moTaSet = "V4 PP2 M15"; v_Bat_ChienLuoc_2 = true; v_PP2_Timeframe = PERIOD_M15; break;
+      case 64: g_moTaSet = "V4 PP2 M15 OB swing"; v_Bat_ChienLuoc_2 = true; v_PP2_Timeframe = PERIOD_M15; v_PP2_LoaiOB = OB_SWING; break;
+      case 65: g_moTaSet = "V4 PP2 M15 không xác nhận"; v_Bat_ChienLuoc_2 = true; v_PP2_Timeframe = PERIOD_M15; v_PP2_YeuCauNenXacNhan = false; break;
+      case 66: g_moTaSet = "V4 PP2 M15 OB swing không xác nhận"; v_Bat_ChienLuoc_2 = true; v_PP2_Timeframe = PERIOD_M15; v_PP2_LoaiOB = OB_SWING; v_PP2_YeuCauNenXacNhan = false; break;
+      case 67: g_moTaSet = "V4 PP2 M15 lọc HTF H1"; v_Bat_ChienLuoc_2 = true; v_PP2_Timeframe = PERIOD_M15; v_PP2_LocHTF = true; v_PP2_HTF = PERIOD_H1; break;
+      case 68: g_moTaSet = "V4 PP2 M15 OB swing lọc HTF H1"; v_Bat_ChienLuoc_2 = true; v_PP2_Timeframe = PERIOD_M15; v_PP2_LoaiOB = OB_SWING; v_PP2_LocHTF = true; v_PP2_HTF = PERIOD_H1; break;
+      case 69: g_moTaSet = "V4 PP2 M15 swing 30"; v_Bat_ChienLuoc_2 = true; v_PP2_Timeframe = PERIOD_M15; v_PP2_DoDaiSwing = 30; break;
+      case 70: g_moTaSet = "V4 PP2 M15 swing 30 không xác nhận"; v_Bat_ChienLuoc_2 = true; v_PP2_Timeframe = PERIOD_M15; v_PP2_DoDaiSwing = 30; v_PP2_YeuCauNenXacNhan = false; break;
+      case 71: g_moTaSet = "V4 PP2 M15 R:R 1.5 không hòa vốn"; v_Bat_ChienLuoc_2 = true; v_PP2_Timeframe = PERIOD_M15; v_PP2_RR = 1.5; v_QL_BatHoaVon = false; break;
+      case 72: g_moTaSet = "V4 PP2 M15 R:R 3, 10 OB, 2 lệnh"; v_Bat_ChienLuoc_2 = true; v_PP2_Timeframe = PERIOD_M15; v_PP2_RR = 3.0; v_PP2_SoOBXemXet = 10; v_BoThongSo = BTS_MAO_HIEM; break;
+      case 73: g_moTaSet = "V4 PP2 M30"; v_Bat_ChienLuoc_2 = true; v_PP2_Timeframe = PERIOD_M30; break;
+      case 74: g_moTaSet = "V4 PP2 M30 OB swing"; v_Bat_ChienLuoc_2 = true; v_PP2_Timeframe = PERIOD_M30; v_PP2_LoaiOB = OB_SWING; break;
+      case 75: g_moTaSet = "V4 PP2 M30 không xác nhận"; v_Bat_ChienLuoc_2 = true; v_PP2_Timeframe = PERIOD_M30; v_PP2_YeuCauNenXacNhan = false; break;
+      case 76: g_moTaSet = "V4 PP2 M30 OB swing không xác nhận"; v_Bat_ChienLuoc_2 = true; v_PP2_Timeframe = PERIOD_M30; v_PP2_LoaiOB = OB_SWING; v_PP2_YeuCauNenXacNhan = false; break;
+      case 77: g_moTaSet = "V4 PP2 M30 lọc HTF H4"; v_Bat_ChienLuoc_2 = true; v_PP2_Timeframe = PERIOD_M30; v_PP2_LocHTF = true; v_PP2_HTF = PERIOD_H4; break;
+      case 78: g_moTaSet = "V4 PP2 M30 OB swing lọc HTF H4"; v_Bat_ChienLuoc_2 = true; v_PP2_Timeframe = PERIOD_M30; v_PP2_LoaiOB = OB_SWING; v_PP2_LocHTF = true; v_PP2_HTF = PERIOD_H4; break;
+      case 79: g_moTaSet = "V4 PP2 M30 swing 30"; v_Bat_ChienLuoc_2 = true; v_PP2_Timeframe = PERIOD_M30; v_PP2_DoDaiSwing = 30; break;
+      case 80: g_moTaSet = "V4 PP2 M30 swing 30 không xác nhận"; v_Bat_ChienLuoc_2 = true; v_PP2_Timeframe = PERIOD_M30; v_PP2_DoDaiSwing = 30; v_PP2_YeuCauNenXacNhan = false; break;
+      case 81: g_moTaSet = "V4 PP2 M30 R:R 1.5 không hòa vốn"; v_Bat_ChienLuoc_2 = true; v_PP2_Timeframe = PERIOD_M30; v_PP2_RR = 1.5; v_QL_BatHoaVon = false; break;
+      case 82: g_moTaSet = "V4 PP2 M30 R:R 3, 10 OB, 2 lệnh"; v_Bat_ChienLuoc_2 = true; v_PP2_Timeframe = PERIOD_M30; v_PP2_RR = 3.0; v_PP2_SoOBXemXet = 10; v_BoThongSo = BTS_MAO_HIEM; break;
+      case 83: g_moTaSet = "V4 PP2 H1"; v_Bat_ChienLuoc_2 = true; v_PP2_Timeframe = PERIOD_H1; break;
+      case 84: g_moTaSet = "V4 PP2 H1 OB swing"; v_Bat_ChienLuoc_2 = true; v_PP2_Timeframe = PERIOD_H1; v_PP2_LoaiOB = OB_SWING; break;
+      case 85: g_moTaSet = "V4 PP2 H1 không xác nhận"; v_Bat_ChienLuoc_2 = true; v_PP2_Timeframe = PERIOD_H1; v_PP2_YeuCauNenXacNhan = false; break;
+      case 86: g_moTaSet = "V4 PP2 H1 OB swing không xác nhận"; v_Bat_ChienLuoc_2 = true; v_PP2_Timeframe = PERIOD_H1; v_PP2_LoaiOB = OB_SWING; v_PP2_YeuCauNenXacNhan = false; break;
+      case 87: g_moTaSet = "V4 PP2 H1 lọc HTF H4"; v_Bat_ChienLuoc_2 = true; v_PP2_Timeframe = PERIOD_H1; v_PP2_LocHTF = true; v_PP2_HTF = PERIOD_H4; break;
+      case 88: g_moTaSet = "V4 PP2 H1 OB swing lọc HTF H4"; v_Bat_ChienLuoc_2 = true; v_PP2_Timeframe = PERIOD_H1; v_PP2_LoaiOB = OB_SWING; v_PP2_LocHTF = true; v_PP2_HTF = PERIOD_H4; break;
+      case 89: g_moTaSet = "V4 PP2 H1 swing 30"; v_Bat_ChienLuoc_2 = true; v_PP2_Timeframe = PERIOD_H1; v_PP2_DoDaiSwing = 30; break;
+      case 90: g_moTaSet = "V4 PP2 H1 swing 30 không xác nhận"; v_Bat_ChienLuoc_2 = true; v_PP2_Timeframe = PERIOD_H1; v_PP2_DoDaiSwing = 30; v_PP2_YeuCauNenXacNhan = false; break;
+      case 91: g_moTaSet = "V4 PP2 H1 R:R 1.5 không hòa vốn"; v_Bat_ChienLuoc_2 = true; v_PP2_Timeframe = PERIOD_H1; v_PP2_RR = 1.5; v_QL_BatHoaVon = false; break;
+      case 92: g_moTaSet = "V4 PP2 H1 R:R 3, 10 OB, 2 lệnh"; v_Bat_ChienLuoc_2 = true; v_PP2_Timeframe = PERIOD_H1; v_PP2_RR = 3.0; v_PP2_SoOBXemXet = 10; v_BoThongSo = BTS_MAO_HIEM; break;
+      case 93: g_moTaSet = "V4 PP4 M15 R:R 3"; v_Bat_ChienLuoc_4 = true; v_PP4_Timeframe = PERIOD_M15; v_PP4_RR = 3.0; break;
+      case 94: g_moTaSet = "V4 PP4 M30"; v_Bat_ChienLuoc_4 = true; v_PP4_Timeframe = PERIOD_M30; break;
+      case 95: g_moTaSet = "V4 PP4 M30 R:R 3"; v_Bat_ChienLuoc_4 = true; v_PP4_Timeframe = PERIOD_M30; v_PP4_RR = 3.0; break;
+      case 96: g_moTaSet = "V4 PP4 H1 R:R 3 không hòa vốn"; v_Bat_ChienLuoc_4 = true; v_PP4_Timeframe = PERIOD_H1; v_PP4_RR = 3.0; v_QL_BatHoaVon = false; break;
+      case 97: g_moTaSet = "V4 PP4 M15 TP cấu trúc"; v_Bat_ChienLuoc_4 = true; v_PP4_Timeframe = PERIOD_M15; v_PP4_KieuTP = TP_THEO_CAU_TRUC; break;
+      case 98: g_moTaSet = "V4 PP2 M15 OB swing + PP4 M15"; v_Bat_ChienLuoc_2 = true; v_Bat_ChienLuoc_4 = true; v_PP2_Timeframe = PERIOD_M15; v_PP2_LoaiOB = OB_SWING; v_PP4_Timeframe = PERIOD_M15; break;
+      case 99: g_moTaSet = "V4 PP2 M15 + PP4 H1"; v_Bat_ChienLuoc_2 = true; v_Bat_ChienLuoc_4 = true; v_PP2_Timeframe = PERIOD_M15; v_PP4_Timeframe = PERIOD_H1; break;
+      case 100: g_moTaSet = "V4 PP2 M30 + PP4 M30"; v_Bat_ChienLuoc_2 = true; v_Bat_ChienLuoc_4 = true; v_PP2_Timeframe = PERIOD_M30; v_PP4_Timeframe = PERIOD_M30; break;
+      case 101: g_moTaSet = "V4 PP2 M5 lọc HTF H1 + PP4 M15"; v_Bat_ChienLuoc_2 = true; v_Bat_ChienLuoc_4 = true; v_PP2_Timeframe = PERIOD_M5; v_PP2_LocHTF = true; v_PP2_HTF = PERIOD_H1; v_PP4_Timeframe = PERIOD_M15; break;
+      case 102: g_moTaSet = "V4 PP2 M15 + PP3 bật lại M15 + PP4 H1"; v_Bat_ChienLuoc_2 = true; v_Bat_ChienLuoc_3 = true; v_Bat_ChienLuoc_4 = true; v_PP2_Timeframe = PERIOD_M15; v_PP3_Timeframe = PERIOD_M15; v_PP4_Timeframe = PERIOD_H1; break;
      }
    v_TienTo_Comment = StringFormat("B%02d", ChonSet);
    return true;
@@ -2979,6 +3031,7 @@ int OnInit()
    if(PP1_SL_Pips <= 0.0)                              { Print("LỖI INPUT: PP1_SL_Pips phải > 0 (EA không cho phép lệnh không SL)"); return INIT_PARAMETERS_INCORRECT; }
    if(v_BoThongSo == BTS_TUY_CHINH && (Risk_Percent <= 0.0 || Risk_Percent > 10.0))
                                                        { Print("LỖI INPUT: Risk_Percent phải trong (0; 10]"); return INIT_PARAMETERS_INCORRECT; }
+   if(Risk_GhiDe_PT < 0.0 || Risk_GhiDe_PT > 10.0) { Print("LỖI INPUT: Risk_GhiDe_PT phải trong [0; 10]"); return INIT_PARAMETERS_INCORRECT; }
    if(!SuDung_AutoLot && Lot_CoDinh <= 0.0)            { Print("LỖI INPUT: Lot_CoDinh phải > 0"); return INIT_PARAMETERS_INCORRECT; }
    if(v_BoThongSo == BTS_TUY_CHINH && (MaxLenh_Tong <= 0 || MaxLenh_Buy <= 0 || MaxLenh_Sell <= 0 || MaxLenh_MoiPP <= 0))
                                                        { Print("LỖI INPUT: các giới hạn số lệnh phải > 0"); return INIT_PARAMETERS_INCORRECT; }

@@ -1,7 +1,6 @@
-﻿; EA MASTER 4PP v1.20 - OPTIMIZATION 22 SET DỰNG SẴN (B01-B22)
-; Strategy Tester: Optimization = "Slow complete algorithm", Criterion = "Custom max".
-; Chỉ tối ưu ChonSet (1..22). Kết quả từng lượt: Common\Files\EAM_BACKTEST_KET_QUA.csv
-ChonSet=1||1||1||22||Y
+﻿; EA MASTER 4PP v1.40 - SET B53: V4 PP2 M5
+; Rủi ro 3% Balance/lệnh, spread tối đa 50 pip, không giới hạn DD/chuỗi thua. Chạy đơn (không Optimization).
+ChonSet=53
 GhiKetQuaTester=true
 Magic_Goc=160
 TienTo_Comment=MASTER
@@ -22,26 +21,28 @@ Bat_ChienLuoc_4=true
 SuDung_AutoLot=true
 Lot_CoDinh=0.01
 Risk_Percent=0.5
+Risk_GhiDe_PT=3.0
 Lot_ToiDa=1.0
 ChoPhepDungLotToiThieu=true
 HeSoRuiRoToiDaVoiLotMin=2.0
+RuiRoToiDaMoiLenh_PT=5.0
 MaxLenh_Tong=4
 MaxLenh_Buy=2
 MaxLenh_Sell=2
 MaxLenh_MoiPP=1
 ChanLenhNguocChieu=false
-Bat_GioiHanDDNgay=true
+Bat_GioiHanDDNgay=false
 DDNgay_ToiDa_PhanTram=4.0
-Bat_GioiHanDDTaiKhoan=true
+Bat_GioiHanDDTaiKhoan=false
 DDTaiKhoan_ToiDa_PhanTram=15.0
 DongTatCaKhiVuotDD=false
 ResetDinhEquityKhiKhoiDong=false
 Bat_GioiHanLoNgay=false
 LoNgay_ToiDa_Tien=100.0
-Bat_GioiHanThuaLienTiep=true
+Bat_GioiHanThuaLienTiep=false
 ThuaLienTiep_ToiDa=4
 Bat_LocSpread=true
-Spread_ToiDa_Pips=6.0
+Spread_ToiDa_Pips=50.0
 Bat_LocPhien=false
 LechGioServer_GMT=0
 GiaoDich_PhienA=true
@@ -141,7 +142,7 @@ PP4_RR=2.0
 PP4_ChoPhepNhieuLenh=false
 PP4_NapLichSuSwing=true
 PP4_SoNenLichSu=1000
-HienThiBang=false
+HienThiBang=true
 Bang_X=10
 Bang_Y=25
 Bang_CoChu=9

@@ -77,3 +77,61 @@ lot cố định 0.03. EA in dòng "HỢP ĐỒNG ..." và "KIỂM TRA LOT ..." 
 | 51-52 | PP2 M15 OB swing + PP4 H1 / PP2 M15 OB swing + PP4 M15 R:R 3 |
 
 File: `EAM_TESTER_VONG3_LOT003_SPREAD50.set` (41-52) hoặc `EAM_TESTER_TATCA52_LOT003_SPREAD50.set` (1-52).
+
+
+## Vòng 4 (v1.40): ChonSet 53-102, rủi ro 3%/lệnh (Risk_GhiDe_PT=3)
+
+File: `EAM_TESTER_VONG4_RISK3_SPREAD50.set` (53-102) hoặc `EAM_TESTER_TATCA102_RISK3_SPREAD50.set` (1-102).
+
+| ChonSet | SET |
+|---|---|
+| 53 | V4 PP2 M5 |
+| 54 | V4 PP2 M5 OB swing |
+| 55 | V4 PP2 M5 không xác nhận |
+| 56 | V4 PP2 M5 OB swing không xác nhận |
+| 57 | V4 PP2 M5 lọc HTF H1 |
+| 58 | V4 PP2 M5 OB swing lọc HTF H1 |
+| 59 | V4 PP2 M5 swing 30 |
+| 60 | V4 PP2 M5 swing 30 không xác nhận |
+| 61 | V4 PP2 M5 R:R 1.5 không hòa vốn |
+| 62 | V4 PP2 M5 R:R 3, 10 OB, 2 lệnh |
+| 63 | V4 PP2 M15 |
+| 64 | V4 PP2 M15 OB swing |
+| 65 | V4 PP2 M15 không xác nhận |
+| 66 | V4 PP2 M15 OB swing không xác nhận |
+| 67 | V4 PP2 M15 lọc HTF H1 |
+| 68 | V4 PP2 M15 OB swing lọc HTF H1 |
+| 69 | V4 PP2 M15 swing 30 |
+| 70 | V4 PP2 M15 swing 30 không xác nhận |
+| 71 | V4 PP2 M15 R:R 1.5 không hòa vốn |
+| 72 | V4 PP2 M15 R:R 3, 10 OB, 2 lệnh |
+| 73 | V4 PP2 M30 |
+| 74 | V4 PP2 M30 OB swing |
+| 75 | V4 PP2 M30 không xác nhận |
+| 76 | V4 PP2 M30 OB swing không xác nhận |
+| 77 | V4 PP2 M30 lọc HTF H4 |
+| 78 | V4 PP2 M30 OB swing lọc HTF H4 |
+| 79 | V4 PP2 M30 swing 30 |
+| 80 | V4 PP2 M30 swing 30 không xác nhận |
+| 81 | V4 PP2 M30 R:R 1.5 không hòa vốn |
+| 82 | V4 PP2 M30 R:R 3, 10 OB, 2 lệnh |
+| 83 | V4 PP2 H1 |
+| 84 | V4 PP2 H1 OB swing |
+| 85 | V4 PP2 H1 không xác nhận |
+| 86 | V4 PP2 H1 OB swing không xác nhận |
+| 87 | V4 PP2 H1 lọc HTF H4 |
+| 88 | V4 PP2 H1 OB swing lọc HTF H4 |
+| 89 | V4 PP2 H1 swing 30 |
+| 90 | V4 PP2 H1 swing 30 không xác nhận |
+| 91 | V4 PP2 H1 R:R 1.5 không hòa vốn |
+| 92 | V4 PP2 H1 R:R 3, 10 OB, 2 lệnh |
+| 93 | V4 PP4 M15 R:R 3 |
+| 94 | V4 PP4 M30 |
+| 95 | V4 PP4 M30 R:R 3 |
+| 96 | V4 PP4 H1 R:R 3 không hòa vốn |
+| 97 | V4 PP4 M15 TP cấu trúc |
+| 98 | V4 PP2 M15 OB swing + PP4 M15 |
+| 99 | V4 PP2 M15 + PP4 H1 |
+| 100 | V4 PP2 M30 + PP4 M30 |
+| 101 | V4 PP2 M5 lọc HTF H1 + PP4 M15 |
+| 102 | V4 PP2 M15 + PP3 bật lại M15 + PP4 H1 |

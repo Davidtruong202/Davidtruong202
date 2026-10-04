@@ -1,4 +1,4 @@
-﻿; EA MASTER 4PP v1.32 - VÒNG 3 NHIỀU LỆNH: ChonSet 41-52
+﻿; EA MASTER 4PP v1.40 - VÒNG 3: ChonSet 41-52
 ; LOT CỐ ĐỊNH 0.03 (XAUUSDm: 1 lot = 100 oz -> 0.03 lot = 3 lot trên tài khoản Cent).
 ; Spread tối đa 50 pip (= 5 USD giá vàng). Tắt DD ngày/tài khoản, lỗ ngày, chuỗi thua, lọc giờ/phiên/tin.
 ; Chốt chặn: bỏ lệnh nếu lỗ tại SL > 5% Balance. Tester: Slow complete algorithm + Custom max.
@@ -23,6 +23,7 @@ Bat_ChienLuoc_4=true
 SuDung_AutoLot=false
 Lot_CoDinh=0.03
 Risk_Percent=0.5
+Risk_GhiDe_PT=0.0
 Lot_ToiDa=1.0
 ChoPhepDungLotToiThieu=true
 HeSoRuiRoToiDaVoiLotMin=2.0
