@@ -15,13 +15,13 @@
 //|  Bản kiểm thử đầu tiên - thông số mặc định KHÔNG phải tối ưu.     |
 //+------------------------------------------------------------------+
 #property copyright "EA MASTER 4PP"
-#property version   "1.20"
+#property version   "1.30"
 #property description "EA MASTER tổng hợp 4 phương pháp (RSI / SMC / Fibo Pivot / Quasimodo)."
 #property description "Bản dùng để backtest từng phương pháp - KHÔNG phải setting tối ưu."
 
 #include <Trade\Trade.mqh>
 
-#define EAM_VERSION "1.20"
+#define EAM_VERSION "1.30"
 #define DIR_BULL    1
 #define DIR_BEAR    -1
 #define SO_PP       4
@@ -83,7 +83,7 @@ enum ENUM_PP3_CHE_DO
 //| INPUT                                                            |
 //+------------------------------------------------------------------+
 input group "=== 0. CHỌN SET DỰNG SẴN (BACKTEST NHIỀU SET) ==="
-input int    ChonSet         = 0;    // Chọn SET dựng sẵn: 0 = dùng Input bên dưới | 1-22 = SET B01-B22 (Optimization)
+input int    ChonSet         = 0;    // Chọn SET dựng sẵn: 0 = dùng Input | 1-22 vòng 1 | 23-40 vòng 2 (Optimization)
 input bool   GhiKetQuaTester = true; // Ghi kết quả mỗi lượt Tester vào Common\Files\EAM_BACKTEST_KET_QUA.csv
 
 input group "=== 1. CÀI ĐẶT CHUNG ==="
@@ -448,6 +448,14 @@ ENUM_PP3_CHE_DO v_PP3_CheDo;
 ENUM_KIEU_TP v_PP3_KieuTP;
 ENUM_TIMEFRAMES v_PP4_Timeframe;
 bool v_PP4_ChoNenTuChoi;
+double v_PP2_RR;
+int v_PP2_DoDaiSwing;
+bool v_PP2_YeuCauNenXacNhan;
+bool v_PP2_TheoTrendSwing;
+int v_PP2_SoOBXemXet;
+double v_PP4_RR;
+ENUM_KIEU_TP v_PP4_KieuTP;
+bool v_QL_BatHoaVon;
 string   g_moTaSet      = "Theo Input";
 datetime g_tgBatDauTest = 0;
 
@@ -1478,7 +1486,7 @@ void QuanLyMotLenh(const int idx)
      }
 
    //--- Dời SL hòa vốn
-   if(QL_BatHoaVon && profitR >= QL_HoaVon_TaiR)
+   if(v_QL_BatHoaVon && profitR >= QL_HoaVon_TaiR)
      {
       double slMoi = NormalizeGia(laMua ? giaVao + P2G(QL_HoaVon_KhoaPips) : giaVao - P2G(QL_HoaVon_KhoaPips));
       bool caiThien = (laMua ? (slHT < slMoi - g_point * 0.5) : (slHT == 0.0 || slHT > slMoi + g_point * 0.5));
@@ -1862,7 +1870,7 @@ void PP2_XuLyNen(MqlRates &r, const double atr)
    g2_t[i]  = r.time;
    g2_n = i + 1;
 
-   PP2_CapNhatPivot(PP2_DoDaiSwing, false, i);
+   PP2_CapNhatPivot(v_PP2_DoDaiSwing, false, i);
    PP2_CapNhatPivot(PP2_DoDaiNoiBo, true, i);
    PP2_XuLyCauTruc(true, r.close, i);
    PP2_XuLyCauTruc(false, r.close, i);
@@ -1877,11 +1885,11 @@ bool PP2_KhoiTao()
    if(BarsCalculated(g2_hATR200) <= 0) return false;
    int tong = Bars(_Symbol, g_tf[2]);
    int can  = MathMin(PP2_SoNenNapLichSu, tong - 2);
-   if(can < PP2_DoDaiSwing * 2 + 10)
+   if(can < v_PP2_DoDaiSwing * 2 + 10)
      {
       if(!g2_daBaoThieuNen)
         {
-         LogPP(2, "Chưa đủ dữ liệu lịch sử để dựng cấu trúc SMC (cần > " + IntegerToString(PP2_DoDaiSwing * 2 + 10) + " nến)");
+         LogPP(2, "Chưa đủ dữ liệu lịch sử để dựng cấu trúc SMC (cần > " + IntegerToString(v_PP2_DoDaiSwing * 2 + 10) + " nến)");
          g2_daBaoThieuNen = true;
         }
       return false;
@@ -1889,7 +1897,7 @@ bool PP2_KhoiTao()
    MqlRates r[];
    ArraySetAsSeries(r, false);
    int got = CopyRates(_Symbol, g_tf[2], 1, can, r);
-   if(got < PP2_DoDaiSwing * 2 + 10) return false;
+   if(got < v_PP2_DoDaiSwing * 2 + 10) return false;
    double atr[];
    ArraySetAsSeries(atr, false);
    int gotA = CopyBuffer(g2_hATR200, 0, 1, got, atr);
@@ -1945,7 +1953,7 @@ int PP2_TinhBiasHTF()
   {
    datetime t = iTime(_Symbol, v_PP2_HTF, 0);
    if(t == 0 || t == g2_htfLastCalc) return g2_htfBias;
-   int pl    = PP2_DoDaiSwing;
+   int pl    = v_PP2_DoDaiSwing;
    int need  = MathMax(pl, 5) * 4 + 10;
    int avail = Bars(_Symbol, v_PP2_HTF) - 1;
    if(avail < need) need = avail;
@@ -1981,18 +1989,18 @@ int PP2_TinhBiasHTF()
 //--- Tìm OB vừa bị chạm (retest) trên nến đã đóng gần nhất
 int PP2_TimOBCham(SOBSMC &arr[], const int bias, MqlRates &r)
   {
-   int lim = MathMin(ArraySize(arr), PP2_SoOBXemXet);
+   int lim = MathMin(ArraySize(arr), v_PP2_SoOBXemXet);
    for(int i = 0; i < lim; i++)
      {
       if(arr[i].bias != bias || arr[i].daGiaoDich) continue;
       if(arr[i].confirmTime >= r.time) continue;   // không vào trên chính nến tạo OB
       if(bias == DIR_BULL)
         {
-         if(r.low <= arr[i].hi && (!PP2_YeuCauNenXacNhan || r.close > r.open)) return i;
+         if(r.low <= arr[i].hi && (!v_PP2_YeuCauNenXacNhan || r.close > r.open)) return i;
         }
       else
         {
-         if(r.high >= arr[i].lo && (!PP2_YeuCauNenXacNhan || r.close < r.open)) return i;
+         if(r.high >= arr[i].lo && (!v_PP2_YeuCauNenXacNhan || r.close < r.open)) return i;
         }
      }
    return -1;
@@ -2002,7 +2010,7 @@ void PP2_DanhGiaTinHieu()
   {
    MqlRates r = g2_barCuoi;
    bool choMua = true, choBan = true;
-   if(PP2_TheoTrendSwing)
+   if(v_PP2_TheoTrendSwing)
      {
       choMua = (g2_swTr == DIR_BULL);
       choBan = (g2_swTr == DIR_BEAR);
@@ -2058,14 +2066,14 @@ void PP2_DanhGiaTinHieu()
          entry = tk.ask;
          sl = obLo - P2G(PP2_SL_DemPips);
          if(entry - sl < minSL) sl = entry - minSL;
-         tp = entry + PP2_RR * (entry - sl);
+         tp = entry + v_PP2_RR * (entry - sl);
         }
       else
         {
          entry = tk.bid;
          sl = obHi + P2G(PP2_SL_DemPips);
          if(sl - entry < minSL) sl = entry + minSL;
-         tp = entry - PP2_RR * (sl - entry);
+         tp = entry - v_PP2_RR * (sl - entry);
         }
       ThemTinHieu(2, bias, sl, tp, 0.0, false, (laSwing ? "SW" : "IN"),
                   StringFormat("Retest OB %s %s [%s - %s] | swing trend=%s%s",
@@ -2435,8 +2443,8 @@ void PP4_TaoTinHieu(const bool isBull, const string entryTag)
       PP4_CancelArmedSetup("khoảng cách rủi ro không hợp lệ");
       return;
      }
-   if(PP4_KieuTP == TP_THEO_RR)
-      takeProfit = (isBull ? entry + PP4_RR * riskDistance : entry - PP4_RR * riskDistance);
+   if(v_PP4_KieuTP == TP_THEO_RR)
+      takeProfit = (isBull ? entry + v_PP4_RR * riskDistance : entry - v_PP4_RR * riskDistance);
    else
       takeProfit = g4_setup.targetPrice;
    double rewardDistance = (isBull ? takeProfit - entry : entry - takeProfit);
@@ -2725,10 +2733,18 @@ void InThongKeTheoPP()
 //| Mỗi SET bắt đầu từ: tắt cả 4 PP, BALANCED, độc lập, khung M15,   |
 //| PP1 M1, rồi chỉ đổi đúng các thông số ghi trong case.            |
 //+------------------------------------------------------------------+
-#define SO_SET_DUNG_SAN 22
+#define SO_SET_DUNG_SAN 40
 
 void SaoChepInput()
   {
+   v_PP2_RR = PP2_RR;
+   v_PP2_DoDaiSwing = PP2_DoDaiSwing;
+   v_PP2_YeuCauNenXacNhan = PP2_YeuCauNenXacNhan;
+   v_PP2_TheoTrendSwing = PP2_TheoTrendSwing;
+   v_PP2_SoOBXemXet = PP2_SoOBXemXet;
+   v_PP4_RR = PP4_RR;
+   v_PP4_KieuTP = PP4_KieuTP;
+   v_QL_BatHoaVon = QL_BatHoaVon;
    v_TienTo_Comment = TienTo_Comment;
    v_BoThongSo = BoThongSo;
    v_Signal_Timeframe = Signal_Timeframe;
@@ -2766,6 +2782,8 @@ bool ApDungChonSet()
    v_PP2_Timeframe = PERIOD_M15; v_PP2_LoaiOB = OB_CA_HAI; v_PP2_LocHTF = false; v_PP2_HTF = PERIOD_H4; v_PP2_LocPremiumDiscount = false;
    v_PP3_Timeframe = PERIOD_M15; v_PP3_CheDo = PP3_BAT_LAI; v_PP3_KieuTP = TP_THEO_CAU_TRUC;
    v_PP4_Timeframe = PERIOD_M15; v_PP4_ChoNenTuChoi = false;
+   v_PP2_RR = 2.0; v_PP2_DoDaiSwing = 50; v_PP2_YeuCauNenXacNhan = true; v_PP2_TheoTrendSwing = true; v_PP2_SoOBXemXet = 5;
+   v_PP4_RR = 2.0; v_PP4_KieuTP = TP_THEO_RR; v_QL_BatHoaVon = true;
    switch(ChonSet)
      {
       case 1: g_moTaSet = "PP1 RSI M1 (gốc)"; v_Bat_ChienLuoc_1 = true; v_PP1_Timeframe = PERIOD_M1; break;
@@ -2790,6 +2808,24 @@ bool ApDungChonSet()
       case 20: g_moTaSet = "4PP BALANCED độc lập"; v_Bat_ChienLuoc_1 = true; v_Bat_ChienLuoc_2 = true; v_Bat_ChienLuoc_3 = true; v_Bat_ChienLuoc_4 = true; break;
       case 21: g_moTaSet = "4PP SAFE không đối nghịch"; v_Bat_ChienLuoc_1 = true; v_Bat_ChienLuoc_2 = true; v_Bat_ChienLuoc_3 = true; v_Bat_ChienLuoc_4 = true; v_BoThongSo = BTS_AN_TOAN; v_CheDo_XungDot = XD_KHONG_DOI_NGHICH; v_ChanLenhNguocChieu = true; break;
       case 22: g_moTaSet = "4PP BALANCED đa số thắng"; v_Bat_ChienLuoc_1 = true; v_Bat_ChienLuoc_2 = true; v_Bat_ChienLuoc_3 = true; v_Bat_ChienLuoc_4 = true; v_CheDo_XungDot = XD_DA_SO; break;
+      case 23: g_moTaSet = "V2 PP2 H1 chỉ OB swing"; v_Bat_ChienLuoc_2 = true; v_PP2_Timeframe = PERIOD_H1; v_PP2_LoaiOB = OB_SWING; break;
+      case 24: g_moTaSet = "V2 PP2 H1 OB swing R:R 3"; v_Bat_ChienLuoc_2 = true; v_PP2_Timeframe = PERIOD_H1; v_PP2_LoaiOB = OB_SWING; v_PP2_RR = 3.0; break;
+      case 25: g_moTaSet = "V2 PP2 H1 R:R 3"; v_Bat_ChienLuoc_2 = true; v_PP2_Timeframe = PERIOD_H1; v_PP2_RR = 3.0; break;
+      case 26: g_moTaSet = "V2 PP2 H1 R:R 1.5"; v_Bat_ChienLuoc_2 = true; v_PP2_Timeframe = PERIOD_H1; v_PP2_RR = 1.5; break;
+      case 27: g_moTaSet = "V2 PP2 H1 không hòa vốn"; v_Bat_ChienLuoc_2 = true; v_PP2_Timeframe = PERIOD_H1; v_QL_BatHoaVon = false; break;
+      case 28: g_moTaSet = "V2 PP2 M30"; v_Bat_ChienLuoc_2 = true; v_PP2_Timeframe = PERIOD_M30; break;
+      case 29: g_moTaSet = "V2 PP2 M30 chỉ OB swing"; v_Bat_ChienLuoc_2 = true; v_PP2_Timeframe = PERIOD_M30; v_PP2_LoaiOB = OB_SWING; break;
+      case 30: g_moTaSet = "V2 PP2 H4"; v_Bat_ChienLuoc_2 = true; v_PP2_Timeframe = PERIOD_H4; break;
+      case 31: g_moTaSet = "V2 PP2 M15 OB swing R:R 3"; v_Bat_ChienLuoc_2 = true; v_PP2_Timeframe = PERIOD_M15; v_PP2_LoaiOB = OB_SWING; v_PP2_RR = 3.0; break;
+      case 32: g_moTaSet = "V2 PP2 M15 OB swing không hòa vốn"; v_Bat_ChienLuoc_2 = true; v_PP2_Timeframe = PERIOD_M15; v_PP2_LoaiOB = OB_SWING; v_QL_BatHoaVon = false; break;
+      case 33: g_moTaSet = "V2 PP2 H1 swing 30"; v_Bat_ChienLuoc_2 = true; v_PP2_Timeframe = PERIOD_H1; v_PP2_DoDaiSwing = 30; break;
+      case 34: g_moTaSet = "V2 PP2 H1 không cần nến xác nhận"; v_Bat_ChienLuoc_2 = true; v_PP2_Timeframe = PERIOD_H1; v_PP2_YeuCauNenXacNhan = false; break;
+      case 35: g_moTaSet = "V2 PP4 H1 R:R 3"; v_Bat_ChienLuoc_4 = true; v_PP4_Timeframe = PERIOD_H1; v_PP4_RR = 3.0; break;
+      case 36: g_moTaSet = "V2 PP4 H1 TP cấu trúc"; v_Bat_ChienLuoc_4 = true; v_PP4_Timeframe = PERIOD_H1; v_PP4_KieuTP = TP_THEO_CAU_TRUC; break;
+      case 37: g_moTaSet = "V2 PP4 H4"; v_Bat_ChienLuoc_4 = true; v_PP4_Timeframe = PERIOD_H4; break;
+      case 38: g_moTaSet = "V2 PP4 H1 không hòa vốn"; v_Bat_ChienLuoc_4 = true; v_PP4_Timeframe = PERIOD_H1; v_QL_BatHoaVon = false; break;
+      case 39: g_moTaSet = "V2 PP2 H1 + PP4 H1"; v_Bat_ChienLuoc_2 = true; v_Bat_ChienLuoc_4 = true; v_PP2_Timeframe = PERIOD_H1; v_PP4_Timeframe = PERIOD_H1; break;
+      case 40: g_moTaSet = "V2 PP2 H1 OB swing + PP4 H1"; v_Bat_ChienLuoc_2 = true; v_Bat_ChienLuoc_4 = true; v_PP2_Timeframe = PERIOD_H1; v_PP2_LoaiOB = OB_SWING; v_PP4_Timeframe = PERIOD_H1; break;
      }
    v_TienTo_Comment = StringFormat("B%02d", ChonSet);
    return true;
@@ -2887,9 +2923,9 @@ int OnInit()
    if(!SuDung_AutoLot && Lot_CoDinh <= 0.0)            { Print("LỖI INPUT: Lot_CoDinh phải > 0"); return INIT_PARAMETERS_INCORRECT; }
    if(v_BoThongSo == BTS_TUY_CHINH && (MaxLenh_Tong <= 0 || MaxLenh_Buy <= 0 || MaxLenh_Sell <= 0 || MaxLenh_MoiPP <= 0))
                                                        { Print("LỖI INPUT: các giới hạn số lệnh phải > 0"); return INIT_PARAMETERS_INCORRECT; }
-   if(v_PP1_RSI_ChuKy < 2 || PP2_DoDaiSwing < 2 || PP2_DoDaiNoiBo < 2 || PP4_SwingLookback < 1 || PP4_ATR_ChuKy < 1)
+   if(v_PP1_RSI_ChuKy < 2 || v_PP2_DoDaiSwing < 2 || PP2_DoDaiNoiBo < 2 || PP4_SwingLookback < 1 || PP4_ATR_ChuKy < 1)
                                                        { Print("LỖI INPUT: chu kỳ / độ dài swing không hợp lệ"); return INIT_PARAMETERS_INCORRECT; }
-   if(PP2_RR <= 0.0 || PP3_RR <= 0.0 || PP4_RR <= 0.0) { Print("LỖI INPUT: R:R phải > 0"); return INIT_PARAMETERS_INCORRECT; }
+   if(v_PP2_RR <= 0.0 || PP3_RR <= 0.0 || v_PP4_RR <= 0.0) { Print("LỖI INPUT: R:R phải > 0"); return INIT_PARAMETERS_INCORRECT; }
    if(PP1_BatNhoiLenh && (PP1_HeSoLot < 1.0 || PP1_HeSoLot > 3.0 || PP1_SoTangToiDa < 1 || PP1_SoTangToiDa > 10 || PP1_BuocNhoi_Pips <= 0.0))
                                                        { Print("LỖI INPUT: thông số nhồi lệnh PP1 không hợp lệ (hệ số 1-3, tầng 1-10, bước > 0)"); return INIT_PARAMETERS_INCORRECT; }
 

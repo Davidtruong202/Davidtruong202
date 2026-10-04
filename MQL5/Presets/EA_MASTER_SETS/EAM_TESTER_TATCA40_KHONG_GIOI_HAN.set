@@ -1,24 +1,25 @@
-﻿; EA MASTER 4PP v1.30 - SET S03: PP2 SMC M15
-; Magic 303 -> lệnh PP1..PP4 = 3031..3034 ; comment S03_PPx_BUY/SELL
-; Gắn trên chart XAUUSD riêng (khung chart bất kỳ). Mỗi SET 1 chart.
-ChonSet=0
+﻿; EA MASTER 4PP v1.30 - TẤT CẢ 40 SET (ChonSet 1-40)
+; KHÔNG GIỚI HẠN: tắt lọc spread, DD ngày, DD tài khoản, lỗ ngày, chuỗi thua, lọc giờ/phiên/tin.
+; Vẫn giữ: SL mỗi lệnh, rủi ro 0.5%/lệnh, giới hạn số lệnh của bộ BALANCED.
+; Tester: Optimization = Slow complete algorithm, Criterion = Custom max.
+ChonSet=1||1||1||40||Y
 GhiKetQuaTester=true
-Magic_Goc=303
-TienTo_Comment=S03
+Magic_Goc=160
+TienTo_Comment=MASTER
 BoThongSo=2
 Signal_Timeframe=15
 HuongGiaoDich=0
 TruotGia_Pips=3.0
 KichThuocPip_TuyChinh=0.0
-InLogChiTiet=true
-VonAo_USD=5000.0
+InLogChiTiet=false
+VonAo_USD=0.0
 VonAo_BatDau=2026.10.01 00:00
 GhiNhatKyCSV=true
 TenFileNhatKy=
-Bat_ChienLuoc_1=false
+Bat_ChienLuoc_1=true
 Bat_ChienLuoc_2=true
-Bat_ChienLuoc_3=false
-Bat_ChienLuoc_4=false
+Bat_ChienLuoc_3=true
+Bat_ChienLuoc_4=true
 SuDung_AutoLot=true
 Lot_CoDinh=0.01
 Risk_Percent=0.5
@@ -30,17 +31,17 @@ MaxLenh_Buy=2
 MaxLenh_Sell=2
 MaxLenh_MoiPP=1
 ChanLenhNguocChieu=false
-Bat_GioiHanDDNgay=true
+Bat_GioiHanDDNgay=false
 DDNgay_ToiDa_PhanTram=4.0
-Bat_GioiHanDDTaiKhoan=true
+Bat_GioiHanDDTaiKhoan=false
 DDTaiKhoan_ToiDa_PhanTram=15.0
 DongTatCaKhiVuotDD=false
 ResetDinhEquityKhiKhoiDong=false
 Bat_GioiHanLoNgay=false
 LoNgay_ToiDa_Tien=100.0
-Bat_GioiHanThuaLienTiep=true
+Bat_GioiHanThuaLienTiep=false
 ThuaLienTiep_ToiDa=4
-Bat_LocSpread=true
+Bat_LocSpread=false
 Spread_ToiDa_Pips=6.0
 Bat_LocPhien=false
 LechGioServer_GMT=0
@@ -97,7 +98,7 @@ PP1_BatNhoiLenh=false
 PP1_SoTangToiDa=5
 PP1_BuocNhoi_Pips=10.0
 PP1_HeSoLot=1.0
-PP2_Timeframe=15
+PP2_Timeframe=0
 PP2_DoDaiSwing=50
 PP2_DoDaiNoiBo=5
 PP2_SoNenNapLichSu=1000
@@ -141,7 +142,7 @@ PP4_RR=2.0
 PP4_ChoPhepNhieuLenh=false
 PP4_NapLichSuSwing=true
 PP4_SoNenLichSu=1000
-HienThiBang=true
+HienThiBang=false
 Bang_X=10
 Bang_Y=25
 Bang_CoChu=9

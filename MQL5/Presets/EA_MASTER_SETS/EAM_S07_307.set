@@ -1,4 +1,4 @@
-﻿; EA MASTER 4PP v1.20 - SET S07: PP4 QM M15
+﻿; EA MASTER 4PP v1.30 - SET S07: PP4 QM M15
 ; Magic 307 -> lệnh PP1..PP4 = 3071..3074 ; comment S07_PPx_BUY/SELL
 ; Gắn trên chart XAUUSD riêng (khung chart bất kỳ). Mỗi SET 1 chart.
 ChonSet=0

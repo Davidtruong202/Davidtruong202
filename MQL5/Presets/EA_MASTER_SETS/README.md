@@ -40,3 +40,19 @@ tab Inputs -> Load -> chọn 1 file `EAM_Sxx_*.set` cho mỗi chart. Chart thứ
 | 14-18 | PP4 QM: M15 / H1 / M5 / M15 chờ nến từ chối / M15 trailing ATR |
 | 19 | PP2 SMC M15 trailing ATR |
 | 20-22 | Cả 4 PP: BALANCED độc lập / SAFE không đối nghịch / BALANCED đa số thắng |
+
+## Vòng 2 (EA v1.30): ChonSet 23-40, KHÔNG GIỚI HẠN
+
+Kết quả vòng 1 (2026.01-2026.10): chỉ có lời ở #9 PP2 M15 OB swing, #6 PP2 H1, #15 PP4 H1.
+Vòng 2 đào sâu PP2/PP4 quanh các set đó. File `EAM_TESTER_VONG2_KHONG_GIOI_HAN.set`
+(chỉ 23-40) hoặc `EAM_TESTER_TATCA40_KHONG_GIOI_HAN.set` (1-40) tắt: lọc spread, DD ngày,
+DD tài khoản, lỗ ngày, chuỗi thua, lọc giờ/phiên/tin. Vẫn giữ SL mỗi lệnh và rủi ro 0.5%/lệnh.
+
+| ChonSet | SET |
+|---|---|
+| 23-27 | PP2 H1: chỉ OB swing / OB swing R:R 3 / R:R 3 / R:R 1.5 / không hòa vốn |
+| 28-30 | PP2: M30 / M30 chỉ OB swing / H4 |
+| 31-32 | PP2 M15 OB swing: R:R 3 / không hòa vốn |
+| 33-34 | PP2 H1: swing 30 / không cần nến xác nhận |
+| 35-38 | PP4: H1 R:R 3 / H1 TP cấu trúc / H4 / H1 không hòa vốn |
+| 39-40 | PP2 H1 + PP4 H1 / PP2 H1 OB swing + PP4 H1 |
