@@ -1,8 +1,8 @@
-﻿; EA MASTER 4PP v1.30 - VÒNG 2: 18 SET MỚI (ChonSet 23-40)
-; KHÔNG GIỚI HẠN: tắt lọc spread, DD ngày, DD tài khoản, lỗ ngày, chuỗi thua, lọc giờ/phiên/tin.
-; Vẫn giữ: SL mỗi lệnh, rủi ro 0.5%/lệnh, giới hạn số lệnh của bộ BALANCED.
-; Tester: Optimization = Slow complete algorithm, Criterion = Custom max.
-ChonSet=23||23||1||40||Y
+﻿; EA MASTER 4PP v1.31 - TẤT CẢ 40 SET: ChonSet 1-40
+; LOT CỐ ĐỊNH 0.03 (XAUUSDm: 1 lot = 100 oz -> 0.03 lot = 3 lot trên tài khoản Cent).
+; Spread tối đa 50 pip (= 5 USD giá vàng). Tắt DD ngày/tài khoản, lỗ ngày, chuỗi thua, lọc giờ/phiên/tin.
+; Chốt chặn: bỏ lệnh nếu lỗ tại SL > 5% Balance. Tester: Slow complete algorithm + Custom max.
+ChonSet=1||1||1||40||Y
 GhiKetQuaTester=true
 Magic_Goc=160
 TienTo_Comment=MASTER
@@ -20,12 +20,13 @@ Bat_ChienLuoc_1=true
 Bat_ChienLuoc_2=true
 Bat_ChienLuoc_3=true
 Bat_ChienLuoc_4=true
-SuDung_AutoLot=true
-Lot_CoDinh=0.01
+SuDung_AutoLot=false
+Lot_CoDinh=0.03
 Risk_Percent=0.5
 Lot_ToiDa=1.0
 ChoPhepDungLotToiThieu=true
 HeSoRuiRoToiDaVoiLotMin=2.0
+RuiRoToiDaMoiLenh_PT=5.0
 MaxLenh_Tong=4
 MaxLenh_Buy=2
 MaxLenh_Sell=2
@@ -41,8 +42,8 @@ Bat_GioiHanLoNgay=false
 LoNgay_ToiDa_Tien=100.0
 Bat_GioiHanThuaLienTiep=false
 ThuaLienTiep_ToiDa=4
-Bat_LocSpread=false
-Spread_ToiDa_Pips=6.0
+Bat_LocSpread=true
+Spread_ToiDa_Pips=50.0
 Bat_LocPhien=false
 LechGioServer_GMT=0
 GiaoDich_PhienA=true

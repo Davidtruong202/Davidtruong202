@@ -44,8 +44,8 @@ tab Inputs -> Load -> chọn 1 file `EAM_Sxx_*.set` cho mỗi chart. Chart thứ
 ## Vòng 2 (EA v1.30): ChonSet 23-40, KHÔNG GIỚI HẠN
 
 Kết quả vòng 1 (2026.01-2026.10): chỉ có lời ở #9 PP2 M15 OB swing, #6 PP2 H1, #15 PP4 H1.
-Vòng 2 đào sâu PP2/PP4 quanh các set đó. File `EAM_TESTER_VONG2_KHONG_GIOI_HAN.set`
-(chỉ 23-40) hoặc `EAM_TESTER_TATCA40_KHONG_GIOI_HAN.set` (1-40) tắt: lọc spread, DD ngày,
+Vòng 2 đào sâu PP2/PP4 quanh các set đó. File `EAM_TESTER_VONG2_LOT003_SPREAD50.set`
+(chỉ 23-40) hoặc `EAM_TESTER_TATCA40_LOT003_SPREAD50.set` (1-40) tắt: lọc spread, DD ngày,
 DD tài khoản, lỗ ngày, chuỗi thua, lọc giờ/phiên/tin. Vẫn giữ SL mỗi lệnh và rủi ro 0.5%/lệnh.
 
 | ChonSet | SET |
@@ -56,3 +56,10 @@ DD tài khoản, lỗ ngày, chuỗi thua, lọc giờ/phiên/tin. Vẫn giữ S
 | 33-34 | PP2 H1: swing 30 / không cần nến xác nhận |
 | 35-38 | PP4: H1 R:R 3 / H1 TP cấu trúc / H4 / H1 không hòa vốn |
 | 39-40 | PP2 H1 + PP4 H1 / PP2 H1 OB swing + PP4 H1 |
+
+## v1.31: lot cố định 0.03, spread tối đa 50 pip, chốt chặn 5%/lệnh
+
+Trong Tester, XAUUSDm là symbol chuẩn (1 lot = 100 oz) nên "3 lot" là 3 lot đô la thật
+(gấp 100 lần 3 lot Cent) -> các lượt cũ cháy tài khoản sau vài lệnh. File set mới dùng
+lot cố định 0.03. EA in dòng "HỢP ĐỒNG ..." và "KIỂM TRA LOT ..." trong Journal khi khởi động
+để kiểm tra giá trị 1 lot, và bỏ mọi lệnh có lỗ tại SL > RuiRoToiDaMoiLenh_PT (5%) Balance.

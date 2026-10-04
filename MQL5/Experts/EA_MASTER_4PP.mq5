@@ -15,13 +15,13 @@
 //|  Bản kiểm thử đầu tiên - thông số mặc định KHÔNG phải tối ưu.     |
 //+------------------------------------------------------------------+
 #property copyright "EA MASTER 4PP"
-#property version   "1.30"
+#property version   "1.31"
 #property description "EA MASTER tổng hợp 4 phương pháp (RSI / SMC / Fibo Pivot / Quasimodo)."
 #property description "Bản dùng để backtest từng phương pháp - KHÔNG phải setting tối ưu."
 
 #include <Trade\Trade.mqh>
 
-#define EAM_VERSION "1.30"
+#define EAM_VERSION "1.31"
 #define DIR_BULL    1
 #define DIR_BEAR    -1
 #define SO_PP       4
@@ -115,6 +115,7 @@ input double Risk_Percent            = 0.5;  // Rủi ro mỗi lệnh % Balance 
 input double Lot_ToiDa               = 1.0;  // Lot tối đa cho 1 lệnh (chặn lot bất thường)
 input bool   ChoPhepDungLotToiThieu  = true; // Cho dùng lot min khi lot theo rủi ro < lot min
 input double HeSoRuiRoToiDaVoiLotMin = 2.0;  // ...chỉ khi rủi ro thực tế <= hệ số x Risk%
+input double RuiRoToiDaMoiLenh_PT    = 5.0;  // CHỐT CHẶN: bỏ lệnh nếu lỗ tại SL > % Balance này (0 = tắt)
 
 input group "=== 4. GIỚI HẠN SỐ LỆNH ==="
 input int  MaxLenh_Tong       = 4;     // Tối đa tổng số lệnh EA [chỉ khi TÙY CHỈNH]
@@ -1048,16 +1049,52 @@ bool CheckNews(string &lyDo)
 //| TÍNH LOT                                                         |
 //+------------------------------------------------------------------+
 //--- Số tiền lỗ khi 1 lot chạm SL
+//--- Hệ số đổi tiền lợi nhuận của symbol -> tiền tài khoản (xử lý tài khoản Cent USC/USD)
+double HeSoTienTe()
+  {
+   string tk = AccountInfoString(ACCOUNT_CURRENCY);
+   string ln = SymbolInfoString(_Symbol, SYMBOL_CURRENCY_PROFIT);
+   if(tk == ln) return 1.0;
+   if(ln == "USD" && tk == "USC") return 100.0;
+   if(ln == "USC" && tk == "USD") return 0.01;
+   return 0.0;   // không quy đổi được -> bỏ qua cách tính này
+  }
+
+//--- Số tiền lỗ khi 1 lot chạm SL: tính 3 cách, lấy giá trị LỚN NHẤT (an toàn, lot nhỏ hơn)
 double TinhLoMoiLot(const int huong, const double giaVao, const double sl)
   {
-   double p = 0.0;
+   double kc = MathAbs(giaVao - sl);
+   double a = 0.0, b = 0.0, c = 0.0, p = 0.0;
    ENUM_ORDER_TYPE ot = (huong == DIR_BULL ? ORDER_TYPE_BUY : ORDER_TYPE_SELL);
-   if(OrderCalcProfit(ot, _Symbol, 1.0, giaVao, sl, p) && p < 0.0) return -p;
+   if(OrderCalcProfit(ot, _Symbol, 1.0, giaVao, sl, p) && p < 0.0) a = -p;
    double tv = SymbolInfoDouble(_Symbol, SYMBOL_TRADE_TICK_VALUE_LOSS);
    if(tv <= 0.0) tv = SymbolInfoDouble(_Symbol, SYMBOL_TRADE_TICK_VALUE);
    double ts = SymbolInfoDouble(_Symbol, SYMBOL_TRADE_TICK_SIZE);
-   if(tv <= 0.0 || ts <= 0.0) return 0.0;
-   return MathAbs(giaVao - sl) / ts * tv;
+   if(tv > 0.0 && ts > 0.0) b = kc / ts * tv;
+   double cs = SymbolInfoDouble(_Symbol, SYMBOL_TRADE_CONTRACT_SIZE);
+   double hs = HeSoTienTe();
+   if(cs > 0.0 && hs > 0.0) c = kc * cs * hs;
+   return MathMax(a, MathMax(b, c));
+  }
+
+//--- In thông số hợp đồng để kiểm tra lot (đặc biệt tài khoản Cent)
+void InThongSoHopDong()
+  {
+   double gia = SymbolInfoDouble(_Symbol, SYMBOL_BID);
+   if(gia <= 0.0) gia = iClose(_Symbol, PERIOD_D1, 1);
+   double p = 0.0, a = 0.0;
+   if(gia > 0.0 && OrderCalcProfit(ORDER_TYPE_BUY, _Symbol, 1.0, gia, gia - P2G(10.0), p)) a = -p;
+   Print(StringFormat("HỢP ĐỒNG %s: tiền TK=%s | tiền lợi nhuận=%s | contract=%.2f | tick size=%s tick value=%.5f | lot min/step/max=%.2f/%.2f/%.2f",
+                      _Symbol, AccountInfoString(ACCOUNT_CURRENCY), SymbolInfoString(_Symbol, SYMBOL_CURRENCY_PROFIT),
+                      SymbolInfoDouble(_Symbol, SYMBOL_TRADE_CONTRACT_SIZE),
+                      DoubleToString(SymbolInfoDouble(_Symbol, SYMBOL_TRADE_TICK_SIZE), g_digits),
+                      SymbolInfoDouble(_Symbol, SYMBOL_TRADE_TICK_VALUE),
+                      SymbolInfoDouble(_Symbol, SYMBOL_VOLUME_MIN), SymbolInfoDouble(_Symbol, SYMBOL_VOLUME_STEP),
+                      SymbolInfoDouble(_Symbol, SYMBOL_VOLUME_MAX)));
+   if(gia > 0.0)
+      Print(StringFormat("KIỂM TRA LOT: 1 lot đi ngược 10 pip (%.2f giá) = lỗ %.2f %s (OrderCalcProfit %.2f) | Balance %.2f",
+                         P2G(10.0), TinhLoMoiLot(DIR_BULL, gia, gia - P2G(10.0)), AccountInfoString(ACCOUNT_CURRENCY),
+                         a, AccountInfoDouble(ACCOUNT_BALANCE)));
   }
 
 double CalculateLot(const int pp, const int huong, const double giaVao, const double sl, const double lotCoDinh, string &lyDo)
@@ -1256,6 +1293,16 @@ bool OpenTrade(STinHieu &s)
       LogTuChoi(s.pp, s.huong, lyDoLot);
       return false;
      }
+   //--- CHỐT CHẶN rủi ro: lỗ tại SL không được vượt RuiRoToiDaMoiLenh_PT % Balance (áp dụng cả lot cố định)
+   double tienLoSL = TinhLoMoiLot(s.huong, gia, sl) * lot;
+   double balRui   = SoDuTinhToan();
+   double ruiPT    = (balRui > 0.0 ? tienLoSL / balRui * 100.0 : 0.0);
+   if(RuiRoToiDaMoiLenh_PT > 0.0 && ruiPT > RuiRoToiDaMoiLenh_PT)
+     {
+      LogTuChoi(s.pp, s.huong, StringFormat("CHỐT CHẶN: lot %s lỗ tại SL %.2f = %.2f%% Balance > %.2f%%",
+                                            D2(lot), tienLoSL, ruiPT, RuiRoToiDaMoiLenh_PT));
+      return false;
+     }
 
    string cmt = v_TienTo_Comment + "_PP" + IntegerToString(s.pp) + "_" + (laMua ? "BUY" : "SELL");
    if(s.nhan != "") cmt += "_" + s.nhan;
@@ -1290,9 +1337,9 @@ bool OpenTrade(STinHieu &s)
    if(laMua) g_dem.buy++;
    else g_dem.sell++;
 
-   LogPP(s.pp, StringFormat("MỞ %s #%s | giá=%s SL=%s TP=%s | lot=%s | rủi ro=%.1f pips | spread=%.1f pips | magic=%d | %s | %s",
+   LogPP(s.pp, StringFormat("MỞ %s #%s | giá=%s SL=%s TP=%s | lot=%s | rủi ro=%.1f pips (%.2f%% TK) | spread=%.1f pips | magic=%d | %s | %s",
                             (laMua ? "BUY" : "SELL"), IntegerToString((long)posId), D(giaKhop), D(sl),
-                            (tp > 0.0 ? D(tp) : "không"), D2(lot), G2P(MathAbs(giaKhop - sl)), SpreadPips(),
+                            (tp > 0.0 ? D(tp) : "không"), D2(lot), G2P(MathAbs(giaKhop - sl)), ruiPT, SpreadPips(),
                             (int)MagicCuaPP(s.pp), cmt, s.lyDo));
    GhiNhatKy("MO", s.pp, posId, (laMua ? "BUY" : "SELL"), lot, giaKhop, sl, tp, 0.0, s.lyDo, cmt);
    return true;
@@ -3029,6 +3076,7 @@ int OnInit()
    for(int pp = 1; pp <= SO_PP; pp++)
       Print(StringFormat("%s %s: %s | khung %s | magic %d", g_ppTen[pp], g_ppMoTa[pp], (g_ppBat[pp] ? "BẬT" : "TẮT"),
                          TfStr(g_tf[pp]), (int)MagicCuaPP(pp)));
+   InThongSoHopDong();
    Print("SET dựng sẵn: ", (ChonSet > 0 ? StringFormat("B%02d - ", ChonSet) + g_moTaSet : "không (dùng Input)"));
    Print("Xung đột tín hiệu: ", TenCheDoXungDot(), " | SET: ", v_TienTo_Comment,
          (DungVonAo() ? " | VỐN ẢO " + D2(VonAo_USD) + " từ " + TimeToString(VonAo_BatDau, TIME_DATE | TIME_MINUTES)
