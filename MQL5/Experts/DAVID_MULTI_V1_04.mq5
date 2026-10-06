@@ -31,6 +31,13 @@
 #define CRT_EA_NAME     "DAVID MULTI V1.04"
 #define DAVID_CONTACT   "0941920986-Davidhunter-Tele @adsmmo8386"
 
+//--- Chỉ số 4 chiến lược (phải khai báo trước khi phần CRT sử dụng)
+#define STRAT_COUNT 4
+#define S_CRT 0
+#define S_SAR 1
+#define S_BRK 2
+#define S_ICT 3
+
 //--- Enum dùng trong Input
 enum ENUM_BOARD_PERIOD
 {
@@ -1765,11 +1772,6 @@ bool InitializeRange(bool tryRestore)
 //####################################################################
 //####################################################################
 
-#define STRAT_COUNT 4
-#define S_CRT 0
-#define S_SAR 1
-#define S_BRK 2
-#define S_ICT 3
 
 string g_stName[STRAT_COUNT] = {"CRT", "SAR", "BRK", "ICT"};
 string g_stDesc[STRAT_COUNT] = {"Candle Range H4 + M15", "Scalping Parabolic SAR", "Breakout Stop OCO", "ICT Sweep/FVG/OB"};
