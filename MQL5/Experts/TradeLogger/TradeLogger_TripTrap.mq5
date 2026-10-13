@@ -35,8 +35,12 @@
 //|  MOI khung va tinh MOI chi bao / chu ky (research/phan_tich_ea/   |
 //|  quet_khung.py), khong ton tai nguyen MT5                          |
 //+------------------------------------------------------------------+
+//| 3.30: doc CHI BAO TU VIET (.ex5, khong can ma nguon) qua         |
+//|  IndicatorCreate: tu do so buffer, ghi moi buffer (nen da dong +  |
+//|  nen dang chay luc khop lenh), tu kiem tra repaint                |
+//+------------------------------------------------------------------+
 #property copyright "TradeLogger"
-#property version   "3.21"
+#property version   "3.30"
 #property description "Ban cai san cho EA GoldVault Trip Trap (magic 202601, chart M5)."
 #property description "Chay duoc voi tai khoan dang nhap bang mat khau investor (chi doc)."
 
@@ -74,6 +78,11 @@ input int             InpM1LookbackDays   = 60;         // Nến M1: lấy thêm
 input string          InpBarSymbols       = "";         // Symbol cần xuất, cách nhau dấu phẩy (trống = tự lấy từ lịch sử lệnh)
 input int             InpBarsLookbackDays = 3;          // Lấy thêm N ngày trước lệnh đầu tiên
 input int             InpBarsRefreshHours = 6;          // Xuất lại file nến chung mỗi N giờ
+
+input group "Chỉ báo tự viết (.ex5, không cần mã nguồn)"
+input string          InpCustomIndicators = "";         // KHUNG|đường dẫn trong MQL5\Indicators|tham số ; nhiều chỉ báo cách nhau dấu ;
+input int             InpCustomMaxBuffers = 16;         // Số buffer tối đa dò cho mỗi chỉ báo
+input int             InpRepaintCheckBars = 10;         // Kiểm tra repaint: đọc lại giá trị nến đã đóng sau N nến
 
 input group "Tự dò (EA không có file .set)"
 input bool            InpAutoReport       = true;       // Ghi <prefix>_auto.csv: magic, comment, chiều, khung đoán được
@@ -140,6 +149,31 @@ string SpecString()
 
 //--- cac khung xuat ctxbars
 ENUM_TIMEFRAMES g_ctxTF[];
+
+//--- chi bao tu viet (.ex5)
+#define MAX_CU     4
+#define MAX_CU_BUF 16
+int             g_nCu = 0;
+string          g_cuPath[MAX_CU];
+string          g_cuParams[MAX_CU];
+ENUM_TIMEFRAMES g_cuTF[MAX_CU];
+string          g_cuTag[MAX_CU];
+int             g_cuNBuf[MAX_CU];        // -1 = chua do
+struct SymCu
+  {
+   string            sym;
+   int               h[MAX_CU];
+  };
+SymCu    g_scu[];
+//--- kiem tra repaint: gia tri nen vua dong, doc lai sau InpRepaintCheckBars nen
+string   g_rpSym[];
+int      g_rpK[];
+datetime g_rpBar[];
+string   g_rpVals[];
+string   g_rpLastKey[];
+datetime g_rpLastBar[];
+int      g_rpChecked[MAX_CU][MAX_CU_BUF];
+int      g_rpChanged[MAX_CU][MAX_CU_BUF];
 
 //--- tu do: moi lenh vao (IN) cua moi magic
 long     g_aMagic[];
@@ -323,6 +357,8 @@ bool SymbolReady(const string sym)
    bool ok = IndReady(IndIndex(sym, InpFeatureTF)) && IndReady(IndIndex(sym, InpBiasTF));
    if(ok && g_nSpec > 0)
       ok = SpecReady(SpecIndex(sym));
+   if(ok && g_nCu > 0)
+      ok = CuReady(CuIndex(sym));
    return ok;
   }
 
@@ -612,6 +648,334 @@ bool SpecReady(const int j)
    return true;
   }
 
+//+------------------------------------------------------------------+
+//| Chi bao tu viet (.ex5): cu phap InpCustomIndicators              |
+//|   KHUNG|duong dan|tham so ; KHUNG|duong dan|tham so ...           |
+//| vd "M5|Market\\SuperTrend Pro|10,3.0,true;H1|MyInd"               |
+//| - duong dan tinh tu MQL5\Indicators, bo duoi .ex5                 |
+//| - tham so theo DUNG THU TU input cua chi bao: so nguyen -> int,   |
+//|   co dau cham -> double, true/false -> bool, "chu" -> string.     |
+//|   Bo trong = dung gia tri mac dinh cua chi bao.                   |
+//+------------------------------------------------------------------+
+string SafeTag(const string s)
+  {
+   string out = "";
+   for(int i = 0; i < StringLen(s); i++)
+     {
+      ushort c = StringGetCharacter(s, i);
+      bool ok = (c >= '0' && c <= '9') || (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z');
+      out += ok ? ShortToString(c) : "_";
+     }
+   return out;
+  }
+
+bool IsNumber(const string t, bool &isInt)
+  {
+   isInt = true;
+   int n = StringLen(t);
+   if(n == 0)
+      return false;
+   int digits = 0;
+   for(int i = 0; i < n; i++)
+     {
+      ushort c = StringGetCharacter(t, i);
+      if(c >= '0' && c <= '9')
+         digits++;
+      else if(c == '.' || c == 'e' || c == 'E')
+         isInt = false;
+      else if(!((c == '-' || c == '+') && (i == 0 || StringGetCharacter(t, i - 1) == 'e' || StringGetCharacter(t, i - 1) == 'E')))
+         return false;
+     }
+   return digits > 0;
+  }
+
+void ParseCustom()
+  {
+   g_nCu = 0;
+   string items[];
+   int n = StringSplit(InpCustomIndicators, ';', items);
+   for(int i = 0; i < n && g_nCu < MAX_CU; i++)
+     {
+      string it = items[i];
+      StringTrimLeft(it);
+      StringTrimRight(it);
+      if(StringLen(it) == 0)
+         continue;
+      string f[];
+      int m = StringSplit(it, '|', f);
+      for(int x = 0; x < m; x++) { StringTrimLeft(f[x]); StringTrimRight(f[x]); }
+      ENUM_TIMEFRAMES tf;
+      if(m < 2 || !StrToTF(f[0], tf))
+        {
+         PrintFormat("[TradeLogger] Bo qua chi bao tu viet '%s': can dang KHUNG|duong dan|tham so", it);
+         continue;
+        }
+      string path = f[1];
+      StringReplace(path, "/", "\\");
+      if(StringFind(path, "Indicators\\") == 0)
+         path = StringSubstr(path, 11);
+      string low = path;
+      StringToLower(low);
+      if(StringLen(low) > 4 && StringSubstr(low, StringLen(low) - 4) == ".ex5")
+         path = StringSubstr(path, 0, StringLen(path) - 4);
+      int k = g_nCu;
+      g_cuPath[k]   = path;
+      g_cuParams[k] = (m >= 3) ? f[2] : "";
+      g_cuTF[k]     = tf;
+      g_cuNBuf[k]   = -1;
+      string base = path;
+      int p = MathMax(StringFind(base, "\\", 0), -1);
+      while(p >= 0)
+        {
+         base = StringSubstr(base, p + 1);
+         p = StringFind(base, "\\", 0);
+        }
+      g_cuTag[k] = "i_U" + IntegerToString(k + 1) + "_" + SafeTag(base) + "_" + TfName(tf);
+      for(int b = 0; b < MAX_CU_BUF; b++) { g_rpChecked[k][b] = 0; g_rpChanged[k][b] = 0; }
+      g_nCu++;
+     }
+   if(g_nCu > 0)
+      PrintFormat("[TradeLogger] %d chi bao tu viet: %s", g_nCu, InpCustomIndicators);
+  }
+
+int MakeCuHandle(const string sym, const int k)
+  {
+   string toks[];
+   int nt = StringLen(g_cuParams[k]) > 0 ? StringSplit(g_cuParams[k], ',', toks) : 0;
+   MqlParam prm[];
+   ArrayResize(prm, nt + 1);
+   prm[0].type = TYPE_STRING;
+   prm[0].string_value = g_cuPath[k];
+   for(int j = 0; j < nt; j++)
+     {
+      string t = toks[j];
+      StringTrimLeft(t);
+      StringTrimRight(t);
+      string lw = t;
+      StringToLower(lw);
+      bool isInt;
+      if(lw == "true" || lw == "false")
+        {
+         prm[j + 1].type = TYPE_BOOL;
+         prm[j + 1].integer_value = (lw == "true") ? 1 : 0;
+        }
+      else if(IsNumber(t, isInt))
+        {
+         if(isInt)
+           {
+            prm[j + 1].type = TYPE_INT;
+            prm[j + 1].integer_value = StringToInteger(t);
+           }
+         else
+           {
+            prm[j + 1].type = TYPE_DOUBLE;
+            prm[j + 1].double_value = StringToDouble(t);
+           }
+        }
+      else
+        {
+         if(StringLen(t) >= 2 && StringGetCharacter(t, 0) == '"')
+            t = StringSubstr(t, 1, StringLen(t) - 2);
+         prm[j + 1].type = TYPE_STRING;
+         prm[j + 1].string_value = t;
+        }
+     }
+   ResetLastError();
+   int h = IndicatorCreate(sym, g_cuTF[k], IND_CUSTOM, nt + 1, prm);
+   if(h == INVALID_HANDLE)
+      PrintFormat("[TradeLogger] Khong mo duoc chi bao '%s' (%s) cho %s, loi %d. Kiem tra duong dan trong MQL5\\Indicators",
+                  g_cuPath[k], TfName(g_cuTF[k]), sym, GetLastError());
+   return h;
+  }
+
+int CuIndex(const string sym)
+  {
+   int n = ArraySize(g_scu);
+   for(int i = 0; i < n; i++)
+      if(g_scu[i].sym == sym)
+         return i;
+   ArrayResize(g_scu, n + 1);
+   g_scu[n].sym = sym;
+   for(int k = 0; k < MAX_CU; k++)
+      g_scu[n].h[k] = (k < g_nCu) ? MakeCuHandle(sym, k) : INVALID_HANDLE;
+   return n;
+  }
+
+//--- san sang khi chi bao da tinh xong; lan dau thi do so buffer (thu CopyBuffer 0,1,2... den khi loi)
+bool CuReady(const int j)
+  {
+   for(int k = 0; k < g_nCu; k++)
+     {
+      int h = g_scu[j].h[k];
+      if(h == INVALID_HANDLE)
+        {
+         if(g_cuNBuf[k] < 0)
+            g_cuNBuf[k] = 0;
+         continue;
+        }
+      if(BarsCalculated(h) <= 0)
+        {
+         g_notReady = StringFormat("%s chi bao tu viet %s dang tinh", g_scu[j].sym, g_cuPath[k]);
+         return false;
+        }
+      if(g_cuNBuf[k] < 0)
+        {
+         int cnt = 0;
+         int lim = MathMin(InpCustomMaxBuffers, MAX_CU_BUF);
+         for(int b = 0; b < lim; b++)
+           {
+            double v[];
+            if(CopyBuffer(h, b, 1, 1, v) != 1)
+               break;
+            cnt++;
+           }
+         g_cuNBuf[k] = cnt;
+         PrintFormat("[TradeLogger] Chi bao tu viet %s (%s): %d buffer -> cot %s_b0..b%d",
+                     g_cuPath[k], TfName(g_cuTF[k]), cnt, g_cuTag[k], cnt - 1);
+        }
+     }
+   return true;
+  }
+
+//--- truoc khi ghi header: chi bao chua do duoc so buffer thi coi nhu 0 de header co dinh
+void CuFreeze()
+  {
+   for(int k = 0; k < g_nCu; k++)
+      if(g_cuNBuf[k] < 0)
+        {
+         g_cuNBuf[k] = 0;
+         PrintFormat("[TradeLogger] Chi bao %s chua tinh xong, bo qua (gan lai logger de thu lai)", g_cuPath[k]);
+        }
+  }
+
+//--- EMPTY_VALUE (o trong cua chi bao mui ten) -> chuoi rong
+string CuVal(const double v) { return Valid(v) ? DoubleToString(v, 6) : ""; }
+
+string CuHeader(const string suffix)
+  {
+   string h = "";
+   for(int k = 0; k < g_nCu; k++)
+      for(int b = 0; b < MathMax(g_cuNBuf[k], 0); b++)
+         h += "," + g_cuTag[k] + "_b" + IntegerToString(b) + suffix;
+   return h;
+  }
+
+//--- shift < 0: nen da dong gan nhat truoc t; shift = 0: nen dang chay (doc ngay luc nay)
+string CuValues(const string sym, const datetime t, const bool live)
+  {
+   string out = "";
+   int j = CuIndex(sym);
+   for(int k = 0; k < g_nCu; k++)
+     {
+      int h = g_scu[j].h[k];
+      int s = live ? 0 : iBarShift(sym, g_cuTF[k], t, false) + 1;
+      for(int b = 0; b < MathMax(g_cuNBuf[k], 0); b++)
+         out += "," + ((h != INVALID_HANDLE && s >= (live ? 0 : 1)) ? CuVal(Buf(h, b, s)) : "");
+     }
+   return out;
+  }
+
+//+------------------------------------------------------------------+
+//| Kiem tra repaint: luc nen vua dong ghi lai gia tri moi buffer;    |
+//| sau InpRepaintCheckBars nen doc lai cung nen do va so sanh.       |
+//+------------------------------------------------------------------+
+string CuSnapshot(const int h, const int k, const int shift)
+  {
+   string s = "";
+   for(int b = 0; b < MathMax(g_cuNBuf[k], 0); b++)
+      s += (b ? "|" : "") + CuVal(Buf(h, b, shift));
+   return s;
+  }
+
+void RepaintTick()
+  {
+   if(g_nCu == 0)
+      return;
+   string syms[];
+   BarSymbols(syms);
+   for(int i = 0; i < ArraySize(syms); i++)
+     {
+      int j = CuIndex(syms[i]);
+      for(int k = 0; k < g_nCu; k++)
+        {
+         int h = g_scu[j].h[k];
+         if(h == INVALID_HANDLE || g_cuNBuf[k] <= 0)
+            continue;
+         datetime bt = iTime(syms[i], g_cuTF[k], 1);
+         string key = syms[i] + "|" + IntegerToString(k);
+         int slot = -1;
+         for(int x = 0; x < ArraySize(g_rpLastKey); x++)
+            if(g_rpLastKey[x] == key) { slot = x; break; }
+         if(slot < 0)
+           {
+            slot = ArraySize(g_rpLastKey);
+            ArrayResize(g_rpLastKey, slot + 1);
+            ArrayResize(g_rpLastBar, slot + 1);
+            g_rpLastKey[slot] = key;
+            g_rpLastBar[slot] = 0;
+           }
+         if(bt > 0 && bt != g_rpLastBar[slot])
+           {
+            g_rpLastBar[slot] = bt;
+            int n = ArraySize(g_rpSym);
+            ArrayResize(g_rpSym, n + 1); ArrayResize(g_rpK, n + 1); ArrayResize(g_rpBar, n + 1); ArrayResize(g_rpVals, n + 1);
+            g_rpSym[n] = syms[i]; g_rpK[n] = k; g_rpBar[n] = bt; g_rpVals[n] = CuSnapshot(h, k, 1);
+           }
+        }
+     }
+   // doc lai cac nen da du InpRepaintCheckBars nen
+   int fh = INVALID_HANDLE;
+   bool any = false;
+   int n = ArraySize(g_rpSym), keep = 0;
+   for(int i = 0; i < n; i++)
+     {
+      int k = g_rpK[i];
+      int sh = iBarShift(g_rpSym[i], g_cuTF[k], g_rpBar[i], true);
+      if(sh < 0 || sh < InpRepaintCheckBars + 1)
+        {
+         g_rpSym[keep] = g_rpSym[i]; g_rpK[keep] = k; g_rpBar[keep] = g_rpBar[i]; g_rpVals[keep] = g_rpVals[i];
+         keep++;
+         continue;
+        }
+      int h = g_scu[CuIndex(g_rpSym[i])].h[k];
+      string now = CuSnapshot(h, k, sh);
+      string a[], b[];
+      int na = StringSplit(g_rpVals[i], '|', a), nb = StringSplit(now, '|', b);
+      for(int x = 0; x < MathMin(na, nb) && x < MAX_CU_BUF; x++)
+        {
+         g_rpChecked[k][x]++;
+         if(a[x] == b[x])
+            continue;
+         g_rpChanged[k][x]++;
+         if(fh == INVALID_HANDLE)
+           {
+            fh = OpenOut(FName("repaint"), true);
+            if(fh != INVALID_HANDLE && FileSize(fh) == 0)
+               WriteLine(fh, "time_check,symbol,indicator,bar_time,buffer,value_when_closed,value_now");
+           }
+         if(fh != INVALID_HANDLE)
+            WriteLine(fh, TS(TimeCurrent()) + "," + g_rpSym[i] + "," + g_cuTag[k] + "," + TS(g_rpBar[i]) + "," +
+                      IntegerToString(x) + "," + a[x] + "," + b[x]);
+        }
+      any = true;
+     }
+   ArrayResize(g_rpSym, keep); ArrayResize(g_rpK, keep); ArrayResize(g_rpBar, keep); ArrayResize(g_rpVals, keep);
+   if(fh != INVALID_HANDLE)
+      FileClose(fh);
+   if(!any)
+      return;
+   int sh2 = OpenOut(FName("repaint_summary"), false);
+   if(sh2 == INVALID_HANDLE)
+      return;
+   WriteLine(sh2, "indicator,buffer,checked,changed,changed_pct");
+   for(int k = 0; k < g_nCu; k++)
+      for(int x = 0; x < MathMax(g_cuNBuf[k], 0); x++)
+         WriteLine(sh2, g_cuTag[k] + "," + IntegerToString(x) + "," + IntegerToString(g_rpChecked[k][x]) + "," +
+                   IntegerToString(g_rpChanged[k][x]) + "," +
+                   (g_rpChecked[k][x] > 0 ? D(100.0 * g_rpChanged[k][x] / g_rpChecked[k][x], 1) : ""));
+   FileClose(sh2);
+  }
+
 //--- cot chung + cot cua tung chi bao
 string CtxHeader()
   {
@@ -631,7 +995,7 @@ string CtxHeader()
          default:       h += "," + n;
         }
      }
-   return h;
+   return h + CuHeader("");
   }
 
 //--- t/tmsc: thoi diem ra quyet dinh; price: gia de do khoang cach toi MA/BB
@@ -698,6 +1062,7 @@ bool CtxFeatures(const string sym, const ENUM_TIMEFRAMES etf, const datetime t, 
             out += "," + VD(b0, 2);
         }
      }
+   out += CuValues(sym, t, false);
    return true;
   }
 
@@ -1019,7 +1384,7 @@ void AutoReport()
 //+------------------------------------------------------------------+
 string LiveHeader()
   {
-   return "live_lag_sec,live_bid,live_ask,live_spread_pts";
+   return "live_lag_sec,live_bid,live_ask,live_spread_pts" + CuHeader("_live0");
   }
 
 string DealHeader()
@@ -1102,7 +1467,7 @@ bool DealLine(const ulong t, string &line, const bool live = false)
       double bid = SymbolInfoDouble(sym, SYMBOL_BID), ask = SymbolInfoDouble(sym, SYMBOL_ASK);
       double pt  = SymbolInfoDouble(sym, SYMBOL_POINT);
       line += IntegerToString(lag) + "," + D(bid, digits) + "," + D(ask, digits) + "," +
-              (pt > 0 ? D((ask - bid) / pt, 0) : "");
+              (pt > 0 ? D((ask - bid) / pt, 0) : "") + CuValues(sym, tm, true);
      }
    else
       line += EmptyCols(LiveHeader());
@@ -1305,7 +1670,7 @@ void DumpSymbols()
                 IntegerToString(AccountInfoInteger(ACCOUNT_LEVERAGE)) + "," +
                 Clean(AccountInfoString(ACCOUNT_SERVER)) + "," + D(PipOf(s), 6) + "," +
                 IntegerToString(InpMagicFilter) + "," + UnitName() + "," + D(UnitOf(s), 6) + "," +
-                TfName(InpEntryTF) + "," + Clean(SpecString()));
+                TfName(InpEntryTF) + "," + Clean(SpecString() + (g_nCu > 0 ? " ; " + InpCustomIndicators : "")));
      }
    FileClose(h);
   }
@@ -1469,6 +1834,19 @@ void ParseCtxTFs()
      {
       ArrayResize(g_ctxTF, 1);
       g_ctxTF[0] = InpEntryTF;
+     }
+   // khung cua chi bao tu viet luon co file ctxbars rieng
+   for(int k = 0; k < g_nCu; k++)
+     {
+      bool have = false;
+      for(int i = 0; i < ArraySize(g_ctxTF); i++)
+         if(g_ctxTF[i] == g_cuTF[k]) have = true;
+      if(!have)
+        {
+         int m = ArraySize(g_ctxTF);
+         ArrayResize(g_ctxTF, m + 1);
+         g_ctxTF[m] = g_cuTF[k];
+        }
      }
   }
 
@@ -1743,7 +2121,15 @@ int OnInit()
          if(g_si[i].h[k] != INVALID_HANDLE)
             IndicatorRelease(g_si[i].h[k]);
    ArrayResize(g_si, 0);
+   for(int i = 0; i < ArraySize(g_scu); i++)
+      for(int k = 0; k < MAX_CU; k++)
+         if(g_scu[i].h[k] != INVALID_HANDLE)
+            IndicatorRelease(g_scu[i].h[k]);
+   ArrayResize(g_scu, 0);
+   ArrayResize(g_rpSym, 0); ArrayResize(g_rpK, 0); ArrayResize(g_rpBar, 0); ArrayResize(g_rpVals, 0);
+   ArrayResize(g_rpLastKey, 0); ArrayResize(g_rpLastBar, 0);
    ParseSpecs();
+   ParseCustom();
    ParseCtxTFs();
    ArrayResize(g_bbSym, 0);
    ArrayResize(g_bbLast, 0);
@@ -1781,6 +2167,10 @@ void OnDeinit(const int reason)
       for(int k = 0; k < MAX_SPECS; k++)
          if(g_si[i].h[k] != INVALID_HANDLE)
             IndicatorRelease(g_si[i].h[k]);
+   for(int i = 0; i < ArraySize(g_scu); i++)
+      for(int k = 0; k < MAX_CU; k++)
+         if(g_scu[i].h[k] != INVALID_HANDLE)
+            IndicatorRelease(g_scu[i].h[k]);
   }
 
 void OnTimer()
@@ -1799,6 +2189,7 @@ void OnTimer()
         }
       if(g_waitTicks >= maxWait)
          PrintFormat("[TradeLogger] Het thoi gian cho, van ghi file. Con thieu: %s", g_notReady);
+      CuFreeze();
       DumpSymbols();
       DumpAllDeals();
       AutoReport();
@@ -1827,6 +2218,7 @@ void OnTimer()
    if(InpExportCtxBars)
       ExportCtxBars();
    ExportM1();
+   RepaintTick();
    if(InpExportBars && TimeCurrent() - g_lastBarsExport >= InpBarsRefreshHours * 3600)
       ExportBars();
   }

@@ -192,6 +192,60 @@ Vì vậy hãy coi quy tắc dò được là **giả thuyết mô tả đúng h
 giả thuyết, backtest cùng giai đoạn, rồi so từng lệnh với EA gốc. Với dữ liệu thật càng nhiều rổ (≥ 50 mỗi
 chiều) thì càng đáng tin.
 
+## Chỉ báo tự viết (.ex5) — đọc buffer, không cần mã nguồn
+
+Nếu EA dùng một chỉ báo riêng mà bạn có file `.ex5`, logger 3.30 đọc được mọi buffer của nó qua `IndicatorCreate`.
+Đây là cách MT5 cho phép mọi EA dùng chỉ báo; không cần mã nguồn, không cần giải mã.
+
+**Cài đặt**
+
+1. Chép file `.ex5` vào `MQL5\Indicators\` (có thể để trong thư mục con), rồi bấm Refresh trong Navigator.
+   Thử kéo chỉ báo lên chart một lần để chắc nó chạy được, và ghi lại các tham số trong tab Inputs.
+2. Trong logger, điền `InpCustomIndicators` theo dạng `KHUNG|đường dẫn|tham số`, nhiều chỉ báo cách nhau dấu `;`
+   (tối đa 4 chỉ báo):
+
+   | Ví dụ | Ý nghĩa |
+   |---|---|
+   | `H1\|MyArrow` | `MQL5\Indicators\MyArrow.ex5` trên H1, tham số mặc định |
+   | `M5\|Market\SuperTrend Pro\|10,3.0,true` | Chỉ báo trong thư mục `Market`, 3 tham số |
+   | `M5\|A;H1\|Folder\B\|14` | Hai chỉ báo |
+
+   - Đường dẫn tính từ `MQL5\Indicators`, có hoặc không có đuôi `.ex5` đều được.
+   - Tham số phải **đúng thứ tự** như tab Inputs của chỉ báo: số nguyên → int, có dấu chấm (`3.0`) → double,
+     `true`/`false` → bool, `"chữ"` → string. Kiểu enum (danh sách chọn) thì ghi số thứ tự (0, 1, 2…).
+   - Bỏ trống tham số thì logger dùng giá trị mặc định của chỉ báo. Nếu EA gốc dùng tham số khác mặc định, buffer
+     sẽ lệch, nên cần điền đúng.
+3. Gắn lại logger. Tab Experts sẽ in, ví dụ:
+   `Chi bao tu viet MyArrow (H1): 4 buffer -> cot i_U1_MyArrow_H1_b0..b3`.
+   Nếu báo `Khong mo duoc chi bao`, kiểm tra lại đường dẫn.
+
+**Logger ghi gì**
+
+| Ở đâu | Cột / file | Nội dung |
+|---|---|---|
+| deals, ctxbars | `i_U1_<tên>_<TF>_b0…bN` | Giá trị mọi buffer ở **nến đã đóng** ngay trước lệnh / ở mỗi nến. Ô trống = `EMPTY_VALUE` (chỉ báo mũi tên không có tín hiệu) |
+| deals | `…_b0_live0…` | Giá trị ở **nến đang chạy** đúng lúc lệnh khớp (chỉ khi logger đang chạy) |
+| `<prefix>_repaint.csv` | | Mỗi lần một buffer ở nến đã đóng **bị đổi** khi đọc lại sau `InpRepaintCheckBars` nến (mặc định 10) |
+| `<prefix>_repaint_summary.csv` | | Mỗi buffer: số nến đã kiểm, số nến bị đổi, % |
+
+Khung của chỉ báo tự viết luôn được xuất file ctxbars, kể cả khi không có trong `InpCtxTFs`.
+
+**Phân tích (mục 9 của báo cáo)**
+
+- Bảng repaint: buffer nào vẽ lại và bao nhiêu %.
+- Với mỗi buffer, tách riêng BUY/SELL:
+  - tỉ lệ lệnh có tín hiệu ở nến đã đóng và ở nến đang chạy, so với tỉ lệ trên mọi nến;
+  - KS và gợi ý ngưỡng (cho buffer dạng đường / dao động).
+- Dòng kết luận, ví dụ `→ BUY: EA vào lệnh khi buffer 0 có tín hiệu ở nến ĐÃ ĐÓNG`.
+- Các cột "có tín hiệu" (`tin_hieu_*`) cũng được đưa vào mục 7.
+
+Kiểm thử bằng dữ liệu giả lập: chỉ báo mũi tên có tín hiệu ở 4% số nến, EA vào lệnh khi có mũi tên. Báo cáo kết luận
+đúng buffer 0, nến đã đóng (100% lệnh so với 4% nến), và hiện đúng bảng repaint. Phần MQL5 (IndicatorCreate, dò số
+buffer, kiểm tra repaint) **chưa compile hay chạy thật**.
+
+**Không làm được khi**: chỉ báo được gộp sẵn trong file EA (không có file `.ex5` riêng); chỉ báo kiểm tra bản quyền
+theo tài khoản và từ chối chạy; chỉ báo không ghi kết quả vào buffer (chỉ vẽ object lên chart).
+
 ## Giới hạn
 
 - Logger không chạy song song với EA khác trong Strategy Tester (Tester chỉ chạy 1 EA). Cần log từ tài khoản

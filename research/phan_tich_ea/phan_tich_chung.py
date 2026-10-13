@@ -19,6 +19,7 @@ Các mục của báo cáo:
   4. Đóng khi rổ vẫn còn lệnh (tỉa / đóng một phần).
   5. Lệnh chờ (cần --events): khoảng cách lúc đặt, ngưỡng dời lệnh (refresh), khớp hay huỷ.
   6. Dò khung thời gian EA: thời điểm vào lệnh / đặt lệnh chờ có rơi đúng lúc mở nến M1…D1 không.
+  9. Chỉ báo tự viết (.ex5): buffer nào có tín hiệu lúc vào lệnh, repaint hay không.
   8. Quét mọi khung × mọi chỉ báo từ nến M1 (cần file _m1_, xem quet_khung.py): dò quy tắc vào lệnh.
   7. Dò chỉ báo EA dùng (cần --ctxbars): so phân bố từng chỉ báo lúc vào lệnh với toàn bộ nến,
      xếp hạng cột tách biệt nhất (KS) và gợi ý ngưỡng. Dùng khi KHÔNG có file .set (tài khoản Passview).
@@ -399,11 +400,19 @@ def add_derived(row, cols):
     return out
 
 
+def presence(v):
+    """Chỉ báo mũi tên: ô trống (EMPTY_VALUE, logger ghi rỗng) hoặc 0 = không có tín hiệu."""
+    return 0.0 if v is None or v == 0 else 1.0
+
+
 def feature_table(rows, cols):
     tab = []
     for r in rows:
         v = {c: num(r.get(c)) for c in cols}
         v.update(add_derived(r, cols))
+        for c in cols:
+            if c.startswith("i_U"):  # chỉ báo tự viết: thêm cột "có tín hiệu" 0/1
+                v["tin_hieu_" + c[2:]] = presence(v[c])
         tab.append(v)
     return tab
 
@@ -484,6 +493,78 @@ def section_discover(rows, ctx_paths, w, tf=None, top=12):
     w("")
 
 
+
+# ---------------------------------------------------------------------------
+# 9. Chỉ báo tự viết (.ex5)
+# ---------------------------------------------------------------------------
+def section_custom(rows, ctx_paths, repaint_path, w):
+    cols = [c for c in ind_columns(rows) if c.startswith("i_U")]
+    if not cols and not repaint_path:
+        return
+    w("## 9. Chỉ báo tự viết (.ex5)\n")
+    if repaint_path:
+        rp = read_csv(repaint_path)
+        w("**Kiểm tra repaint** (giá trị lúc nến vừa đóng so với đọc lại sau vài nến):\n")
+        w("| Chỉ báo | Buffer | Số nến kiểm | Bị đổi | % |")
+        w("|---|---|---|---|---|")
+        for r in rp:
+            w(f"| {r['indicator']} | {r['buffer']} | {r['checked']} | {r['changed']} | {r['changed_pct']} |")
+        w("\nBuffer có % > 0 là **repaint**: backtest bằng lịch sử sẽ thấy tín hiệu khác lúc chạy thật. Với các buffer "
+          "này hãy tin cột `_live0` (giá trị EA thấy lúc khớp lệnh) hơn cột nến đã đóng.\n")
+    if not cols:
+        return
+    symbol = Counter(r["symbol"] for r in rows).most_common(1)[0][0]
+    groups = defaultdict(list)                     # i_U1_Name_H1_b0 -> tag i_U1_Name_H1
+    for c in cols:
+        if c.endswith("_live0"):
+            continue
+        groups[c.rsplit("_b", 1)[0]].append(c)
+    for tag, bcols in groups.items():
+        tf = tag.rsplit("_", 1)[-1]
+        path = pick_ctx(ctx_paths, symbol, tf) if ctx_paths else None
+        bars = [b for b in read_csv(path) if b.get("symbol", symbol) == symbol] if path else []
+        w(f"### {tag} — nền chung: `{os.path.basename(path) if path else 'không có ctxbars'}`\n")
+        w("| Chiều | Buffer | Lúc vào: có tín hiệu (nến đã đóng / nến đang chạy) | Mọi nến: có tín hiệu | "
+          "Giá trị lúc vào p5 / trung vị / p95 | Mọi nến p5 / trung vị / p95 | KS | Gợi ý |")
+        w("|---|---|---|---|---|---|---|---|")
+        verdicts = []
+        for side in ("BUY", "SELL"):
+            ent = [r for r in rows if r["entry"] == "IN" and r["k_idx"] == "1" and r["k_side"] == side]
+            if not ent:
+                continue
+            for c in bcols:
+                b = c.rsplit("_b", 1)[1]
+                a = [num(r.get(c)) for r in ent]
+                live = [num(r.get(c + "_live0")) for r in ent if (c + "_live0") in r and r.get("live_lag_sec")]
+                pa = sum(presence(x) for x in a) / len(a)
+                pl = (f"{sum(presence(x) for x in live) / len(live):.0%}" if live else "—")
+                pb = [num(x.get(c)) for x in bars]
+                pp = (f"{sum(presence(x) for x in pb) / len(pb):.0%}" if pb else "—")
+                av = [x for x in a if x is not None]
+                bv = [x for x in pb if x is not None]
+                d = ks(av, bv) if len(av) >= 10 and len(bv) >= 50 else None
+                sg = suggest(av, bv) if d is not None else "—"
+                w(f"| {side} | {b} | {pa:.0%} / {pl} | {pp} | {f(q(av, .05), 4)} / {f(q(av, .5), 4)} / {f(q(av, .95), 4)} | "
+                  f"{f(q(bv, .05), 4)} / {f(q(bv, .5), 4)} / {f(q(bv, .95), 4)} | {f(d, 2)} | {sg} |")
+                share_all = sum(presence(x) for x in pb) / len(pb) if pb else 1.0
+                share_live = sum(presence(x) for x in live) / len(live) if live else 0.0
+                if pa >= 0.9 and share_all <= 0.2:
+                    verdicts.append(f"**→ {side}: EA vào lệnh khi buffer {b} có tín hiệu ở nến ĐÃ ĐÓNG** "
+                                    f"({pa:.0%} lệnh, chỉ {share_all:.0%} nến có tín hiệu).")
+                elif share_live >= 0.9 and pa < 0.5:
+                    verdicts.append(f"**→ {side}: EA vào lệnh khi buffer {b} có tín hiệu ngay trên nến ĐANG CHẠY** "
+                                    f"({share_live:.0%} lệnh) — tín hiệu có thể mất khi nến đóng.")
+        w("")
+        for v in verdicts:
+            w(v + "\n")
+    w("Cách đọc:")
+    w("- Buffer **mũi tên** (thường trống): \"có tín hiệu\" lúc vào gần 100% mà mọi nến chỉ vài % → EA vào lệnh theo mũi tên đó. "
+      "Nếu chỉ cột nến đang chạy (`_live0`) cao → EA đọc tín hiệu ngay trên nến chưa đóng.")
+    w("- Buffer **đường / dao động**: xem KS và gợi ý ngưỡng giống mục 7.")
+    w("- EA sao chép dùng lại đúng file .ex5 qua `iCustom` với cùng tham số, buffer và nến (đã đóng hay đang chạy).")
+    w("")
+
+
 def find_files(prefix):
     """Từ tiền tố file logger (vd .../Files/TradeLogger/tradelog/tradelog) hoặc chính thư mục log
     (vd .../Files/TradeLogger/tradelog) tìm deals, events_v3, ctxbars, auto, m1."""
@@ -497,8 +578,9 @@ def find_files(prefix):
     ctx = sorted(glob.glob(glob.escape(prefix) + "_ctxbars_*.csv"))
     auto = prefix + "_auto.csv"
     m1 = sorted(glob.glob(glob.escape(prefix) + "_m1_*.csv"))
+    rp = prefix + "_repaint_summary.csv"
     return (deals if os.path.exists(deals) else None, events if os.path.exists(events) else None, ctx,
-            auto if os.path.exists(auto) else None, m1)
+            auto if os.path.exists(auto) else None, m1, rp if os.path.exists(rp) else None)
 
 
 def section_auto(path, w):
@@ -512,7 +594,7 @@ def section_auto(path, w):
     w("\nTICK = không khớp lúc mở nến khung nào (EA chạy theo tick hoặc lệnh chờ); ? = chưa đủ 10 rổ.\n")
 
 
-def report_one(rows, a, events, ctx, w, m1=()):
+def report_one(rows, a, events, ctx, w, m1=(), repaint=None):
     baskets = section_overview(rows, w)
     section_first(rows, w)
     section_grid(rows, w)
@@ -523,6 +605,7 @@ def report_one(rows, a, events, ctx, w, m1=()):
     tf = section_timeframe(rows, events, magic, a.symbol, w)
     if ctx:
         section_discover(rows, ctx, w, tf)
+    section_custom(rows, ctx, repaint, w)
     sym = Counter(r["symbol"] for r in rows).most_common(1)[0][0]
     m1f = [p for p in m1 if os.path.basename(p).endswith(f"_m1_{sym}.csv")] or list(m1)
     if m1f:
@@ -544,9 +627,9 @@ def main():
     a = ap.parse_args()
 
     auto = None
-    deals, events, ctx, m1 = a.deals, a.events, list(a.ctxbars), list(a.m1)
+    deals, events, ctx, m1, repaint = a.deals, a.events, list(a.ctxbars), list(a.m1), None
     if a.prefix:
-        d2, e2, c2, auto, m2 = find_files(a.prefix)
+        d2, e2, c2, auto, m2, repaint = find_files(a.prefix)
         deals = deals or d2
         events = events or e2
         ctx = ctx or c2
@@ -564,7 +647,7 @@ def main():
     if not rows:
         w("Không có deal nào khớp bộ lọc.\n")
     elif a.magic is not None:
-        report_one(rows, a, events, ctx, w, m1)
+        report_one(rows, a, events, ctx, w, m1, repaint)
     else:
         by_magic = defaultdict(list)
         for r in rows:
@@ -575,7 +658,7 @@ def main():
             if len(by_magic[m]) < a.min_deals:
                 continue
             w(f"\n---\n\n# Magic {m} ({len(by_magic[m])} deal)\n")
-            report_one(by_magic[m], a, events, ctx, w, m1)
+            report_one(by_magic[m], a, events, ctx, w, m1, repaint)
         if skipped:
             w(f"\nBỏ qua magic ít hơn {a.min_deals} deal: {', '.join(skipped)}\n")
     text = "\n".join(lines)
