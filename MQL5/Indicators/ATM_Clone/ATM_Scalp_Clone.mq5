@@ -16,7 +16,7 @@
 //| de dem trung / lech, in ra tab Experts + file CSV.               |
 //+------------------------------------------------------------------+
 #property copyright "ATM clone test"
-#property version   "0.10"
+#property version   "0.11"
 #property indicator_chart_window
 #property indicator_buffers 0
 #property indicator_plots   0
@@ -27,6 +27,9 @@ input int    InpWarmupBars    = 600;                       // Nến khởi độ
 input int    InpLineBars      = 15;                        // Độ dài đường ENTRY/SL/TP (nến)
 input bool   InpCompare       = true;                      // So với chỉ báo gốc
 input string InpOrigIndicator = "DTRADE$ - ATM SCALP AI";  // Tên chỉ báo gốc (trong MQL5\Indicators)
+input bool   InpUseOrigState  = true;                      // Khi so sánh: dùng trạng thái lệnh (b2) của bản gốc cho điều kiện 8
+input bool   InpDrawOnlyWindow= true;                      // Khi so sánh: chỉ vẽ trong vùng bản gốc có tính
+input int    InpMaxMismatch   = 30;                        // Số nến lệch in ra tab Experts
 
 input group "Tham số quy tắc"
 input double InpAdxMin        = 20;                        // ADX tối thiểu
@@ -91,7 +94,7 @@ bool Recompute(const bool live)
       N = avail;
 
    MqlRates r[];
-   double e9[], e14[], e21[], e55[], adx[], ob0[], ob1[];
+   double e9[], e14[], e21[], e55[], adx[], ob0[], ob1[], ob2[];
    ArraySetAsSeries(r, false);
    if(CopyRates(_Symbol, _Period, 1, N, r) != N) return false;
    if(CopyBuffer(hE9, 0, 1, N, e9) != N) return false;
@@ -102,7 +105,8 @@ bool Recompute(const bool live)
    bool cmp = InpCompare && hOrig != INVALID_HANDLE;
    if(cmp)
      {
-      if(CopyBuffer(hOrig, 0, 1, N, ob0) != N || CopyBuffer(hOrig, 1, 1, N, ob1) != N)
+      if(CopyBuffer(hOrig, 0, 1, N, ob0) != N || CopyBuffer(hOrig, 1, 1, N, ob1) != N ||
+         CopyBuffer(hOrig, 2, 1, N, ob2) != N)
          cmp = false;
      }
 
@@ -119,7 +123,8 @@ bool Recompute(const bool live)
      }
 
    vDir = 0; vTp1Hit = false;
-   int tp = 0, fp = 0, fn = 0, origFirst = -1;
+   int tp = 0, fp = 0, fn = 0, origFirst = -1, nMis = 0;
+   string mis = "";
    int fh = INVALID_HANDLE;
    if(!live)
      {
@@ -149,10 +154,14 @@ bool Recompute(const bool live)
         }
 
       //--- 2) tin hieu
+      //    trang thai lenh cho dk 8: cua ban goc (khi so sanh) hoac lenh ao cua ban sao
+      int posDir = vDir;
+      if(cmp && InpUseOrigState && origFirst >= 0 && i >= origFirst)
+         posDir = (MathIsValidNumber(ob2[i - 1]) && ob2[i - 1] != EMPTY_VALUE) ? (int)MathRound(ob2[i - 1]) : 0;
       int sig = 0;
       for(int d = 1; d >= -1; d -= 2)
         {
-         if(vDir == d) continue;                                     // dk 8
+         if(posDir == d) continue;                                   // dk 8
          if((e21[i] - e55[i]) * d <= 0) continue;                    // dk 1
          if(adx[i] <= InpAdxMin) continue;                           // dk 2
          if((r[i].close - e9[i]) * d <= 0) continue;                 // dk 3
@@ -178,7 +187,8 @@ bool Recompute(const bool live)
          vSL  = vEntry - sig * R;
          vTP1 = vEntry + sig * R; vTP2 = vEntry + sig * 2 * R; vTP3 = vEntry + sig * 3 * R;
          bool newest = (i == N - 1);
-         if(!live || newest)
+         bool inWin  = !(cmp && InpDrawOnlyWindow) || (origFirst >= 0 && i >= origFirst);
+         if((!live && inWin) || newest)
            {
             datetime tEnd = r[i].time + (datetime)(InpLineBars * PeriodSeconds(_Period));
             DrawSignal(r[i].time, tEnd, sig, r[i].low, r[i].high, vEntry, vSL, vTP1, vTP2, vTP3);
@@ -199,6 +209,12 @@ bool Recompute(const bool live)
            {
             if(sig != 0) fp++;
             if(orig != 0) fn++;
+            if((sig != 0 || orig != 0) && nMis < InpMaxMismatch)
+              {
+               mis += StringFormat("\n   %s  clone=%s  goc=%s  adx=%.1f", TimeToString(r[i].time),
+                                   sig > 0 ? "BUY " : (sig < 0 ? "SELL" : " -  "), orig > 0 ? "BUY " : (orig < 0 ? "SELL" : " -  "), adx[i]);
+               nMis++;
+              }
            }
         }
       if(fh != INVALID_HANDLE && (sig != 0 || orig != 0))
@@ -217,6 +233,8 @@ bool Recompute(const bool live)
                      "=> bat duoc %.0f%% tin hieu goc, %.0f%% tin hieu clone la dung. File: Common\\Files\\%s",
                      TimeToString(r[origFirst].time), tp, fp, fn,
                      tp + fn > 0 ? 100.0 * tp / (tp + fn) : 0, tp + fp > 0 ? 100.0 * tp / (tp + fp) : 0, LogName());
+      if(cmp && origFirst >= 0 && nMis > 0)
+         Print("[ATM clone] Cac nen lech (toi da ", InpMaxMismatch, "):", mis);
       else if(InpCompare)
          Print("[ATM clone] Khong doc duoc tin hieu chi bao goc (kiem tra InpOrigIndicator) - chi ve tin hieu clone.");
      }
