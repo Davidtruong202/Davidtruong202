@@ -60,8 +60,37 @@ logger bản cũ nên chỉ có b0–b15). Script mới: `m1_overview.py`, `trig
 - Hướng lấy thêm tín hiệu ngay: vì công thức không phụ thuộc khung, gắn chỉ báo trên nhiều khung
   (M1, M2, M3, M5, M10, M15…) — mỗi khung cho thêm ≈ 70 tín hiệu trong 7 500 nến cuối.
 
+## Lần 3 — 4 khung M2/M3/M5/M15 (demo, đủ 21 buffer): QUY TẮC VÀO LỆNH
+
+Dữ liệu: thư mục `ATM Demo2` (XAUUSDm, 90 ngày; M2 48 353 / M3 32 282 / M5 19 370 / M15 6 457 nến).
+**320 tín hiệu** (M2 78, M3 85, M5 76, M15 83). Script: `hunt3.py` … `hunt7.py`
+(`python3 hunt6.py <thư mục scripts> research/phan_tich_ea <thư mục ATM Demo2>`).
+
+Quy tắc BUY tại nến i (đã đóng; SELL đối xứng):
+
+1. Xu hướng: EMA21 > EMA55 (buffer b20; trùng 99.7–99.9%)
+2. ADX(14) Wilder > 20
+3. close > EMA9
+4. EMA9 > EMA21
+5. Nến tăng: close > open
+6. close > high của nến i−1
+7. **Nhịp hồi**: trong 7 nến i−6…i có ít nhất một nến low ≤ EMA14 (của chính nến đó)
+8. Không đang có lệnh BUY (đang không có lệnh hoặc đang SELL → đảo chiều)
+
+Vào lệnh tại close nến i; SL = entry − 3 × ATR(14) Wilder; TP1/TP2/TP3 = entry + 1R/2R/3R.
+
+Khớp với buffer thật trên 4 khung: **bắt 313/322 tín hiệu (recall 97%)**, **87% lần quy tắc báo là tín hiệu
+thật (precision)**; F1 = 0.917. Cửa sổ nhịp hồi nhạy: 5 nến (k=4) F1 0.87, 7 nến F1 0.92, 9 nến F1 0.85;
+EMA14 tốt hơn hẳn EMA9/EMA21; ngưỡng ADX đúng là 20 (tăng lên làm mất tín hiệu thật).
+
+Phần còn lệch:
+- 9 tín hiệu bị bỏ sót: 7 cái xảy ra khi "đang có lệnh cùng chiều" theo b2 nến trước → nhiều khả năng lệnh cũ
+  vừa chạm SL/TP3 ngay trong nến i rồi vào lại. Cần mô phỏng đóng lệnh trong nến (high/low chạm SL/TP).
+- 48 tín hiệu thừa: rải rác, nhiều ở giờ 00 (server) và ADX sát 20 → có thể còn bộ lọc giờ/spread hoặc
+  điểm số phụ; chưa rõ. b17/b18 không phân biệt được tín hiệu.
+
 ## Việc tiếp theo
 
-- Ảnh tab Inputs của chỉ báo (có thể có sẵn: ADX tối thiểu, hệ số ATR cho SL, R:R, số nến lịch sử…).
-- Tìm điều kiện kích hoạt còn thiếu và công thức b17/b18; kiểm tra lại trên M1 (cùng công thức phải đúng).
+- Viết chỉ báo/EA MQL5 theo quy tắc trên (kèm máy trạng thái lệnh: đóng khi chạm SL/TP3, đảo chiều khi có
+  tín hiệu ngược), chạy song song với chỉ báo gốc và so tín hiệu từng nến để gỡ nốt phần lệch.
 - Kiểm tra repaint (file `repaint_summary.csv` sau 2–3 ngày chạy).
