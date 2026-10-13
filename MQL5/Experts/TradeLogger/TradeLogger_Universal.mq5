@@ -30,7 +30,7 @@
 //|  nen dang chay luc khop lenh), tu kiem tra repaint                |
 //+------------------------------------------------------------------+
 #property copyright "TradeLogger"
-#property version   "3.30"
+#property version   "3.31"
 #property description "Ghi log lenh (deal/order/position) + dac trung thi truong ra CSV, cho moi loai EA."
 #property description "Chay duoc voi tai khoan dang nhap bang mat khau investor (chi doc)."
 
@@ -71,7 +71,7 @@ input int             InpBarsRefreshHours = 6;          // Xuất lại file n�
 
 input group "Chỉ báo tự viết (.ex5, không cần mã nguồn)"
 input string          InpCustomIndicators = "";         // KHUNG|đường dẫn trong MQL5\Indicators|tham số ; nhiều chỉ báo cách nhau dấu ;
-input int             InpCustomMaxBuffers = 16;         // Số buffer tối đa dò cho mỗi chỉ báo
+input int             InpCustomMaxBuffers = 64;         // Số buffer tối đa dò cho mỗi chỉ báo (tối đa 64)
 input int             InpRepaintCheckBars = 10;         // Kiểm tra repaint: đọc lại giá trị nến đã đóng sau N nến
 
 input group "Tự dò (EA không có file .set)"
@@ -142,7 +142,7 @@ ENUM_TIMEFRAMES g_ctxTF[];
 
 //--- chi bao tu viet (.ex5)
 #define MAX_CU     4
-#define MAX_CU_BUF 16
+#define MAX_CU_BUF 64
 int             g_nCu = 0;
 string          g_cuPath[MAX_CU];
 string          g_cuParams[MAX_CU];
