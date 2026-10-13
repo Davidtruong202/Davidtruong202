@@ -31,3 +31,19 @@ Lưu ý:
 - Khung giờ 00–06 được chọn sau khi đã xem bảng theo giờ của cả dữ liệu → có thiên lệch chọn lựa; cần chạy
   thử tiếp (forward/demo) trước khi tin.
 - Chưa tính trượt giá, phí hoa hồng; tài khoản cent spread có thể khác.
+
+## Dùng trong chỉ báo `ATM_Scalp_Clone` (bản 0.20)
+
+Hai bộ lọc trên có trong [`ATM_Scalp_Clone.mq5`](../../MQL5/Indicators/ATM_Clone/ATM_Scalp_Clone.mq5) dưới dạng
+tùy chọn. Chỉ báo chỉ vẽ, không đặt lệnh.
+
+| Input | Mặc định | Ý nghĩa |
+|---|---|---|
+| `InpHourFilter`, `InpHourStart`, `InpHourEnd` | true, 0, 7 | Chỉ nhận tín hiệu khi nến mở trong giờ server [0, 7), tức 00:00–06:59 |
+| `InpHtfFilter`, `InpHtf` | true, CURRENT | Khung lớn phải cùng chiều (EMA21 vs EMA55, nến khung lớn đã đóng). CURRENT tự chọn: M1–M3 → M15, M4–M10 → H1, M12–M30 → H4, H1 trở lên → D1 |
+| `InpShowFiltered` | true | Tín hiệu bị lọc vẽ mũi tên xám, không có đường ENTRY/SL/TP |
+| `InpSpreadCost` | 0 | Spread trừ vào thống kê (đơn vị giá); 0 = spread hiện tại |
+| `InpAlert` | true | Alert khi có tín hiệu mới đã qua lọc |
+
+Khi gắn lên chart, tab Experts in 2 dòng "Lenh ao": KHONG loc và CO loc (số lệnh, WR(TP1), R/lệnh trước và sau
+spread, tổng R) trên lịch sử đang có. Phần so sánh với chỉ báo gốc vẫn dùng bản KHÔNG lọc.
