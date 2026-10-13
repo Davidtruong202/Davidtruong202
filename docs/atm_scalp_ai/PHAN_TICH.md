@@ -1,4 +1,4 @@
-# DTRADE$ – ATM SCALP AI: phân tích buffer (lần 1)
+# DTRADE$ – ATM SCALP AI: phân tích buffer
 
 Dữ liệu: `ATM Scalping2_ctxbars_XAUUSDc_M5.csv` (TradeLogger 3.31, Exness Real20, XAUUSDc M5,
 2025-09-12 → 2026-10-13, 76 468 nến, 21 buffer). Script: `research/atm_scalp_ai/`
@@ -38,6 +38,27 @@ Dữ liệu: `ATM Scalping2_ctxbars_XAUUSDc_M5.csv` (TradeLogger 3.31, Exness Re
 - **Chưa đủ**: trong giai đoạn có tín hiệu, 317 nến thỏa cả 5 điều kiện lúc không có lệnh nhưng chỉ 68 nến có
   tín hiệu → còn ít nhất một điều kiện kích hoạt chưa tìm ra (ứng viên: b17/b18, khoảng nghỉ giữa 2 lệnh,
   vị trí giá so với EMA, giờ giao dịch). 8/76 tín hiệu xuất hiện khi đang có lệnh (đảo chiều / vào lại).
+
+## Lần 2 — thêm dữ liệu M1 tài khoản demo
+
+Dữ liệu: `ATM Demo_ctxbars_XAUUSDm_M1.csv` (Exness-MT5Trial7, XAUUSDm M1, 2024-10-04 → 2026-10-13, 712 648 nến;
+logger bản cũ nên chỉ có b0–b15). Script mới: `m1_overview.py`, `trigger_hunt.py`, `trigger2.py`
+(file M1 lớn: đọc bằng `load_m1.py`).
+
+- **Mọi công thức trên M5 đều đúng y hệt trên M1**: EMA 9/14/21/34/55, ATR(14) Wilder, SL = 3×ATR,
+  TP = 1R/2R/3R, ENTRY = close. → công thức không phụ thuộc khung.
+- **Chỉ báo chỉ ghi tín hiệu vào buffer cho ≈ 7 500 nến gần nhất** trên mọi khung và cả demo lẫn real
+  (M5: 26 ngày, M1: 5.6 ngày). "52 013 lệnh / từ 2014" trên bảng là backtest nội bộ, không xuất ra buffer.
+  Tổng hiện có: 143 tín hiệu (M1 67 + M5 76).
+- Điều kiện cần thứ 6 (100% tín hiệu ở cả M1 và M5, nền khác ≈ 51%): **close vượt đỉnh nến trước** (BUY) /
+  **close thủng đáy nến trước** (SELL).
+- 6 điều kiện bao 143/143 tín hiệu. Khi đang không có lệnh, còn 79 (M1) / 92 (M5) nến thỏa 6 điều kiện mà
+  không có tín hiệu → độ chính xác ≈ 40–45%, vẫn thiếu điều kiện. Dấu hiệu: các nến bị bỏ qua thường liền nhau
+  (ví dụ 05:21–05:30), ADX và thân nến không giải thích được → nghi có điểm số tổng hợp ("AI score"),
+  bộ lọc giờ/khối lượng (b17/b18) hoặc khoảng nghỉ.
+- 16/67 (M1) và 8/76 (M5) tín hiệu xuất hiện khi đang có lệnh, phần lớn là **đảo chiều** (đang BUY → SELL).
+- Hướng lấy thêm tín hiệu ngay: vì công thức không phụ thuộc khung, gắn chỉ báo trên nhiều khung
+  (M1, M2, M3, M5, M10, M15…) — mỗi khung cho thêm ≈ 70 tín hiệu trong 7 500 nến cuối.
 
 ## Việc tiếp theo
 
